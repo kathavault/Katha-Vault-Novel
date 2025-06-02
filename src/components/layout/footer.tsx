@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { Home, LayoutGrid, Search, UserCircle, PencilLine } from 'lucide-react'; // Added PencilLine for Create
+import { Home, Library, PlusSquare, MessageCircle, UserCircle } from 'lucide-react';
 
 export function Footer() {
   const footerNavItems = [
     { href: '/', label: 'Home', icon: <Home size={24} /> },
-    { href: '/create', label: 'Create', icon: <PencilLine size={24} /> }, // Changed from Menu to Create
-    { href: '/forum', label: 'Forum', icon: <LayoutGrid size={24} /> }, // Changed from Search to Forum
-    { href: '/library', label: 'Library', icon: <Search size={24} /> }, // Changed to Library for Search icon
-    { href: '/recommendations', label: 'Profile', icon: <UserCircle size={24} /> }, // Changed to Recommendations for Profile icon
+    { href: '/library', label: 'Library', icon: <Library size={24} /> },
+    { href: '/posts/new', label: 'Post', icon: <PlusSquare size={24} /> },
+    { href: '/chat', label: 'Chat', icon: <MessageCircle size={24} /> },
+    { href: '/profile', label: 'Account', icon: <UserCircle size={24} /> },
   ];
 
   return (
