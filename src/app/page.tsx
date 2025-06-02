@@ -11,37 +11,62 @@ interface Story {
   snippet: string;
   coverImageUrl?: string;
   aiHint?: string;
-  likes?: number;
   views?: number;
   chapters?: number;
+  rating?: number; // Added rating
+  isTrending?: boolean; // Added for trending badge
 }
 
 const trendingStories: Story[] = [
-  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Nora Vincent', genres: ['Sci-Fi', 'Time Travel', 'Adventure'], snippet: 'A historian stumbles upon a device that warps time, leading her on a perilous journey through history\'s darkest secrets.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'time machine', likes: 4200, views: 15300, chapters: 25 },
-  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Liam Evergreen', genres: ['Fantasy', 'Mystery', 'Jungle'], snippet: 'In a lost jungle civilization, a young shaman must uncover the source of a spreading curse before it consumes his people.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'jungle temple', likes: 3800, views: 12100, chapters: 18 },
+  {
+    id: 'trend-1',
+    title: 'The Whispers of Chronos',
+    author: 'Eleanor Vance',
+    genres: ['time travel', 'science fiction'],
+    snippet: "A time-traveling journey through the eras in search of a missing chronomancer.",
+    coverImageUrl: 'https://placehold.co/600x400.png',
+    aiHint: 'time machine',
+    views: 26000,
+    chapters: 25,
+    rating: 4.8,
+    isTrending: true,
+  },
+  {
+    id: 'trend-2',
+    title: 'Beneath the Emerald Canopy',
+    author: 'Liam Evergreen',
+    genres: ['Fantasy', 'Mystery', 'Jungle'],
+    snippet: 'In a lost jungle civilization, a young shaman must uncover the source of a spreading curse before it consumes his people.',
+    coverImageUrl: 'https://placehold.co/600x400.png',
+    aiHint: 'jungle temple',
+    views: 12100,
+    chapters: 18,
+    rating: 4.6, // Added example rating
+    isTrending: true, // Flag as trending
+  },
 ];
 
 const fullLengthNovels: Story[] = [
-  { id: 'novel-1', title: 'The Astral Alchemist', author: 'Seraphina Cole', genres: ['High Fantasy', 'Magic', 'Epic'], snippet: 'A grand tale of warring kingdoms, ancient prophecies, and an alchemist whose powers could reshape the very fabric of reality.', coverImageUrl: 'https://placehold.co/800x500.png', aiHint: 'fantasy alchemy', likes: 12500, views: 88000, chapters: 75 },
+  { id: 'novel-1', title: 'The Astral Alchemist', author: 'Seraphina Cole', genres: ['High Fantasy', 'Magic', 'Epic'], snippet: 'A grand tale of warring kingdoms, ancient prophecies, and an alchemist whose powers could reshape the very fabric of reality.', coverImageUrl: 'https://placehold.co/800x500.png', aiHint: 'fantasy alchemy', views: 88000, chapters: 75, rating: 4.9 },
 ];
 
 const shortStories: Story[] = [
-  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Quinn', genres: ['Sci-Fi', 'Short Story', 'Drama'], snippet: 'A brief encounter with a time-traveling tailor leads to unforeseen consequences for a lonely watchmaker.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'clock gears', likes: 1500, views: 5000, chapters: 1 },
-  { id: 'short-2', title: 'The Clockwork Heart', author: 'Orville Tinkerton', genres: ['Steampunk', 'Romance', 'Short'], snippet: 'An inventor creates a mechanical companion, only to find it possesses more heart than he ever imagined.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'steampunk robot', likes: 2200, views: 7800, chapters: 1 },
+  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Quinn', genres: ['Sci-Fi', 'Short Story', 'Drama'], snippet: 'A brief encounter with a time-traveling tailor leads to unforeseen consequences for a lonely watchmaker.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'clock gears', views: 5000, chapters: 1, rating: 4.5 },
+  { id: 'short-2', title: 'The Clockwork Heart', author: 'Orville Tinkerton', genres: ['Steampunk', 'Romance', 'Short'], snippet: 'An inventor creates a mechanical companion, only to find it possesses more heart than he ever imagined.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'steampunk robot', views: 7800, chapters: 1, rating: 4.7 },
 ];
 
 const romanceReads: Story[] = [
-  { id: 'rom-1', title: 'Love in the Time of Stardust', author: 'Noelle Skye', genres: ['Romance', 'Sci-Fi', 'Space Opera'], snippet: 'Two star-crossed lovers from rival empires find their destinies intertwined amidst a galactic war.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'space couple', likes: 7500, views: 32000, chapters: 40 },
+  { id: 'rom-1', title: 'Love in the Time of Stardust', author: 'Noelle Skye', genres: ['Romance', 'Sci-Fi', 'Space Opera'], snippet: 'Two star-crossed lovers from rival empires find their destinies intertwined amidst a galactic war.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'space couple', views: 32000, chapters: 40, rating: 4.8 },
 ];
 
 const scifiAdventures: Story[] = [
-  { id: 'scifi-1', title: 'Echoes of the Void', author: 'Captain Rex Nebula', genres: ['Space Opera', 'Action', 'Alien'], snippet: 'A rogue captain and his ragtag crew uncover an ancient alien artifact that could spell doom or salvation for the galaxy.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'spaceship battle', likes: 6800, views: 29000, chapters: 33 },
-  { id: 'scifi-2', title: 'The Last Cyberpunk', author: 'Neon Ryder', genres: ['Cyberpunk', 'Dystopian', 'Tech'], snippet: 'In a neon-drenched metropolis, a lone hacker fights against a totalitarian AI regime.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'cyberpunk city', likes: 5300, views: 22000, chapters: 28 },
+  { id: 'scifi-1', title: 'Echoes of the Void', author: 'Captain Rex Nebula', genres: ['Space Opera', 'Action', 'Alien'], snippet: 'A rogue captain and his ragtag crew uncover an ancient alien artifact that could spell doom or salvation for the galaxy.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'spaceship battle', views: 29000, chapters: 33, rating: 4.6 },
+  { id: 'scifi-2', title: 'The Last Cyberpunk', author: 'Neon Ryder', genres: ['Cyberpunk', 'Dystopian', 'Tech'], snippet: 'In a neon-drenched metropolis, a lone hacker fights against a totalitarian AI regime.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'cyberpunk city', views: 22000, chapters: 28, rating: 4.4 },
 ];
 
 const moreStories: Story[] = [
-   { id: '1', title: 'The Last Nebula', author: 'Aria Vale', genres: ['Sci-Fi'], snippet: 'In a dying galaxy, a lone explorer seeks the fabled Last Nebula.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space', likes: 1000, views: 3000, chapters: 12 },
-   { id: '2', title: 'Whispers of the Old Wood', author: 'Elara Moonwhisper', genres: ['Fantasy'], snippet: 'An ancient forest guards secrets darker than its deepest shadows.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'enchanted forest', likes: 1200, views: 3500, chapters: 15 },
+   { id: '1', title: 'The Last Nebula', author: 'Aria Vale', genres: ['Sci-Fi'], snippet: 'In a dying galaxy, a lone explorer seeks the fabled Last Nebula.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space', views: 3000, chapters: 12, rating: 4.3 },
+   { id: '2', title: 'Whispers of the Old Wood', author: 'Elara Moonwhisper', genres: ['Fantasy'], snippet: 'An ancient forest guards secrets darker than its deepest shadows.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'enchanted forest', views: 3500, chapters: 15, rating: 4.5 },
 ];
 
 
@@ -58,15 +83,32 @@ const SectionHeader = ({ title, icon, seeAllLink }: { title: string; icon: React
 );
 
 export default function HomePage() {
-  const renderSection = (title: string, icon: React.ReactNode, stories: Story[], seeAllLink: string, gridCols: string = "md:grid-cols-2") => (
+  const renderSection = (
+    title: string,
+    icon: React.ReactNode,
+    stories: Story[],
+    seeAllLink: string,
+    layout: "grid" | "horizontal" = "grid",
+    gridCols: string = "md:grid-cols-2"
+  ) => (
     <section>
       <SectionHeader title={title} icon={icon} seeAllLink={seeAllLink} />
       {stories.length > 0 ? (
-        <div className={`grid grid-cols-1 ${gridCols} gap-6 lg:gap-8`}>
-          {stories.map(story => (
-            <StoryCard key={story.id} {...story} />
-          ))}
-        </div>
+        layout === "horizontal" ? (
+          <div className="flex overflow-x-auto space-x-4 lg:space-x-6 pb-4 -mx-4 px-4"> {/* Horizontal scroll container */}
+            {stories.map(story => (
+              <div key={story.id} className="flex-shrink-0 w-[280px] sm:w-[300px] md:w-[320px]"> {/* Fixed width for cards */}
+                <StoryCard {...story} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`grid grid-cols-1 ${gridCols} gap-6 lg:gap-8`}> {/* Grid layout */}
+            {stories.map(story => (
+              <StoryCard key={story.id} {...story} />
+            ))}
+          </div>
+        )
       ) : (
          <p className="text-muted-foreground">No stories in this section yet.</p>
       )}
@@ -101,7 +143,7 @@ export default function HomePage() {
       </section>
 
       {/* Story Sections */}
-      {renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingStories, "/trending")}
+      {renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingStories, "/trending", "horizontal")}
       {renderSection("Full-Length Novels", <BookText className="h-7 w-7 text-primary" />, fullLengthNovels, "/novels", "md:grid-cols-1 lg:grid-cols-1")}
       {renderSection("Short Stories & Quick Reads", <FileText className="h-7 w-7 text-primary" />, shortStories, "/shorts")}
       {renderSection("Romance Reads", <Heart className="h-7 w-7 text-primary" />, romanceReads, "/romance", "md:grid-cols-1 lg:grid-cols-1")}
