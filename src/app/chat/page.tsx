@@ -17,8 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 const aiChatUser = {
   name: "Katha Vault AI",
   avatarFallback: "AI",
-  avatarUrl: "https://placehold.co/40x40.png?text=AI", 
-  nickname: "Katha AI (Default)", 
+  avatarUrl: "https://placehold.co/40x40.png?text=AI",
+  nickname: "Katha AI (Default)",
 };
 
 const placeholderUserChats = [
@@ -44,7 +44,7 @@ interface Message {
 }
 
 const OnlineFriendsBar = () => (
-  <Card className="mb-6">
+  <Card className="mb-6 flex-shrink-0">
     <CardHeader>
       <CardTitle className="text-lg font-headline text-primary">Online Now</CardTitle>
     </CardHeader>
@@ -83,54 +83,56 @@ export default function ChatPage() {
   const [aiNickname, setAiNickname] = useState(aiChatUser.nickname);
   const [aiAvatar, setAiAvatar] = useState(aiChatUser.avatarUrl);
   const [currentMessage, setCurrentMessage] = useState("");
-  const [aiMessages, setAiMessages] = useState<Message[]>([]); 
+  const [aiMessages, setAiMessages] = useState<Message[]>([]);
   const [selectedChatUser, setSelectedChatUser] = useState<typeof placeholderUserChats[0] | null>(null);
   const [userMessages, setUserMessages] = useState<Message[]>([]);
 
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Client-side effect to set initial message, avoiding hydration mismatch for timestamp
+    const initialTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     setAiMessages([
-      { 
-        id: 'initial-ai-message-' + Date.now(), 
-        text: 'Hello! How can I help you with your stories today?', 
-        sender: 'ai', 
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      {
+        id: 'initial-ai-message-' + Date.now(),
+        text: 'Hello! How can I help you with your stories today?',
+        sender: 'ai',
+        timestamp: initialTimestamp
       }
     ]);
-  }, []); 
+  }, []);
 
   const handleSendAiMessage = () => {
     if (!currentMessage.trim()) return;
     const newMessage: Message = {
-      id: 'user-msg-' + Date.now(), 
+      id: 'user-msg-' + Date.now(),
       text: currentMessage,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
     const aiResponse: Message = {
-      id: 'ai-resp-' + Date.now(), 
+      id: 'ai-resp-' + Date.now(),
       text: `I've received: "${currentMessage}". As an AI, I'm still learning! How can I assist you further?`,
       sender: 'ai',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
     setAiMessages(prev => [...prev, newMessage, aiResponse]);
     setCurrentMessage("");
   };
-  
+
   const handleSendUserMessage = () => {
     if (!currentMessage.trim() || !selectedChatUser) return;
      const newMessage: Message = {
-      id: 'user-chat-msg-' + Date.now(), 
+      id: 'user-chat-msg-' + Date.now(),
       text: currentMessage,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
     const otherUserResponse: Message = {
-      id: 'other-user-resp-' + Date.now(), 
+      id: 'other-user-resp-' + Date.now(),
       text: `This is a simulated reply to: "${currentMessage}".`,
-      sender: 'ai', 
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      sender: 'ai', // Simulating reply from the other user
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
     setUserMessages(prev => [...prev, newMessage, otherUserResponse]);
     setCurrentMessage("");
@@ -160,14 +162,14 @@ export default function ChatPage() {
       reader.readAsDataURL(file);
     }
   };
-  
+
   const CurrentChatInterface = ({
     chatPartnerName,
     chatPartnerAvatar,
     chatPartnerFallback,
     messages,
     onSendMessage,
-    isUserChat, // To differentiate AI chat from user chat for options
+    isUserChat,
   }: {
     chatPartnerName: string;
     chatPartnerAvatar: string;
@@ -177,7 +179,7 @@ export default function ChatPage() {
     isUserChat: boolean;
   }) => (
     <Card className="flex flex-col h-full shadow-xl">
-      <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4">
+      <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4 flex-shrink-0">
         <div className="flex items-center space-x-3">
           <Avatar>
             <AvatarImage src={chatPartnerAvatar} alt={chatPartnerName} data-ai-hint={isUserChat ? "person avatar" : "robot ai"} />
@@ -226,7 +228,7 @@ export default function ChatPage() {
           ))}
         </ScrollArea>
       </CardContent>
-      <div className="border-t p-4 flex items-center space-x-2 bg-background">
+      <div className="border-t p-4 flex items-center space-x-2 bg-background flex-shrink-0">
         <Input
           type="text"
           placeholder="Type a message..."
@@ -244,8 +246,8 @@ export default function ChatPage() {
 
 
   return (
-    <div className="space-y-6">
-      <header className="text-center space-y-2">
+    <div className="flex flex-col h-full space-y-6">
+      <header className="text-center space-y-2 flex-shrink-0">
         <MessageCircle className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Direct Messages</h1>
         <p className="text-xl text-foreground font-body font-semibold">
@@ -255,16 +257,14 @@ export default function ChatPage() {
 
       <OnlineFriendsBar />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-[calc(100vh-470px)] sm:h-[calc(100vh-440px)]"> {/* Adjusted height and grid cols */}
-        {/* Chat List & AI Section */}
-        <Card className="md:col-span-1 flex flex-col">
-          <CardHeader className="p-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 flex-grow min-h-0">
+        <Card className="md:col-span-1 flex flex-col h-full">
+          <CardHeader className="p-4 flex-shrink-0">
             <CardTitle className="font-headline text-xl">My Chats</CardTitle>
           </CardHeader>
           <CardContent className="p-0 flex-grow overflow-hidden">
-            <ScrollArea className="h-full"> {/* Ensure ScrollArea takes full height of its parent */}
-              {/* Katha Vault AI Chat Item */}
-              <div 
+            <ScrollArea className="h-full">
+              <div
                 className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${!selectedChatUser ? 'bg-muted' : ''}`}
                 onClick={() => {setSelectedChatUser(null); setUserMessages([]); setCurrentMessage(''); }}
               >
@@ -276,11 +276,9 @@ export default function ChatPage() {
                   <p className="font-semibold text-sm text-foreground">{aiNickname}</p>
                   <p className="text-xs text-muted-foreground truncate">AI Assistant for stories...</p>
                 </div>
-                 {/* AI customization buttons are now in the 3-dot menu */}
               </div>
-              {/* User Chat List */}
               {placeholderUserChats.map(chat => (
-                <div key={chat.id} 
+                <div key={chat.id}
                   className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedChatUser?.id === chat.id ? 'bg-muted': ''}`}
                   onClick={() => { setSelectedChatUser(chat); setUserMessages([]); setCurrentMessage(''); }}
                 >
@@ -310,8 +308,7 @@ export default function ChatPage() {
           </CardContent>
         </Card>
 
-        {/* Main Chat Area */}
-        <div className="md:col-span-3 h-full"> {/* Adjusted grid span */}
+        <div className="md:col-span-3 h-full">
           {!selectedChatUser ? (
             <CurrentChatInterface
               chatPartnerName={aiNickname}
@@ -336,3 +333,5 @@ export default function ChatPage() {
     </div>
   );
 }
+
+    
