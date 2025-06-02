@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,28 +37,39 @@ export default function ChatPage() {
   const [aiNickname, setAiNickname] = useState(aiChatUser.nickname);
   const [aiAvatar, setAiAvatar] = useState(aiChatUser.avatarUrl);
   const [currentMessage, setCurrentMessage] = useState("");
-  const [aiMessages, setAiMessages] = useState<Message[]>([
-    { id: '1', text: 'Hello! How can I help you with your stories today?', sender: 'ai', timestamp: new Date().toLocaleTimeString() },
-  ]);
+  const [aiMessages, setAiMessages] = useState<Message[]>([]); // Initialize empty
   const [selectedChatUser, setSelectedChatUser] = useState<typeof placeholderUserChats[0] | null>(null);
   const [userMessages, setUserMessages] = useState<Message[]>([]);
 
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    // Set the initial AI message only on the client-side after mount
+    // to avoid hydration mismatch for the timestamp.
+    setAiMessages([
+      { 
+        id: 'initial-ai-message', 
+        text: 'Hello! How can I help you with your stories today?', 
+        sender: 'ai', 
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      }
+    ]);
+  }, []); // Empty dependency array ensures this runs once on mount
+
   const handleSendAiMessage = () => {
     if (!currentMessage.trim()) return;
     const newMessage: Message = {
-      id: String(aiMessages.length + 1),
+      id: String(Date.now()), // Use a more unique ID like Date.now() or a UUID
       text: currentMessage,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     };
     // Simulate AI response
     const aiResponse: Message = {
-      id: String(aiMessages.length + 2),
+      id: String(Date.now() + 1), // Use a more unique ID
       text: `I've received: "${currentMessage}". As an AI, I'm still learning!`,
       sender: 'ai',
-      timestamp: new Date().toLocaleTimeString(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     };
     setAiMessages(prev => [...prev, newMessage, aiResponse]);
     setCurrentMessage("");
@@ -67,17 +78,17 @@ export default function ChatPage() {
   const handleSendUserMessage = () => {
     if (!currentMessage.trim() || !selectedChatUser) return;
      const newMessage: Message = {
-      id: String(userMessages.length + 1),
+      id: String(Date.now()), // Use a more unique ID
       text: currentMessage,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     };
     // Simulate response from the other user for demo
     const otherUserResponse: Message = {
-      id: String(userMessages.length + 2),
+      id: String(Date.now() + 1), // Use a more unique ID
       text: `This is a simulated reply to: "${currentMessage}".`,
       sender: 'ai', // Simulating other user as 'ai' for simplicity in this placeholder
-      timestamp: new Date().toLocaleTimeString(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     };
     setUserMessages(prev => [...prev, newMessage, otherUserResponse]);
     setCurrentMessage("");
@@ -140,7 +151,7 @@ export default function ChatPage() {
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[70%] p-3 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
                 <p className="text-sm font-body">{msg.text}</p>
-                <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>
+                {msg.timestamp && <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>}
               </div>
             </div>
           ))}
@@ -262,3 +273,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
