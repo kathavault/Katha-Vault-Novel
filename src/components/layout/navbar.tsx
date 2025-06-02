@@ -1,29 +1,99 @@
 
+"use client"; // Required for Sheet component and useState
+
 import Link from 'next/link';
-import { Menu, Moon, UserPlus, X } from 'lucide-react'; 
+import { Menu, Moon, UserPlus, Home, Library, Edit3, Users, Bot, LogIn, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
+import { useState } from 'react';
 
 export function Navbar() {
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const navLinks = [
+    { href: '/', label: 'Home', icon: <Home size={20} /> },
+    { href: '/library', label: 'My Library', icon: <Library size={20} /> },
+    { href: '/create', label: 'Create Story', icon: <Edit3 size={20} /> },
+    { href: '/forum', label: 'Forum', icon: <Users size={20} /> },
+    { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
+  ];
+
   return (
     <nav className="bg-background border-b border-border shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Left: Hamburger Menu */}
-          <button aria-label="Open menu" className="text-foreground hover:text-primary transition-colors lg:hidden">
-            <Menu size={24} />
-          </button>
-          {/* Invisible placeholder for desktop to balance center logo when hamburger is hidden */}
-          <div className="hidden lg:flex w-10"></div>
+          {/* Left: Hamburger Menu & Logo */}
+          <div className="flex items-center space-x-3">
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetTrigger asChild>
+                <button
+                  aria-label="Open menu"
+                  className="text-foreground hover:text-primary transition-colors lg:hidden"
+                >
+                  <Menu size={24} />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] sm:w-[320px] bg-card">
+                <SheetHeader className="mb-6">
+                  <SheetTitle className="text-2xl font-headline text-primary flex items-center">
+                     <div className="h-8 w-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-lg font-bold mr-2">
+                        K
+                      </div>
+                    Katha Vault Menu
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col space-y-3">
+                  {navLinks.map((link) => (
+                    <Button
+                      key={link.href}
+                      variant="ghost"
+                      className="justify-start text-md py-3 px-3"
+                      asChild
+                      onClick={() => setIsSheetOpen(false)}
+                    >
+                      <Link href={link.href} className="flex items-center">
+                        {link.icon}
+                        <span className="ml-3">{link.label}</span>
+                      </Link>
+                    </Button>
+                  ))}
+                  <hr className="my-3 border-border" />
+                   <Button
+                      variant="ghost"
+                      className="justify-start text-md py-3 px-3"
+                      asChild
+                      onClick={() => setIsSheetOpen(false)}
+                    >
+                      <Link href="/login" className="flex items-center">
+                        <LogIn size={20} />
+                        <span className="ml-3">Login</span>
+                      </Link>
+                    </Button>
+                     <Button
+                      variant="default"
+                      className="justify-start text-md py-3 px-3 mt-2"
+                      asChild
+                      onClick={() => setIsSheetOpen(false)}
+                    >
+                      <Link href="/signup" className="flex items-center">
+                        <UserPlus size={20} />
+                        <span className="ml-3">Sign Up</span>
+                      </Link>
+                    </Button>
+                </nav>
+              </SheetContent>
+            </Sheet>
 
-
-          {/* Center: Logo */}
-          <Link href="/" className="flex items-center justify-center flex-grow lg:flex-grow-0">
-            <div className="h-10 w-10 bg-primary text-background rounded-full flex items-center justify-center">
-              {/* Using X icon as placeholder for the abstract logo from image */}
-              <X size={24} strokeWidth={3} />
-            </div>
-          </Link>
+            <Link href="/" className="flex items-center">
+              <div className="h-10 w-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold">
+                K
+              </div>
+            </Link>
+          </div>
           
+          {/* Spacer to push right content */}
+          <div className="flex-grow"></div>
+
           {/* Right: Icons & Sign Up Button */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             <button aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
