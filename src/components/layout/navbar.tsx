@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Menu, Moon, UserPlus, Home, Library, Edit3, Users, Bot, LogIn, Sun } from 'lucide-react';
+import { Menu, Moon, UserPlus, Home, Library, Edit3, Users, Bot, LogIn, Sun, MessageSquareText } from 'lucide-react'; // Added MessageSquareText
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
@@ -21,7 +21,7 @@ export function Navbar() {
     { href: '/', label: 'Home', icon: <Home size={20} /> },
     { href: '/library', label: 'My Library', icon: <Library size={20} /> },
     { href: '/create', label: 'Create Story', icon: <Edit3 size={20} /> },
-    { href: '/forum', label: 'Forum', icon: <Users size={20} /> },
+    { href: '/forum', label: 'Community Feed', icon: <MessageSquareText size={20} /> }, // Updated label and icon
     { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
   ];
 
@@ -30,7 +30,7 @@ export function Navbar() {
   };
 
   if (!mounted) {
-    return ( // Render a basic navbar structure or null during server render / pre-hydration
+    return ( 
       <nav className="bg-background border-b border-border shadow-md sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16 md:h-20">
@@ -133,13 +133,26 @@ export function Navbar() {
             </Link>
           </div>
           
-          <div className="flex-grow"></div>
+          {/* Desktop Nav Links (Hidden for now, can be added back if design changes)
+          <nav className="hidden lg:flex space-x-4 items-center">
+            {navLinks.map((link) => (
+              <Button key={link.href} variant="ghost" asChild>
+                <Link href={link.href} className="flex items-center text-sm font-medium">
+                  {link.icon} <span className="ml-2">{link.label}</span>
+                </Link>
+              </Button>
+            ))}
+          </nav>
+          */}
+          
+          <div className="flex-grow lg:flex-grow-0"></div> {/* Adjusted for logo centering with flex */}
+
 
           <div className="flex items-center space-x-3 sm:space-x-4">
             <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
               {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
             </Button>
-            <Button asChild size="sm" className="px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
+            <Button asChild size="sm" className="hidden sm:inline-flex px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
               <Link href="/signup">
                 <UserPlus size={18} className="mr-1 sm:mr-2" />
                 Sign Up

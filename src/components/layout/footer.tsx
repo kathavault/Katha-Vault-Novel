@@ -1,11 +1,12 @@
+
 import Link from 'next/link';
-import { Home, Library, PlusSquare, MessageCircle, UserCircle } from 'lucide-react';
+import { Home, Library, PlusSquare, MessageCircle, UserCircle, MessageSquareText } from 'lucide-react'; // Added MessageSquareText
 
 export function Footer() {
   const footerNavItems = [
     { href: '/', label: 'Home', icon: <Home size={24} /> },
     { href: '/library', label: 'Library', icon: <Library size={24} /> },
-    { href: '/posts/new', label: 'Post', icon: <PlusSquare size={24} /> },
+    { href: '/posts/new', label: 'Post', icon: <PlusSquare size={24} /> }, // Leads to create post page
     { href: '/chat', label: 'Chat', icon: <MessageCircle size={24} /> },
     { href: '/profile', label: 'Account', icon: <UserCircle size={24} /> },
   ];
