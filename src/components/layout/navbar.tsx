@@ -1,14 +1,21 @@
 
-"use client"; // Required for Sheet component and useState
+"use client"; 
 
 import Link from 'next/link';
-import { Menu, Moon, UserPlus, Home, Library, Edit3, Users, Bot, LogIn, User } from 'lucide-react';
+import { Menu, Moon, UserPlus, Home, Library, Edit3, Users, Bot, LogIn, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
-import { useState } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 
 export function Navbar() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navLinks = [
     { href: '/', label: 'Home', icon: <Home size={20} /> },
@@ -18,11 +25,46 @@ export function Navbar() {
     { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
   ];
 
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  if (!mounted) {
+    return ( // Render a basic navbar structure or null during server render / pre-hydration
+      <nav className="bg-background border-b border-border shadow-md sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16 md:h-20">
+             <div className="flex items-center space-x-3">
+               <button className="text-foreground lg:hidden"><Menu size={24} /></button>
+               <Link href="/" className="flex items-center">
+                <div className="h-10 w-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold">
+                  K
+                </div>
+              </Link>
+            </div>
+            <div className="flex-grow"></div>
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <Button variant="ghost" size="icon" aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
+                <Moon size={22} />
+              </Button>
+              <Button asChild size="sm" className="px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
+                <Link href="/signup">
+                  <UserPlus size={18} className="mr-1 sm:mr-2" />
+                  Sign Up
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+
   return (
     <nav className="bg-background border-b border-border shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Left: Hamburger Menu & Logo */}
           <div className="flex items-center space-x-3">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
@@ -91,14 +133,12 @@ export function Navbar() {
             </Link>
           </div>
           
-          {/* Spacer to push right content */}
           <div className="flex-grow"></div>
 
-          {/* Right: Icons & Sign Up Button */}
           <div className="flex items-center space-x-3 sm:space-x-4">
-            <button aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
-              <Moon size={22} />
-            </button>
+            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
+              {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
+            </Button>
             <Button asChild size="sm" className="px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
               <Link href="/signup">
                 <UserPlus size={18} className="mr-1 sm:mr-2" />
