@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { Feather } from 'lucide-react'; // Using Feather as a placeholder logo icon
+import { BookHeart, Search, Bell, UserCircle } from 'lucide-react'; 
 
 export function Navbar() {
   const navItems = [
-    { href: '/', label: 'Discover' },
+    { href: '/', label: 'Discover', icon: <BookHeart size={20} /> },
     { href: '/recommendations', label: 'Recommendations' },
     { href: '/library', label: 'My Library' },
     { href: '/create', label: 'Create Story' },
@@ -12,25 +12,39 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="bg-card border-b border-border shadow-md">
+    <nav className="bg-card border-b border-border shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-16 md:h-20">
           <Link href="/" className="flex items-center space-x-2 text-primary hover:text-primary/80 transition-colors">
-            <Feather size={32} />
-            <span className="text-3xl font-headline">Katha Vault</span>
+            {/* Using BookHeart as a more thematic logo icon */}
+            <BookHeart size={28} strokeWidth={2} /> 
+            <span className="text-2xl font-headline">Katha Vault</span>
           </Link>
-          <div className="hidden md:flex items-center space-x-6">
+          
+          {/* Desktop Nav Links - Kept for larger screens, can be hidden if footer nav is primary */}
+          <div className="hidden lg:flex items-center space-x-5">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-foreground hover:text-primary transition-colors font-medium text-lg"
+                className="text-foreground hover:text-primary transition-colors font-medium text-base"
               >
                 {item.label}
               </Link>
             ))}
           </div>
-          {/* Mobile Menu Button (optional, can be added later) */}
+
+          <div className="flex items-center space-x-4">
+            <button aria-label="Search" className="text-foreground hover:text-primary transition-colors">
+              <Search size={22} />
+            </button>
+            <button aria-label="Notifications" className="text-foreground hover:text-primary transition-colors">
+              <Bell size={22} />
+            </button>
+            <button aria-label="User Account" className="text-foreground hover:text-primary transition-colors">
+              <UserCircle size={24} />
+            </button>
+          </div>
         </div>
       </div>
     </nav>

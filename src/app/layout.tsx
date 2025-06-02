@@ -22,12 +22,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Belleza&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Alegreya&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased flex flex-col min-h-screen">
+      <body className="font-body antialiased flex flex-col min-h-screen bg-background text-foreground">
         <Navbar />
-        <main className="flex-grow container mx-auto px-4 py-8">
+        <main className="flex-grow container mx-auto px-4 py-8 pb-24 lg:pb-8"> {/* Added pb-24 for mobile to clear fixed footer */}
           {children}
         </main>
-        <Footer />
+        <Footer /> {/* This is now the fixed bottom tab bar for mobile */}
         <Toaster />
       </body>
     </html>
