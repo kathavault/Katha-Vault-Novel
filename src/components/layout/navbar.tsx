@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import { BookHeart, Search, Bell, UserCircle } from 'lucide-react'; 
 
@@ -16,12 +17,14 @@ export function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           <Link href="/" className="flex items-center space-x-2 text-primary hover:text-primary/80 transition-colors">
-            {/* Using BookHeart as a more thematic logo icon */}
-            <BookHeart size={28} strokeWidth={2} /> 
-            <span className="text-2xl font-headline">Katha Vault</span>
+            <div className="h-10 w-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+              <span className="text-2xl font-headline font-bold">K</span>
+            </div>
+            {/* Optional: Keep a textual site name for accessibility or if design changes, but visually hidden or styled differently if K is primary */}
+            {/* <span className="text-2xl font-headline ml-2">Katha Vault</span> */}
           </Link>
           
-          {/* Desktop Nav Links - Kept for larger screens, can be hidden if footer nav is primary */}
+          {/* Desktop Nav Links */}
           <div className="hidden lg:flex items-center space-x-5">
             {navItems.map((item) => (
               <Link

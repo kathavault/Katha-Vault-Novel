@@ -197,11 +197,10 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="text-center py-16 md:py-24 bg-card rounded-xl shadow-2xl px-6">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline tracking-tight text-primary mb-6">
-          Your Next Obsession Awaits
-          <span className="block text-primary-foreground opacity-90 mt-1 sm:mt-2">at Katha Vault</span>
+          Unlock Worlds, Unleash Stories.
         </h1>
         <p className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground font-body mb-10">
-          Join a global community of readers and writers. Discover original stories across all genres, or share your own. Voice your stories with the world.
+          Dive into a universe of original tales or craft your own masterpiece. Katha Vault: Where every story finds its voice.
         </p>
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
           <Button asChild size="lg" className="px-8 py-3 text-base">
