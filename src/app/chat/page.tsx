@@ -46,7 +46,7 @@ interface Message {
 const OnlineFriendsBar = () => (
   <Card className="mb-6 flex-shrink-0">
     <CardHeader>
-      <CardTitle className="text-lg font-headline text-primary">Online Now</CardTitle>
+      <CardTitle className="text-lg font-headline text-primary">Online Now (Top Bar)</CardTitle>
     </CardHeader>
     <CardContent className="p-4">
       <ScrollArea className="w-full whitespace-nowrap">
@@ -90,7 +90,6 @@ export default function ChatPage() {
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Client-side effect to set initial message, avoiding hydration mismatch for timestamp
     const initialTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     setAiMessages([
       {
@@ -258,55 +257,107 @@ export default function ChatPage() {
       <OnlineFriendsBar />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 flex-grow min-h-0">
-        <Card className="md:col-span-1 flex flex-col h-full">
-          <CardHeader className="p-4 flex-shrink-0">
-            <CardTitle className="font-headline text-xl">My Chats</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex-grow overflow-hidden">
-            <ScrollArea className="h-full">
-              <div
-                className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${!selectedChatUser ? 'bg-muted' : ''}`}
-                onClick={() => {setSelectedChatUser(null); setUserMessages([]); setCurrentMessage(''); }}
-              >
-                <Avatar>
-                  <AvatarImage src={aiAvatar} alt={aiChatUser.name} data-ai-hint="robot ai" />
-                  <AvatarFallback>{aiChatUser.avatarFallback}</AvatarFallback>
-                </Avatar>
-                <div className="flex-grow overflow-hidden">
-                  <p className="font-semibold text-sm text-foreground">{aiNickname}</p>
-                  <p className="text-xs text-muted-foreground truncate">AI Assistant for stories...</p>
-                </div>
-              </div>
-              {placeholderUserChats.map(chat => (
-                <div key={chat.id}
-                  className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedChatUser?.id === chat.id ? 'bg-muted': ''}`}
-                  onClick={() => { setSelectedChatUser(chat); setUserMessages([]); setCurrentMessage(''); }}
-                >
-                  <div className="relative">
+        <div className="md:col-span-1 flex flex-col h-full">
+          {selectedChatUser ? (
+            <Card className="h-full flex flex-col">
+              <CardHeader>
+                <CardTitle className="text-lg font-headline text-primary">Online Now</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 flex-grow overflow-hidden">
+                <ScrollArea className="w-full h-full whitespace-nowrap">
+                  <div className="flex space-x-4 pb-2">
+                    {placeholderOnlineFriends.map(friend => (
+                      <TooltipProvider key={friend.id}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className="relative cursor-pointer flex flex-col items-center w-16"
+                              onClick={() => {
+                                const userToSelect = placeholderUserChats.find(u => u.name === friend.name);
+                                if (userToSelect) {
+                                  setSelectedChatUser(userToSelect);
+                                  setUserMessages([]); // Clear previous user messages
+                                  setCurrentMessage('');
+                                } else {
+                                  // Handle case where friend is not in main chat list or switch to AI
+                                  setSelectedChatUser(null); 
+                                  setAiMessages(prev => prev.length > 0 ? prev : [{ id: 'ai-init-'+ Date.now(), text: 'Hello!', sender: 'ai', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) }]);
+                                  setCurrentMessage('');
+                                }
+                              }}
+                            >
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={friend.avatarUrl} alt={friend.name} data-ai-hint={friend.dataAiHint} />
+                                <AvatarFallback>{friend.avatarFallback}</AvatarFallback>
+                              </Avatar>
+                              <span className="absolute top-0 right-2 block h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-card ring-1 ring-green-500" />
+                              <p className="text-xs mt-1 text-muted-foreground truncate w-full text-center">{friend.name.split(' ')[0]}</p>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{friend.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ))}
+                  </div>
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+                 <Button variant="link" className="mt-2 text-sm" onClick={() => setSelectedChatUser(null)}>View All Chats</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="flex flex-col h-full">
+              <CardHeader className="p-4 flex-shrink-0">
+                <CardTitle className="font-headline text-xl">My Chats</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 flex-grow overflow-hidden">
+                <ScrollArea className="h-full">
+                  <div
+                    className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${!selectedChatUser ? 'bg-muted' : ''}`}
+                    onClick={() => {setSelectedChatUser(null); setUserMessages([]); setCurrentMessage(''); }}
+                  >
                     <Avatar>
-                      <AvatarImage src={chat.avatarUrl} alt={chat.name} data-ai-hint="person chat"/>
-                      <AvatarFallback>{chat.avatarFallback}</AvatarFallback>
+                      <AvatarImage src={aiAvatar} alt={aiChatUser.name} data-ai-hint="robot ai" />
+                      <AvatarFallback>{aiChatUser.avatarFallback}</AvatarFallback>
                     </Avatar>
-                    {chat.isOnline && (
-                      <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 border-2 border-background ring-1 ring-green-500" />
-                    )}
+                    <div className="flex-grow overflow-hidden">
+                      <p className="font-semibold text-sm text-foreground">{aiNickname}</p>
+                      <p className="text-xs text-muted-foreground truncate">AI Assistant for stories...</p>
+                    </div>
                   </div>
-                  <div className="flex-grow overflow-hidden">
-                    <p className="font-semibold text-sm text-foreground truncate">{chat.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{chat.lastMessage}</p>
-                  </div>
-                  <div className="flex flex-col items-end text-xs text-muted-foreground">
-                    <span>{chat.timestamp}</span>
-                    {chat.unreadCount > 0 && (
-                      <span className="mt-1 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">{chat.unreadCount}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </ScrollArea>
-             <input type="file" accept="image/*" ref={aiAvatarInputRef} onChange={handleAvatarFileChange} className="hidden" />
-          </CardContent>
-        </Card>
+                  {placeholderUserChats.map(chat => (
+                    <div key={chat.id}
+                      className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedChatUser?.id === chat.id ? 'bg-muted': ''}`}
+                      onClick={() => { setSelectedChatUser(chat); setUserMessages([]); setCurrentMessage(''); }}
+                    >
+                      <div className="relative">
+                        <Avatar>
+                          <AvatarImage src={chat.avatarUrl} alt={chat.name} data-ai-hint="person chat"/>
+                          <AvatarFallback>{chat.avatarFallback}</AvatarFallback>
+                        </Avatar>
+                        {chat.isOnline && (
+                          <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 border-2 border-background ring-1 ring-green-500" />
+                        )}
+                      </div>
+                      <div className="flex-grow overflow-hidden">
+                        <p className="font-semibold text-sm text-foreground truncate">{chat.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{chat.lastMessage}</p>
+                      </div>
+                      <div className="flex flex-col items-end text-xs text-muted-foreground">
+                        <span>{chat.timestamp}</span>
+                        {chat.unreadCount > 0 && (
+                          <span className="mt-1 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">{chat.unreadCount}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </ScrollArea>
+                <input type="file" accept="image/*" ref={aiAvatarInputRef} onChange={handleAvatarFileChange} className="hidden" />
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         <div className="md:col-span-3 h-full">
           {!selectedChatUser ? (
@@ -333,5 +384,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-    
