@@ -15,8 +15,8 @@ export default function ForumPage() {
       <header className="text-center space-y-2">
         <Users className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Community Forum</h1>
-        <p className="text-xl text-muted-foreground font-body">
-          Connect with fellow readers and writers. Discuss stories, share ideas, and get feedback.
+        <p className="text-xl text-foreground font-body font-semibold">
+          Join the conversation! Discuss stories, share ideas, and connect with our community.
         </p>
       </header>
 

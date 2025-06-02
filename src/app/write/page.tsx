@@ -7,8 +7,8 @@ export default function AIWriterPage() {
       <header className="text-center space-y-2">
         <Bot className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">AI Writing Assistant</h1>
-        <p className="text-xl text-muted-foreground font-body">
-          Enhance your stories with intelligent suggestions, grammar checks, and style improvements.
+        <p className="text-xl text-foreground font-body font-semibold">
+          Elevate your writing with AI-powered suggestions, grammar checks, and style tips.
         </p>
       </header>
       

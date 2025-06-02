@@ -7,8 +7,8 @@ export default function CreateStoryPage() {
       <header className="text-center space-y-2">
         <Edit3 className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Create a New Story</h1>
-        <p className="text-xl text-muted-foreground font-body">
-          Bring your imagination to life and share your tale with the world.
+        <p className="text-xl text-foreground font-body font-semibold">
+          Craft your unique story and share it with readers everywhere.
         </p>
       </header>
       
