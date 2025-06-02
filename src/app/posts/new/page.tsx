@@ -2,10 +2,11 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FilePenLine, Send } from 'lucide-react'; // Using FilePenLine for creation
+import { FilePenLine, Send, Users, TrendingUp } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 export default function CreatePostPage() {
@@ -33,6 +34,21 @@ export default function CreatePostPage() {
 
   return (
     <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row gap-4 justify-center sm:justify-start mb-6">
+        <Button asChild variant="outline">
+          <Link href="/forum">
+            <Users className="mr-2 h-4 w-4" />
+            View Social Feed
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/forum">
+            <TrendingUp className="mr-2 h-4 w-4" />
+            View Trending Posts
+          </Link>
+        </Button>
+      </div>
+
       <header className="text-center space-y-2">
         <FilePenLine className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Create New Post</h1>
