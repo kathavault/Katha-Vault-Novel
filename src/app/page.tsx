@@ -2,18 +2,18 @@
 import Link from 'next/link';
 import { StoryCard } from '@/components/story-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, BookText, FileText, Heart, Rocket, Grid, Sparkles, PlayCircle, ChevronRight, Clock } from 'lucide-react'; // Added Clock
+import { ArrowRight, TrendingUp, BookText, FileText, Heart, Rocket, Grid, Sparkles, PlayCircle, ChevronRight, Clock } from 'lucide-react';
 
 interface Story {
   id: string;
   title: string;
   author: string;
-  genres: string[]; // Changed from genre: string to genres: string[]
+  genres: string[]; 
   snippet: string;
   coverImageUrl?: string;
   aiHint?: string;
-  views?: number; // Added views
-  chapters?: number; // Added chapters
+  views?: number; 
+  chapters?: number; 
   rating?: number; 
   isTrending?: boolean;
 }
@@ -41,7 +41,7 @@ const trendingStories: Story[] = [
     coverImageUrl: 'https://placehold.co/600x400.png',
     aiHint: 'jungle temple',
     views: 18000,
-    chapters: 20, // Example chapters
+    chapters: 20, 
     rating: 4.6,
     isTrending: true,
   },
@@ -57,7 +57,7 @@ const fullLengthNovels: Story[] = [
     coverImageUrl: 'https://placehold.co/800x500.png', 
     aiHint: 'steampunk city moon', 
     views: 12000, 
-    chapters: 50, // Example chapters
+    chapters: 50, 
     rating: 4.2 
   },
 ];
@@ -99,7 +99,7 @@ const romanceReads: Story[] = [
     coverImageUrl: 'https://placehold.co/600x400.png', 
     aiHint: 'galaxy couple romance', 
     views: 28000, 
-    chapters: 30, // Example chapters 
+    chapters: 30, 
     rating: 4.9 
   },
 ];
@@ -114,7 +114,7 @@ const scifiAdventures: Story[] = [
     coverImageUrl: 'https://placehold.co/600x400.png', 
     aiHint: 'astronaut void space', 
     views: 36000, 
-    chapters: 22, // Example chapters
+    chapters: 22, 
     rating: 4.9 
   },
   { 
@@ -126,7 +126,7 @@ const scifiAdventures: Story[] = [
     coverImageUrl: 'https://placehold.co/600x400.png', 
     aiHint: 'cyberpunk hacker city', 
     views: 22000, 
-    chapters: 18, // Example chapters
+    chapters: 18, 
     rating: 4.6 
   },
 ];
@@ -141,7 +141,7 @@ const moreStories: Story[] = [
      coverImageUrl: 'https://placehold.co/600x400.png', 
      aiHint: 'book thought', 
      views: 10000, 
-     chapters: 5, // Example chapters
+     chapters: 5, 
      rating: 4.0 
     },
 ];
@@ -149,7 +149,7 @@ const moreStories: Story[] = [
 
 const SectionHeader = ({ title, icon, seeAllLink }: { title: string; icon: React.ReactNode; seeAllLink: string }) => (
   <div className="flex items-center justify-between mb-6">
-    <h2 className="text-3xl font-headline text-primary-foreground flex items-center">
+    <h2 className="text-3xl font-headline text-primary flex items-center"> {/* Changed text-primary-foreground to text-primary */}
       {icon}
       <span className="ml-3">{title}</span>
     </h2>
@@ -166,21 +166,21 @@ export default function HomePage() {
     stories: Story[],
     seeAllLink: string,
     layout: "grid" | "horizontal" = "grid",
-    gridCols: string = "md:grid-cols-2" // Default grid columns
+    gridCols: string = "md:grid-cols-2" 
   ) => (
     <section>
       <SectionHeader title={title} icon={icon} seeAllLink={seeAllLink} />
       {stories.length > 0 ? (
         layout === "horizontal" ? (
-          <div className="flex overflow-x-auto space-x-4 lg:space-x-6 pb-4 -mx-4 px-4"> {/* Horizontal scroll container */}
+          <div className="flex overflow-x-auto space-x-4 lg:space-x-6 pb-4 -mx-4 px-4"> 
             {stories.map(story => (
-              <div key={story.id} className="flex-shrink-0 w-[280px] sm:w-[300px] md:w-[320px]"> {/* Fixed width for cards */}
+              <div key={story.id} className="flex-shrink-0 w-[280px] sm:w-[300px] md:w-[320px]"> 
                 <StoryCard {...story} />
               </div>
             ))}
           </div>
         ) : (
-          <div className={`grid grid-cols-1 ${stories.length === 1 ? 'md:grid-cols-1 lg:grid-cols-1' : gridCols} gap-6 lg:gap-8`}> {/* Grid layout, adjust for single item */}
+          <div className={`grid grid-cols-1 ${stories.length === 1 ? 'md:grid-cols-1 lg:grid-cols-1' : gridCols} gap-6 lg:gap-8`}> 
             {stories.map(story => (
               <StoryCard key={story.id} {...story} />
             ))}
@@ -195,26 +195,21 @@ export default function HomePage() {
   return (
     <div className="space-y-16">
       {/* Hero Section */}
-      <section className="text-center py-16 md:py-24 bg-card rounded-xl shadow-2xl px-6">
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline tracking-tight text-primary mb-6">
-          Unlock Worlds, Unleash Stories.
+      <section className="text-center py-16 md:py-24 px-6"> {/* Removed bg-card, rounded-xl, shadow-2xl */}
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline tracking-tight font-bold text-primary mb-6">
+          Your Next Obsession Awaits at Katha Vault
         </h1>
-        <p className="max-w-2xl mx-auto text-lg md:text-xl text-foreground font-body font-semibold mb-10">
-          Explore captivating original stories or bring your own to life. Your adventure in storytelling begins now.
+        <p className="max-w-2xl mx-auto text-lg md:text-xl text-foreground font-body mb-10">
+          Join a global community of readers and writers. Discover original stories across all genres, or share your own voice with the world.
         </p>
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
           <Button asChild size="lg" className="px-8 py-3 text-base">
             <Link href="/library">
-              <PlayCircle className="mr-2 h-5 w-5" />
+              {/* <PlayCircle className="mr-2 h-5 w-5" /> No icon in image's button */}
               Start Reading
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="px-8 py-3 text-base border-primary text-primary hover:bg-primary/10 hover:text-primary">
-            <Link href="/write">
-              <Sparkles className="mr-2 h-5 w-5" />
-              Get AI Assistance
-            </Link>
-          </Button>
+          {/* Removed "Get AI Assistance" button */}
         </div>
       </section>
 

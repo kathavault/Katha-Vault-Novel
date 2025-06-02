@@ -18,7 +18,7 @@ export default {
     extend: {
       fontFamily: {
         headline: ['Belleza', 'sans-serif'],
-        body: ['Alegreya', 'serif'],
+        body: ['Open Sans', 'sans-serif'], // Changed Alegreya to Open Sans
         code: ['monospace'],
       },
       colors: {
