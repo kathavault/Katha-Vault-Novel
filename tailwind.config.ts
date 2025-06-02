@@ -17,8 +17,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        headline: ['Belleza', 'sans-serif'],
-        body: ['Open Sans', 'sans-serif'], // Changed Alegreya to Open Sans
+        sans: ['Nunito', 'sans-serif'], // Set Nunito as the default sans-serif
+        headline: ['Nunito', 'sans-serif'], // Use Nunito for headlines
+        body: ['Nunito', 'sans-serif'],     // Use Nunito for body text
         code: ['monospace'],
       },
       colors: {
