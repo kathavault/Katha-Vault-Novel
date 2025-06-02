@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -17,9 +18,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Nunito', 'sans-serif'], // Set Nunito as the default sans-serif
-        headline: ['Nunito', 'sans-serif'], // Use Nunito for headlines
-        body: ['Nunito', 'sans-serif'],     // Use Nunito for body text
+        sans: ['Rubik', 'sans-serif'], 
+        headline: ['Rubik', 'sans-serif'], 
+        body: ['Rubik', 'sans-serif'],     
         code: ['monospace'],
       },
       colors: {
