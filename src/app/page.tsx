@@ -1,20 +1,21 @@
+
 import Link from 'next/link';
 import { StoryCard } from '@/components/story-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, BookText, FileText, Heart, Rocket, Grid, Sparkles, PlayCircle, ChevronRight } from 'lucide-react';
+import { ArrowRight, TrendingUp, BookText, FileText, Heart, Rocket, Grid, Sparkles, PlayCircle, ChevronRight, Clock } from 'lucide-react'; // Added Clock
 
 interface Story {
   id: string;
   title: string;
   author: string;
-  genres: string[];
+  genres: string[]; // Changed from genre: string to genres: string[]
   snippet: string;
   coverImageUrl?: string;
   aiHint?: string;
-  views?: number;
-  chapters?: number;
-  rating?: number; // Added rating
-  isTrending?: boolean; // Added for trending badge
+  views?: number; // Added views
+  chapters?: number; // Added chapters
+  rating?: number; 
+  isTrending?: boolean;
 }
 
 const trendingStories: Story[] = [
@@ -34,39 +35,115 @@ const trendingStories: Story[] = [
   {
     id: 'trend-2',
     title: 'Beneath the Emerald Canopy',
-    author: 'Liam Evergreen',
-    genres: ['Fantasy', 'Mystery', 'Jungle'],
-    snippet: 'In a lost jungle civilization, a young shaman must uncover the source of a spreading curse before it consumes his people.',
+    author: 'Marcus Stone',
+    genres: ['fantasy', 'exploration', 'magic'],
+    snippet: 'Fantasy exploration into ancient rainforest magic.',
     coverImageUrl: 'https://placehold.co/600x400.png',
     aiHint: 'jungle temple',
-    views: 12100,
-    chapters: 18,
-    rating: 4.6, // Added example rating
-    isTrending: true, // Flag as trending
+    views: 18000,
+    chapters: 20, // Example chapters
+    rating: 4.6,
+    isTrending: true,
   },
 ];
 
 const fullLengthNovels: Story[] = [
-  { id: 'novel-1', title: 'The Astral Alchemist', author: 'Seraphina Cole', genres: ['High Fantasy', 'Magic', 'Epic'], snippet: 'A grand tale of warring kingdoms, ancient prophecies, and an alchemist whose powers could reshape the very fabric of reality.', coverImageUrl: 'https://placehold.co/800x500.png', aiHint: 'fantasy alchemy', views: 88000, chapters: 75, rating: 4.9 },
+  { 
+    id: 'novel-1', 
+    title: 'The Alchemist of Moonhaven', 
+    author: 'Seraphina Gold', 
+    genres: ['steampunk', 'mystery', 'alchemy'], 
+    snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', 
+    coverImageUrl: 'https://placehold.co/800x500.png', 
+    aiHint: 'steampunk city moon', 
+    views: 12000, 
+    chapters: 50, // Example chapters
+    rating: 4.2 
+  },
 ];
 
 const shortStories: Story[] = [
-  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Quinn', genres: ['Sci-Fi', 'Short Story', 'Drama'], snippet: 'A brief encounter with a time-traveling tailor leads to unforeseen consequences for a lonely watchmaker.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'clock gears', views: 5000, chapters: 1, rating: 4.5 },
-  { id: 'short-2', title: 'The Clockwork Heart', author: 'Orville Tinkerton', genres: ['Steampunk', 'Romance', 'Short'], snippet: 'An inventor creates a mechanical companion, only to find it possesses more heart than he ever imagined.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'steampunk robot', views: 7800, chapters: 1, rating: 4.7 },
+  { 
+    id: 'short-1', 
+    title: 'A Stitch in Time', 
+    author: 'Penelope Weave', 
+    genres: ['short story', 'urban fantasy', 'magic'], 
+    snippet: 'A short story about a magical tailor who can alter time.', 
+    coverImageUrl: 'https://placehold.co/600x400.png', 
+    aiHint: 'magic tailor', 
+    views: 9600, 
+    chapters: 1, 
+    rating: 4.3 
+  },
+  { 
+    id: 'short-2', 
+    title: 'The Clockwork Heart', 
+    author: 'Cogsworth Throttleton', 
+    genres: ['short story', 'steampunk', 'romance'], 
+    snippet: 'A short tale of love and machinery in a steampunk universe.', 
+    coverImageUrl: 'https://placehold.co/600x400.png', 
+    aiHint: 'steampunk heart', 
+    views: 15000, 
+    chapters: 1, 
+    rating: 4.7 
+  },
 ];
 
 const romanceReads: Story[] = [
-  { id: 'rom-1', title: 'Love in the Time of Stardust', author: 'Noelle Skye', genres: ['Romance', 'Sci-Fi', 'Space Opera'], snippet: 'Two star-crossed lovers from rival empires find their destinies intertwined amidst a galactic war.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'space couple', views: 32000, chapters: 40, rating: 4.8 },
+  { 
+    id: 'rom-1', 
+    title: 'Love in the Time of Stardust', 
+    author: 'Stella Astra', 
+    genres: ['romance', 'space opera', 'adventure'], 
+    snippet: 'Two starlit souls find their way toward each other across galaxies, their romance defying all odds.', 
+    coverImageUrl: 'https://placehold.co/600x400.png', 
+    aiHint: 'galaxy couple romance', 
+    views: 28000, 
+    chapters: 30, // Example chapters 
+    rating: 4.9 
+  },
 ];
 
 const scifiAdventures: Story[] = [
-  { id: 'scifi-1', title: 'Echoes of the Void', author: 'Captain Rex Nebula', genres: ['Space Opera', 'Action', 'Alien'], snippet: 'A rogue captain and his ragtag crew uncover an ancient alien artifact that could spell doom or salvation for the galaxy.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'spaceship battle', views: 29000, chapters: 33, rating: 4.6 },
-  { id: 'scifi-2', title: 'The Last Cyberpunk', author: 'Neon Ryder', genres: ['Cyberpunk', 'Dystopian', 'Tech'], snippet: 'In a neon-drenched metropolis, a lone hacker fights against a totalitarian AI regime.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'cyberpunk city', views: 22000, chapters: 28, rating: 4.4 },
+  { 
+    id: 'scifi-1', 
+    title: 'Echoes of the Void', 
+    author: 'Orion Nebula', 
+    genres: ['space opera', 'horror', 'existential'], 
+    snippet: 'A lone astronaut contemplates an ancient species, adrift at the edge of known space.', 
+    coverImageUrl: 'https://placehold.co/600x400.png', 
+    aiHint: 'astronaut void space', 
+    views: 36000, 
+    chapters: 22, // Example chapters
+    rating: 4.9 
+  },
+  { 
+    id: 'scifi-2', 
+    title: 'The Last Cyberpunk', 
+    author: 'Nova Byte', 
+    genres: ['cyberpunk', 'dystopia', 'action'], 
+    snippet: 'In a ruined electric city, one last hacker fights for freedom.', 
+    coverImageUrl: 'https://placehold.co/600x400.png', 
+    aiHint: 'cyberpunk hacker city', 
+    views: 22000, 
+    chapters: 18, // Example chapters
+    rating: 4.6 
+  },
 ];
 
 const moreStories: Story[] = [
-   { id: '1', title: 'The Last Nebula', author: 'Aria Vale', genres: ['Sci-Fi'], snippet: 'In a dying galaxy, a lone explorer seeks the fabled Last Nebula.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space', views: 3000, chapters: 12, rating: 4.3 },
-   { id: '2', title: 'Whispers of the Old Wood', author: 'Elara Moonwhisper', genres: ['Fantasy'], snippet: 'An ancient forest guards secrets darker than its deepest shadows.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'enchanted forest', views: 3500, chapters: 15, rating: 4.5 },
+   { 
+     id: 'more-1', 
+     title: 'General Thoughts on Reading', 
+     author: 'Marcus Stone', 
+     genres: ['general', 'reading', 'book'], 
+     snippet: 'A general story on the general complexity of books, the reader’s state of mind, and what defines a book.', 
+     coverImageUrl: 'https://placehold.co/600x400.png', 
+     aiHint: 'book thought', 
+     views: 10000, 
+     chapters: 5, // Example chapters
+     rating: 4.0 
+    },
 ];
 
 
@@ -89,7 +166,7 @@ export default function HomePage() {
     stories: Story[],
     seeAllLink: string,
     layout: "grid" | "horizontal" = "grid",
-    gridCols: string = "md:grid-cols-2"
+    gridCols: string = "md:grid-cols-2" // Default grid columns
   ) => (
     <section>
       <SectionHeader title={title} icon={icon} seeAllLink={seeAllLink} />
@@ -103,7 +180,7 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          <div className={`grid grid-cols-1 ${gridCols} gap-6 lg:gap-8`}> {/* Grid layout */}
+          <div className={`grid grid-cols-1 ${stories.length === 1 ? 'md:grid-cols-1 lg:grid-cols-1' : gridCols} gap-6 lg:gap-8`}> {/* Grid layout, adjust for single item */}
             {stories.map(story => (
               <StoryCard key={story.id} {...story} />
             ))}
@@ -144,11 +221,11 @@ export default function HomePage() {
 
       {/* Story Sections */}
       {renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingStories, "/trending", "horizontal")}
-      {renderSection("Full-Length Novels", <BookText className="h-7 w-7 text-primary" />, fullLengthNovels, "/novels", "md:grid-cols-1 lg:grid-cols-1")}
-      {renderSection("Short Stories & Quick Reads", <FileText className="h-7 w-7 text-primary" />, shortStories, "/shorts")}
-      {renderSection("Romance Reads", <Heart className="h-7 w-7 text-primary" />, romanceReads, "/romance", "md:grid-cols-1 lg:grid-cols-1")}
-      {renderSection("Sci-Fi Adventures", <Rocket className="h-7 w-7 text-primary" />, scifiAdventures, "/scifi")}
-      {renderSection("More Stories", <Grid className="h-7 w-7 text-primary" />, moreStories, "/all")}
+      {renderSection("Full-Length Novels", <BookText className="h-7 w-7 text-primary" />, fullLengthNovels, "/novels", "grid", "md:grid-cols-1 lg:grid-cols-1")}
+      {renderSection("Short Stories & Quick Reads", <Clock className="h-7 w-7 text-primary" />, shortStories, "/shorts", "grid", "md:grid-cols-2 lg:grid-cols-2")}
+      {renderSection("Romance Reads", <Heart className="h-7 w-7 text-primary" />, romanceReads, "/romance", "grid", "md:grid-cols-1 lg:grid-cols-1")}
+      {renderSection("Sci-Fi Adventures", <Rocket className="h-7 w-7 text-primary" />, scifiAdventures, "/scifi", "horizontal")}
+      {renderSection("More Stories", <Grid className="h-7 w-7 text-primary" />, moreStories, "/all", "grid", "md:grid-cols-1 lg:grid-cols-1")}
     </div>
   );
 }
