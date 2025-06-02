@@ -6,23 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette, MoreVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 // Placeholder data
 const aiChatUser = {
   name: "Katha Vault AI",
   avatarFallback: "AI",
-  avatarUrl: "https://placehold.co/40x40.png?text=AI", // Placeholder AI avatar
-  nickname: "Katha AI (Default)", // Default nickname
+  avatarUrl: "https://placehold.co/40x40.png?text=AI", 
+  nickname: "Katha AI (Default)", 
 };
 
 const placeholderUserChats = [
   { id: 'user1', name: 'Elara Reads', username: '@elara', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ER', lastMessage: 'Hey, did you read that new chapter yet?', timestamp: '10:30 AM', unreadCount: 2, isOnline: true },
   { id: 'user2', name: 'Marcus Writes', username: '@marcus_w', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'MW', lastMessage: 'Sure, I can give you feedback on that.', timestamp: 'Yesterday', unreadCount: 0, isOnline: false },
   { id: 'user3', name: 'SciFiFanatic', username: '@scifi_guru', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'SF', lastMessage: 'That plot twist was insane!', timestamp: 'Mon', unreadCount: 0, isOnline: true },
+];
+
+const placeholderOnlineFriends = [
+  { id: 'online1', name: 'Elara Reads', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'ER', dataAiHint: 'person reading' },
+  { id: 'online2', name: 'Marcus Writes', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'MW', dataAiHint: 'person writing' },
+  { id: 'online3', name: 'SciFiFanatic', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'SF', dataAiHint: 'person space' },
+  { id: 'online4', name: 'Katha Explorer', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'KE', dataAiHint: 'person map' },
+  { id: 'online5', name: 'PixelPioneer', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'PP', dataAiHint: 'person computer' },
+  { id: 'online6', name: 'Reader Digest', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'RD', dataAiHint: 'person book' },
 ];
 
 interface Message {
@@ -32,44 +43,76 @@ interface Message {
   timestamp: string;
 }
 
+const OnlineFriendsBar = () => (
+  <Card className="mb-6">
+    <CardHeader>
+      <CardTitle className="text-lg font-headline text-primary">Online Now</CardTitle>
+    </CardHeader>
+    <CardContent className="p-4">
+      <ScrollArea className="w-full whitespace-nowrap">
+        <div className="flex space-x-4 pb-2">
+          {placeholderOnlineFriends.map(friend => (
+            <TooltipProvider key={friend.id}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="relative cursor-pointer flex flex-col items-center w-16">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={friend.avatarUrl} alt={friend.name} data-ai-hint={friend.dataAiHint} />
+                      <AvatarFallback>{friend.avatarFallback}</AvatarFallback>
+                    </Avatar>
+                    <span className="absolute top-0 right-2 block h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-card ring-1 ring-green-500" />
+                    <p className="text-xs mt-1 text-muted-foreground truncate w-full text-center">{friend.name.split(' ')[0]}</p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{friend.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    </CardContent>
+  </Card>
+);
+
+
 export default function ChatPage() {
   const { toast } = useToast();
   const [aiNickname, setAiNickname] = useState(aiChatUser.nickname);
   const [aiAvatar, setAiAvatar] = useState(aiChatUser.avatarUrl);
   const [currentMessage, setCurrentMessage] = useState("");
-  const [aiMessages, setAiMessages] = useState<Message[]>([]); // Initialize empty
+  const [aiMessages, setAiMessages] = useState<Message[]>([]); 
   const [selectedChatUser, setSelectedChatUser] = useState<typeof placeholderUserChats[0] | null>(null);
   const [userMessages, setUserMessages] = useState<Message[]>([]);
 
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Set the initial AI message only on the client-side after mount
-    // to avoid hydration mismatch for the timestamp.
     setAiMessages([
       { 
-        id: 'initial-ai-message', 
+        id: 'initial-ai-message-' + Date.now(), 
         text: 'Hello! How can I help you with your stories today?', 
         sender: 'ai', 
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
-  }, []); // Empty dependency array ensures this runs once on mount
+  }, []); 
 
   const handleSendAiMessage = () => {
     if (!currentMessage.trim()) return;
     const newMessage: Message = {
-      id: String(Date.now()), // Use a more unique ID like Date.now() or a UUID
+      id: 'user-msg-' + Date.now(), 
       text: currentMessage,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    // Simulate AI response
     const aiResponse: Message = {
-      id: String(Date.now() + 1), // Use a more unique ID
-      text: `I've received: "${currentMessage}". As an AI, I'm still learning!`,
+      id: 'ai-resp-' + Date.now(), 
+      text: `I've received: "${currentMessage}". As an AI, I'm still learning! How can I assist you further?`,
       sender: 'ai',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setAiMessages(prev => [...prev, newMessage, aiResponse]);
     setCurrentMessage("");
@@ -78,17 +121,16 @@ export default function ChatPage() {
   const handleSendUserMessage = () => {
     if (!currentMessage.trim() || !selectedChatUser) return;
      const newMessage: Message = {
-      id: String(Date.now()), // Use a more unique ID
+      id: 'user-chat-msg-' + Date.now(), 
       text: currentMessage,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    // Simulate response from the other user for demo
     const otherUserResponse: Message = {
-      id: String(Date.now() + 1), // Use a more unique ID
+      id: 'other-user-resp-' + Date.now(), 
       text: `This is a simulated reply to: "${currentMessage}".`,
-      sender: 'ai', // Simulating other user as 'ai' for simplicity in this placeholder
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      sender: 'ai', 
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setUserMessages(prev => [...prev, newMessage, otherUserResponse]);
     setCurrentMessage("");
@@ -98,7 +140,6 @@ export default function ChatPage() {
     const newNick = prompt("Enter new nickname for AI:", aiNickname);
     if (newNick) {
       setAiNickname(newNick);
-      // In real app, save to local storage: localStorage.setItem('aiNickname', newNick);
       toast({ title: "AI Nickname Updated", description: `Katha Vault AI will now be called "${newNick}" for you.` });
     }
   };
@@ -114,7 +155,6 @@ export default function ChatPage() {
       reader.onloadend = () => {
         const newAvatarUrl = reader.result as string;
         setAiAvatar(newAvatarUrl);
-        // In real app, save to local storage: localStorage.setItem('aiAvatarUrl', newAvatarUrl);
         toast({ title: "AI Avatar Updated", description: "New avatar applied locally." });
       };
       reader.readAsDataURL(file);
@@ -127,29 +167,58 @@ export default function ChatPage() {
     chatPartnerFallback,
     messages,
     onSendMessage,
+    isUserChat, // To differentiate AI chat from user chat for options
   }: {
     chatPartnerName: string;
     chatPartnerAvatar: string;
     chatPartnerFallback: string;
     messages: Message[];
     onSendMessage: () => void;
+    isUserChat: boolean;
   }) => (
-    <Card className="flex flex-col h-full">
-      <CardHeader className="flex flex-row items-center space-x-3 border-b p-4">
-        <Avatar>
-          <AvatarImage src={chatPartnerAvatar} alt={chatPartnerName} data-ai-hint="person avatar" />
-          <AvatarFallback>{chatPartnerFallback}</AvatarFallback>
-        </Avatar>
-        <div>
-          <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
-          {selectedChatUser?.isOnline && <CardDescription className="text-xs text-green-500">Online</CardDescription>}
+    <Card className="flex flex-col h-full shadow-xl">
+      <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4">
+        <div className="flex items-center space-x-3">
+          <Avatar>
+            <AvatarImage src={chatPartnerAvatar} alt={chatPartnerName} data-ai-hint={isUserChat ? "person avatar" : "robot ai"} />
+            <AvatarFallback>{chatPartnerFallback}</AvatarFallback>
+          </Avatar>
+          <div>
+            <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+            {selectedChatUser?.isOnline && isUserChat && <CardDescription className="text-xs text-green-500">Online</CardDescription>}
+          </div>
+        </div>
+        <div className="ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isUserChat ? (
+                <>
+                  <DropdownMenuItem>View Profile</DropdownMenuItem>
+                  <DropdownMenuItem>Block User</DropdownMenuItem>
+                  <DropdownMenuItem>Clear Chat</DropdownMenuItem>
+                  <DropdownMenuItem>Report User</DropdownMenuItem>
+                </>
+              ) : (
+                 <>
+                  <DropdownMenuItem onClick={handleNicknameChange}>Change AI Nickname</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleAvatarChangeClick}>Change AI Avatar</DropdownMenuItem>
+                  <DropdownMenuItem>Clear Chat History</DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow p-0">
-        <ScrollArea className="h-[calc(100vh-380px)] sm:h-[calc(100vh-350px)] p-4 space-y-4">
+      <CardContent className="flex-grow p-0 overflow-hidden">
+        <ScrollArea className="h-full p-4 space-y-4">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[70%] p-3 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
+              <div className={`max-w-[70%] p-3 rounded-lg shadow ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
                 <p className="text-sm font-body">{msg.text}</p>
                 {msg.timestamp && <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>}
               </div>
@@ -157,7 +226,7 @@ export default function ChatPage() {
           ))}
         </ScrollArea>
       </CardContent>
-      <div className="border-t p-4 flex items-center space-x-2">
+      <div className="border-t p-4 flex items-center space-x-2 bg-background">
         <Input
           type="text"
           placeholder="Type a message..."
@@ -175,7 +244,7 @@ export default function ChatPage() {
 
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="text-center space-y-2">
         <MessageCircle className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Direct Messages</h1>
@@ -184,49 +253,40 @@ export default function ChatPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-280px)] sm:h-[calc(100vh-250px)]">
+      <OnlineFriendsBar />
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-[calc(100vh-470px)] sm:h-[calc(100vh-440px)]"> {/* Adjusted height and grid cols */}
         {/* Chat List & AI Section */}
         <Card className="md:col-span-1 flex flex-col">
-          <CardHeader>
+          <CardHeader className="p-4">
             <CardTitle className="font-headline text-xl">My Chats</CardTitle>
           </CardHeader>
-          <CardContent className="p-0 flex-grow">
-            <ScrollArea className="h-full">
+          <CardContent className="p-0 flex-grow overflow-hidden">
+            <ScrollArea className="h-full"> {/* Ensure ScrollArea takes full height of its parent */}
               {/* Katha Vault AI Chat Item */}
               <div 
-                className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer ${!selectedChatUser ? 'bg-muted' : ''}`}
-                onClick={() => setSelectedChatUser(null)}
+                className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${!selectedChatUser ? 'bg-muted' : ''}`}
+                onClick={() => {setSelectedChatUser(null); setUserMessages([]); setCurrentMessage(''); }}
               >
                 <Avatar>
                   <AvatarImage src={aiAvatar} alt={aiChatUser.name} data-ai-hint="robot ai" />
                   <AvatarFallback>{aiChatUser.avatarFallback}</AvatarFallback>
                 </Avatar>
-                <div className="flex-grow">
+                <div className="flex-grow overflow-hidden">
                   <p className="font-semibold text-sm text-foreground">{aiNickname}</p>
-                  <p className="text-xs text-muted-foreground truncate">AI Assistant ready to help...</p>
+                  <p className="text-xs text-muted-foreground truncate">AI Assistant for stories...</p>
                 </div>
-                 <div className="flex space-x-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleNicknameChange(); }}>
-                        <Palette size={16} />
-                        <span className="sr-only">Change Nickname</span>
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleAvatarChangeClick(); }}>
-                        <CircleUserRound size={16} />
-                         <span className="sr-only">Change AI Avatar</span>
-                    </Button>
-                    <input type="file" accept="image/*" ref={aiAvatarInputRef} onChange={handleAvatarFileChange} className="hidden" />
-                </div>
+                 {/* AI customization buttons are now in the 3-dot menu */}
               </div>
-              <Separator />
               {/* User Chat List */}
               {placeholderUserChats.map(chat => (
                 <div key={chat.id} 
-                  className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer ${selectedChatUser?.id === chat.id ? 'bg-muted': ''}`}
+                  className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedChatUser?.id === chat.id ? 'bg-muted': ''}`}
                   onClick={() => { setSelectedChatUser(chat); setUserMessages([]); setCurrentMessage(''); }}
                 >
                   <div className="relative">
                     <Avatar>
-                      <AvatarImage src={chat.avatarUrl} alt={chat.name} data-ai-hint="person avatar"/>
+                      <AvatarImage src={chat.avatarUrl} alt={chat.name} data-ai-hint="person chat"/>
                       <AvatarFallback>{chat.avatarFallback}</AvatarFallback>
                     </Avatar>
                     {chat.isOnline && (
@@ -246,11 +306,12 @@ export default function ChatPage() {
                 </div>
               ))}
             </ScrollArea>
+             <input type="file" accept="image/*" ref={aiAvatarInputRef} onChange={handleAvatarFileChange} className="hidden" />
           </CardContent>
         </Card>
 
         {/* Main Chat Area */}
-        <div className="md:col-span-2 h-full">
+        <div className="md:col-span-3 h-full"> {/* Adjusted grid span */}
           {!selectedChatUser ? (
             <CurrentChatInterface
               chatPartnerName={aiNickname}
@@ -258,6 +319,7 @@ export default function ChatPage() {
               chatPartnerFallback={aiChatUser.avatarFallback}
               messages={aiMessages}
               onSendMessage={handleSendAiMessage}
+              isUserChat={false}
             />
           ) : (
             <CurrentChatInterface
@@ -266,6 +328,7 @@ export default function ChatPage() {
               chatPartnerFallback={selectedChatUser.avatarFallback}
               messages={userMessages}
               onSendMessage={handleSendUserMessage}
+              isUserChat={true}
             />
           )}
         </div>
@@ -273,4 +336,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
