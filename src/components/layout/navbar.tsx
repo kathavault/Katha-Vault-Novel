@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
+import React from 'react'; // Added explicit React import
 
 export function Navbar() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -185,4 +186,3 @@ export function Navbar() {
     </nav>
   );
 }
-
