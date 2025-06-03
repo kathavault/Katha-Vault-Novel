@@ -18,6 +18,7 @@ import { SharePostModal } from '@/components/share-post-modal';
 const CURRENT_USER_NAME = "Katha Explorer";
 const CURRENT_USER_INITIALS = "KE";
 const CURRENT_USER_AVATAR_URL = "https://placehold.co/40x40.png?text=KE";
+const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
 
 export interface FeedItemComment {
@@ -50,7 +51,7 @@ export interface FeedItemCardProps {
   discussionGroupName?: string;
   onDeletePost?: (postId: string) => void;
   onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
-  isFullView?: boolean; 
+  isFullView?: boolean;
 }
 
 export function FeedItemCard({
@@ -127,7 +128,7 @@ export function FeedItemCard({
     };
     updateCommentsStateAndNotifyParent(updateLikesRecursively(postComments));
   };
-  
+
   const handleToggleReplyInput = (commentId: string) => {
     setReplyingToCommentId(prevId => (prevId === commentId ? null : commentId));
     setReplyText("");
@@ -142,9 +143,9 @@ export function FeedItemCard({
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: CURRENT_USER_NAME, 
+      authorName: CURRENT_USER_NAME,
       authorInitials: CURRENT_USER_INITIALS,
-      authorAvatarUrl: CURRENT_USER_AVATAR_URL, 
+      authorAvatarUrl: CURRENT_USER_AVATAR_URL,
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -157,7 +158,7 @@ export function FeedItemCard({
         if (comment.id === targetParentCommentId) {
           return {
             ...comment,
-            replies: [newReply, ...comment.replies], 
+            replies: [newReply, ...comment.replies],
           };
         }
         if (comment.replies && comment.replies.length > 0) {
@@ -172,7 +173,7 @@ export function FeedItemCard({
 
     updateCommentsStateAndNotifyParent(addReplyRecursively(postComments));
     setReplyText("");
-    setReplyingToCommentId(null); 
+    setReplyingToCommentId(null);
     toast({ title: "Reply Posted", description: "Your reply has been added." });
   };
 
@@ -198,23 +199,52 @@ export function FeedItemCard({
   const handleOpenShareModal = () => setIsShareModalOpen(true);
 
   const handleJoinDiscussion = () => {
-    const groupName = discussionGroupName || title || `Discussion for post ${postId}`;
-    toast({
-        title: `Joining: ${groupName}`,
-        description: `This would open a dedicated chat. For now, you're redirected to the main chat page. You can discuss post ID: ${postId}.`,
-        duration: 6000,
-    });
-    router.push('/chat');
+    const groupNameDisplay = discussionGroupName || title || `Discussion for post ${postId}`;
+    try {
+      const storedDiscussionsRaw = localStorage.getItem(JOINED_DISCUSSIONS_STORAGE_KEY);
+      let joinedDiscussions: { id: string; name: string; postId: string }[] = storedDiscussionsRaw ? JSON.parse(storedDiscussionsRaw) : [];
+      
+      const discussionExists = joinedDiscussions.some(d => d.postId === postId);
+      if (!discussionExists) {
+        joinedDiscussions.push({
+          id: postId, // Using postId as discussion ID for simplicity
+          name: groupNameDisplay,
+          postId: postId,
+        });
+        localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(joinedDiscussions));
+        toast({
+          title: `Added to "Joined Discussions"!`,
+          description: `You can find "${groupNameDisplay}" in the Chat section.`,
+          duration: 6000,
+        });
+      } else {
+         toast({
+          title: `Already Joined`,
+          description: `"${groupNameDisplay}" is already in your "Joined Discussions".`,
+          duration: 6000,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving joined discussion to localStorage:", error);
+      toast({
+        title: "Error Joining Discussion",
+        description: "Could not save this discussion to your list.",
+        variant: "destructive"
+      });
+    }
+    router.push('/chat?section=discussions');
   };
 
   const handleDeleteDiscussionGroup = () => {
-    const groupName = discussionGroupName || title || `Discussion for post ${postId}`;
+    const groupNameDisplay = discussionGroupName || title || `Discussion for post ${postId}`;
     toast({
         title: "Discussion Group Deleted (Simulated)",
-        description: `The discussion group '${groupName}' for this post would be removed by the admin. This action is visual for this session.`,
+        description: `The discussion group '${groupNameDisplay}' for this post would be removed by the admin. This action is visual for this session.`,
         variant: "destructive"
     });
     // In a real app, update the post state (e.g., post.includeDiscussionGroup = false) and persist
+    // Also, potentially remove from JOINED_DISCUSSIONS_STORAGE_KEY for all users if possible client-side,
+    // or ideally, handle on backend.
   };
 
   const handleInternalDeletePost = () => {
@@ -261,7 +291,7 @@ export function FeedItemCard({
           <p className="text-sm text-foreground/90 whitespace-pre-wrap">{comment.text}</p>
           <div className="flex items-center space-x-2 text-xs">
             <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)}>
-              <ThumbsUp className={`h-3.5 w-3.5 mr-1 ${comment.isCommentLikedByUser ? 'fill-primary text-primary' : ''}`} /> 
+              <ThumbsUp className={`h-3.5 w-3.5 mr-1 ${comment.isCommentLikedByUser ? 'fill-primary text-primary' : ''}`} />
               {comment.commentLikes > 0 ? comment.commentLikes : 'Like'}
             </Button>
             <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)}>
@@ -270,12 +300,12 @@ export function FeedItemCard({
           </div>
           {replyingToCommentId === comment.id && (
             <form onSubmit={(e) => handlePostReply(e, comment.id)} className="mt-2 flex items-center space-x-2">
-              <Input 
-                type="text" 
-                placeholder="Write a reply..." 
+              <Input
+                type="text"
+                placeholder="Write a reply..."
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                className="h-8 text-sm flex-grow" 
+                className="h-8 text-sm flex-grow"
                 autoFocus
               />
               <Button type="submit" size="sm" variant="ghost" className="h-8 px-2">
@@ -284,7 +314,7 @@ export function FeedItemCard({
             </form>
           )}
           {comment.replies?.map(reply => (
-            <CommentItem key={reply.id} comment={reply} depth={depth + 1} /> 
+            <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
           ))}
         </div>
       </div>
@@ -343,8 +373,8 @@ export function FeedItemCard({
                 <Image
                   src={imageUrl}
                   alt={title || "Post image"}
-                  layout="fill"
-                  objectFit="cover"
+                  fill
+                  style={{objectFit: "cover"}}
                   data-ai-hint={aiHint}
                 />
               </div>
@@ -381,7 +411,7 @@ export function FeedItemCard({
                 )}
               </div>
           </div>
-          
+
           {(showAllComments || !isFullView) && postComments.length > 0 && (
             <div className="w-full pt-3 mt-2 border-t border-border/50">
               {commentsToDisplay.map(comment => (
