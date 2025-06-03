@@ -3,7 +3,7 @@
 
 import { useState, useEffect, type FormEvent } from 'react';
 import { FeedItemCard, type FeedItemComment, type FeedItemCardProps } from '@/components/forum-post-card';
-import { CustomAudienceModal } from '@/components/profile/custom-audience-modal'; // New Modal
+import { CustomAudienceModal } from '@/components/profile/custom-audience-modal'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,9 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus } from 'lucide-react'; // Added UserCog, UserPlus
+import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus } from 'lucide-react'; 
 import { useToast } from "@/hooks/use-toast";
-import { allMockUsers, kathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID } from '@/lib/mock-data'; // Import mock data
+import { allMockUsers, kathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID, isUserActive } from '@/lib/mock-data'; 
 
 const sampleCommentsLevel2: FeedItemComment[] = [
   { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', authorId: 'user_dt', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
@@ -54,7 +54,10 @@ export default function FeedPage() {
   const [trendingPosts, setTrendingPosts] = useState<FeedItemCardProps[]>(initialTrendingPosts); 
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
 
-  const kathaExplorerFollowingIds = getInitialFollowingIds(); // Call the function
+  // Get current user status for disabling actions
+  const currentUserIsActive = isUserActive(CURRENT_USER_ID); 
+
+  const kathaExplorerFollowingIds = getInitialFollowingIds(); 
 
   useEffect(() => {
     setIsLoadingFeed(true);
@@ -86,6 +89,10 @@ export default function FeedPage() {
 
   const handleCreatePost = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!currentUserIsActive) {
+      toast({ title: "Account Deactivated", description: "Your account is currently deactivated. You cannot create posts.", variant: "destructive"});
+      return;
+    }
     if (!newPostContent.trim()) {
       toast({ title: "Empty Post", description: "You can't submit an empty post.", variant: "destructive" });
       return;
@@ -180,12 +187,12 @@ export default function FeedPage() {
 
   const filteredSocialFeedPosts = socialFeedPosts.filter(post => {
     if (post.privacy === 'public') return true;
-    if (post.authorId === kathaExplorerUser.id) return true; // Author always sees their own posts
-    if (post.privacy === 'private') return false; // For client-side, only author sees private in main feed
+    if (post.authorId === kathaExplorerUser.id) return true; 
+    if (post.privacy === 'private') return false; 
     if (post.privacy === 'custom') {
       return post.customAudienceUserIds?.includes(kathaExplorerUser.id) ?? false;
     }
-    return true; // Should not happen
+    return true; 
   });
 
 
@@ -219,11 +226,12 @@ export default function FeedPage() {
             <CardContent>
               <form onSubmit={handleCreatePost} className="space-y-4">
                 <Textarea
-                  placeholder={`What's on your mind, ${kathaExplorerUser.name}?`}
+                  placeholder={currentUserIsActive ? `What's on your mind, ${kathaExplorerUser.name}?` : "Your account is deactivated. You cannot create posts."}
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   className="min-h-[100px] font-body text-base"
                   rows={4}
+                  disabled={!currentUserIsActive}
                 />
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -237,8 +245,9 @@ export default function FeedPage() {
                           setDiscussionGroupName(""); 
                         }
                       }}
+                      disabled={!currentUserIsActive}
                     />
-                    <Label htmlFor="includeDiscussion" className="font-body text-sm text-muted-foreground">
+                    <Label htmlFor="includeDiscussion" className={`font-body text-sm ${!currentUserIsActive ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
                       Include 'Join Discussion' Group?
                     </Label>
                   </div>
@@ -252,29 +261,30 @@ export default function FeedPage() {
                       value={discussionGroupName}
                       onChange={(e) => setDiscussionGroupName(e.target.value)}
                       className="font-body text-sm"
-                      disabled={!includeDiscussion}
+                      disabled={!includeDiscussion || !currentUserIsActive}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="font-body text-sm font-medium">Post Privacy</Label>
+                  <Label className={`font-body text-sm font-medium ${!currentUserIsActive ? 'text-muted-foreground/50' : ''}`}>Post Privacy</Label>
                   <RadioGroup
                     value={postPrivacy}
                     onValueChange={(value: 'public' | 'private' | 'custom') => setPostPrivacy(value)}
                     className="flex flex-col sm:flex-row gap-2 sm:gap-4"
+                    disabled={!currentUserIsActive}
                   >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="public" id="privacy-public" />
-                      <Label htmlFor="privacy-public" className="font-body text-sm flex items-center"><Globe className="mr-1.5 h-4 w-4 text-blue-500"/>Public</Label>
+                      <RadioGroupItem value="public" id="privacy-public" disabled={!currentUserIsActive} />
+                      <Label htmlFor="privacy-public" className={`font-body text-sm flex items-center ${!currentUserIsActive ? 'text-muted-foreground/50' : ''}`}><Globe className="mr-1.5 h-4 w-4 text-blue-500"/>Public</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="private" id="privacy-private" />
-                      <Label htmlFor="privacy-private" className="font-body text-sm flex items-center"><Lock className="mr-1.5 h-4 w-4 text-orange-500"/>Private</Label>
+                      <RadioGroupItem value="private" id="privacy-private" disabled={!currentUserIsActive} />
+                      <Label htmlFor="privacy-private" className={`font-body text-sm flex items-center ${!currentUserIsActive ? 'text-muted-foreground/50' : ''}`}><Lock className="mr-1.5 h-4 w-4 text-orange-500"/>Private</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="custom" id="privacy-custom" />
-                      <Label htmlFor="privacy-custom" className="font-body text-sm flex items-center"><UserCog className="mr-1.5 h-4 w-4 text-teal-500"/>Custom</Label>
+                      <RadioGroupItem value="custom" id="privacy-custom" disabled={!currentUserIsActive} />
+                      <Label htmlFor="privacy-custom" className={`font-body text-sm flex items-center ${!currentUserIsActive ? 'text-muted-foreground/50' : ''}`}><UserCog className="mr-1.5 h-4 w-4 text-teal-500"/>Custom</Label>
                     </div>
                   </RadioGroup>
                    {postPrivacy === 'custom' && (
@@ -284,13 +294,14 @@ export default function FeedPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => setIsCustomAudienceModalOpen(true)}
+                        disabled={!currentUserIsActive}
                       >
                         <UserPlus className="mr-2 h-4 w-4" />
                         Select Audience ({customAudienceUserIds.length} selected)
                       </Button>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground font-body pl-1">
+                  <p className={`text-xs font-body pl-1 ${!currentUserIsActive ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
                     {postPrivacy === 'public' && 'Visible to everyone.'}
                     {postPrivacy === 'private' && 'Simulated: Only you see this in the main feed. Followers/following would see it in a real app.'}
                     {postPrivacy === 'custom' && `Visible to you and ${customAudienceUserIds.length} selected user(s).`}
@@ -299,7 +310,7 @@ export default function FeedPage() {
 
 
                 <div className="flex justify-end">
-                  <Button type="submit" size="lg">
+                  <Button type="submit" size="lg" disabled={!currentUserIsActive}>
                     <Send className="mr-2 h-5 w-5" /> Post
                   </Button>
                 </div>
@@ -333,7 +344,27 @@ export default function FeedPage() {
                 key={post.id} 
                 {...post} 
                 isFullView={true}
-                onDeletePost={() => toast({ title: "Action Denied", description: "Trending posts cannot be deleted from this view."})}
+                onDeletePost={() => { /* Admin can delete from here too if currentUserId is admin */
+                  if (isUserActive(CURRENT_USER_ID) && CURRENT_USER_ID === kathaExplorerUser.id) { // Check if admin
+                    setTrendingPosts(prev => prev.filter(p => p.id !== post.id));
+                    // Also remove from socialFeedPosts and localStorage if it exists there
+                    const updatedSocialFeed = socialFeedPosts.filter(sp => sp.id !== post.id);
+                    setSocialFeedPosts(updatedSocialFeed);
+                     try {
+                        localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(updatedSocialFeed));
+                        const userPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
+                        if (userPostsRaw) {
+                            let userPosts: FeedItemCardProps[] = JSON.parse(userPostsRaw);
+                            userPosts = userPosts.filter(up => up.id !== post.id);
+                            localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(userPosts));
+                        }
+                    } catch (e) { console.error("Error removing trending post from other storages", e);}
+
+                    toast({ title: "Post Deleted", description: `"${post.title || 'Post'}" removed from trending and feed.`});
+                  } else {
+                    toast({ title: "Action Denied", description: "Trending posts cannot be deleted from this view by non-admins."});
+                  }
+                }}
                 onUpdateComments={(postId, comments) => {
                   setTrendingPosts(prev => prev.map(p => p.id === postId ? {...p, comments} : p));
                 }}
@@ -351,7 +382,7 @@ export default function FeedPage() {
         <CustomAudienceModal
             isOpen={isCustomAudienceModalOpen}
             onOpenChange={setIsCustomAudienceModalOpen}
-            allUsers={allMockUsers.filter(u => u.id !== kathaExplorerUser.id)} // Exclude current user from selection
+            allUsers={allMockUsers.filter(u => u.id !== kathaExplorerUser.id)} 
             followingUserIds={kathaExplorerFollowingIds}
             initialSelectedUserIds={customAudienceUserIds}
             onConfirm={(selectedIds) => {

@@ -13,7 +13,7 @@ import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
-import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, CURRENT_USER_NAME } from '@/lib/mock-data';
+import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, CURRENT_USER_NAME, isUserActive } from '@/lib/mock-data';
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -23,7 +23,7 @@ export interface FeedItemComment {
   authorName: string;
   authorAvatarUrl?: string;
   authorInitials: string;
-  authorId?: string; // Added authorId to comments
+  authorId?: string; 
   text: string;
   timestamp: string;
   commentLikes: number;
@@ -79,8 +79,8 @@ export function FeedItemCard({
   onDeletePost,
   onUpdateComments,
   isFullView = true,
-  currentUserName,
-  currentUserId,
+  currentUserName, // This is the logged-in user's name
+  currentUserId,   // This is the logged-in user's ID
 }: FeedItemCardProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -94,8 +94,10 @@ export function FeedItemCard({
   const [currentDiscussionGroupName, setCurrentDiscussionGroupName] = useState(initialDiscussionGroupName);
   const [isDiscussionGroupIncluded, setIsDiscussionGroupIncluded] = useState(includeDiscussionGroup);
 
-
   const isAuthorViewingPost = authorId === currentUserId;
+  const isCurrentUserAdmin = currentUserId === CURRENT_USER_ID;
+  const isCurrentUserActive = isUserActive(currentUserId);
+
 
   useEffect(() => {
     setPostComments(initialComments);
@@ -115,9 +117,12 @@ export function FeedItemCard({
 
 
   const handlePostLike = () => {
+    if (!isCurrentUserActive) {
+      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+      return;
+    }
     setIsPostLiked(prev => !prev);
     setCurrentPostLikes(prev => isPostLiked ? prev - 1 : prev + 1);
-    // In a real app, this would also update the backend and potentially localStorage for the post.
   };
 
   const updateCommentsStateAndNotifyParent = (updatedComments: FeedItemComment[]) => {
@@ -128,6 +133,10 @@ export function FeedItemCard({
   };
 
   const handleCommentLike = (targetCommentId: string) => {
+    if (!isCurrentUserActive) {
+      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+      return;
+    }
     const updateLikesRecursively = (comments: FeedItemComment[]): FeedItemComment[] => {
       return comments.map(comment => {
         if (comment.id === targetCommentId) {
@@ -150,23 +159,31 @@ export function FeedItemCard({
   };
 
   const handleToggleReplyInput = (commentId: string) => {
+    if (!isCurrentUserActive) {
+      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+      return;
+    }
     setReplyingToCommentId(prevId => (prevId === commentId ? null : commentId));
     setReplyText("");
   };
 
   const handlePostReply = (e: FormEvent<HTMLFormElement>, targetParentCommentId: string) => {
     e.preventDefault();
+    if (!isCurrentUserActive) {
+      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+      return;
+    }
     if (!replyText.trim()) {
       toast({ title: "Empty Reply", description: "Cannot submit an empty reply.", variant: "destructive" });
       return;
     }
-    const currentUser = allMockUsers.find(u => u.id === currentUserId) || kathaExplorerUser;
+    const currentUserDetails = allMockUsers.find(u => u.id === currentUserId) || kathaExplorerUser;
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: currentUser.name,
-      authorInitials: currentUser.avatarFallback,
-      authorAvatarUrl: currentUser.avatarUrl,
+      authorName: currentUserDetails.name,
+      authorInitials: currentUserDetails.avatarFallback,
+      authorAvatarUrl: currentUserDetails.avatarUrl,
       authorId: currentUserId,
       text: replyText,
       timestamp: 'Just now',
@@ -200,6 +217,7 @@ export function FeedItemCard({
   };
 
   const handleDeleteComment = (targetCommentId: string) => {
+    // Admin check already incorporated in canCurrentUserDeleteThisComment
     const deleteCommentRecursively = (comments: FeedItemComment[]): FeedItemComment[] => {
       return comments.filter(comment => comment.id !== targetCommentId).map(comment => {
         if (comment.replies && comment.replies.length > 0) {
@@ -221,6 +239,10 @@ export function FeedItemCard({
   const handleOpenShareModal = () => setIsShareModalOpen(true);
 
   const handleJoinDiscussion = () => {
+    if (!isCurrentUserActive) {
+      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+      return;
+    }
     const groupNameDisplay = currentDiscussionGroupName || title || `Discussion for post ${postId}`;
     try {
       const storedDiscussionsRaw = localStorage.getItem(JOINED_DISCUSSIONS_STORAGE_KEY);
@@ -229,7 +251,7 @@ export function FeedItemCard({
       const discussionExists = joinedDiscussions.some(d => d.postId === postId);
       if (!discussionExists) {
         joinedDiscussions.push({
-          id: postId, // Use postId as the unique ID for the discussion group itself
+          id: postId, 
           name: groupNameDisplay,
           postId: postId,
         });
@@ -259,10 +281,7 @@ export function FeedItemCard({
 
   const handleDeleteDiscussionGroup = () => {
     const groupNameDisplay = currentDiscussionGroupName || title || `Discussion for post ${postId}`;
-    // Visually remove the "Join Discussion" button and its "Delete Group" counterpart
     setIsDiscussionGroupIncluded(false);
-     // In a real app, this would also update the post object in localStorage or backend
-    // to remove includeDiscussionGroup and discussionGroupName
     toast({
         title: "Discussion Group Deleted (Simulated)",
         description: `The discussion group '${groupNameDisplay}' for this post would be removed. This change is visual for this session.`,
@@ -270,7 +289,7 @@ export function FeedItemCard({
   };
 
   const handleInternalDeletePost = () => {
-    if (onDeletePost && isAuthorViewingPost) {
+    if (onDeletePost && (isAuthorViewingPost || isCurrentUserAdmin)) {
       onDeletePost(postId);
     } else {
       toast({ title: "Action Denied", description: "You cannot delete this post.", variant: "destructive"});
@@ -278,7 +297,7 @@ export function FeedItemCard({
   }
 
   const PrivacyIcon = () => {
-    if (!isAuthorViewingPost) return null; // Only show privacy indicator to the author
+    if (!isAuthorViewingPost) return null; 
     if (privacy === 'public') return <Globe className="h-3.5 w-3.5 text-blue-500 ml-1.5" title="Public Post"/>;
     if (privacy === 'private') return <Lock className="h-3.5 w-3.5 text-orange-500 ml-1.5" title="Private Post"/>;
     if (privacy === 'custom') return <UserCog className="h-3.5 w-3.5 text-teal-500 ml-1.5" title={`Custom Audience (${customAudienceUserIds?.length || 0})`}/>;
@@ -287,7 +306,7 @@ export function FeedItemCard({
 
   const CommentItem = ({ comment, depth = 0 }: { comment: FeedItemComment, depth?: number }) => {
     const isCommentByCurrentUser = comment.authorId === currentUserId;
-    const canCurrentUserDeleteThisComment = isCommentByCurrentUser || isAuthorViewingPost; // Post author can delete any comment
+    const canCurrentUserDeleteThisComment = isCommentByCurrentUser || isAuthorViewingPost || isCurrentUserAdmin; 
 
     return (
       <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
@@ -325,11 +344,11 @@ export function FeedItemCard({
           </div>
           <p className="text-sm text-foreground/90 whitespace-pre-wrap">{comment.text}</p>
           <div className="flex items-center space-x-2 text-xs">
-            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)}>
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)} disabled={!isCurrentUserActive}>
               <ThumbsUp className={`h-3.5 w-3.5 mr-1 ${comment.isCommentLikedByUser ? 'fill-primary text-primary' : ''}`} />
               {comment.commentLikes > 0 ? comment.commentLikes : 'Like'}
             </Button>
-            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)}>
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)} disabled={!isCurrentUserActive}>
               <CornerDownRight className="h-3.5 w-3.5 mr-1" /> Reply
             </Button>
           </div>
@@ -342,8 +361,9 @@ export function FeedItemCard({
                 onChange={(e) => setReplyText(e.target.value)}
                 className="h-8 text-sm flex-grow"
                 autoFocus
+                disabled={!isCurrentUserActive}
               />
-              <Button type="submit" size="sm" variant="ghost" className="h-8 px-2">
+              <Button type="submit" size="sm" variant="ghost" className="h-8 px-2" disabled={!isCurrentUserActive || !replyText.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
             </form>
@@ -355,9 +375,6 @@ export function FeedItemCard({
       </div>
     );
   };
-
-  const friendsForShareModal = allMockUsers.filter(u => u.id !== currentUserId && getInitialFollowingIds().includes(u.id));
-
 
   return (
     <>
@@ -385,7 +402,7 @@ export function FeedItemCard({
                     <Share2 className="h-4 w-4" />
                  </Button>
               )}
-              {isAuthorViewingPost && onDeletePost && isFullView && (
+              {(isAuthorViewingPost || isCurrentUserAdmin) && onDeletePost && isFullView && (
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
@@ -405,8 +422,8 @@ export function FeedItemCard({
             </div>
           </div>
           {postType === 'forum' && title && (
-             <Link href={`/forum/post/${postId}`} className="hover:text-primary transition-colors">
-                <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
+             <Link href={`/forum/post/${postId}`} legacyBehavior={false} passHref>
+                <a className="hover:text-primary transition-colors"><CardTitle className="font-headline text-xl mt-1">{title}</CardTitle></a>
             </Link>
           )}
         </CardHeader>
@@ -432,7 +449,7 @@ export function FeedItemCard({
         <CardFooter className="flex flex-col items-start text-muted-foreground text-sm pt-2">
           <div className="w-full flex justify-between items-center mb-3">
               <div className="flex space-x-3">
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike} disabled={!isCurrentUserActive}>
                   <ThumbsUp className={`h-4 w-4 mr-1 ${isPostLiked ? 'fill-primary text-primary' : ''}`} /> {currentPostLikes}
                 </Button>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={() => {if (isFullView) setShowAllComments(prev => !prev)}}>
@@ -446,7 +463,7 @@ export function FeedItemCard({
               </div>
               <div className="flex items-center space-x-2">
                 { isDiscussionGroupIncluded && isFullView && (
-                    <Button variant="outline" size="sm" onClick={handleJoinDiscussion}>
+                    <Button variant="outline" size="sm" onClick={handleJoinDiscussion} disabled={!isCurrentUserActive}>
                         <Users className="mr-2 h-4 w-4" />
                         Join {currentDiscussionGroupName ? `"${currentDiscussionGroupName}"` : "Discussion"}
                     </Button>
@@ -477,6 +494,21 @@ export function FeedItemCard({
               )}
             </div>
           )}
+          {isFullView && ( // New comment input at the bottom of the card for top-level comments
+            <form onSubmit={(e) => handlePostReply(e, postId + "-newcomment")} className="w-full mt-4 pt-3 border-t border-border/50 flex items-center space-x-2">
+                <Input
+                    type="text"
+                    placeholder={isCurrentUserActive ? "Write a comment..." : "Your account is deactivated."}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    className="h-9 text-sm flex-grow"
+                    disabled={!isCurrentUserActive}
+                />
+                <Button type="submit" size="sm" className="h-9 px-3" disabled={!isCurrentUserActive || !replyText.trim()}>
+                    <Send className="h-4 w-4" />
+                </Button>
+            </form>
+        )}
         </CardFooter>
       </Card>
       {isShareModalOpen && (

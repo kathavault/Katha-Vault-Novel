@@ -14,8 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { NovelForm } from '@/components/novel-form';
-import { getNovelsFromStorage, saveNovelsToStorage, type Novel } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge } from 'lucide-react';
+import { getNovelsFromStorage, saveNovelsToStorage, type Novel, allMockUsers, type MockUser, CURRENT_USER_ID } from '@/lib/mock-data';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -26,6 +26,9 @@ export default function AdminPage() {
   const [editingNovel, setEditingNovel] = useState<Novel | null>(null);
   const [novelToDelete, setNovelToDelete] = useState<Novel | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // User management state
+  const [users, setUsers] = useState<MockUser[]>(allMockUsers);
 
   useEffect(() => {
     setNovels(getNovelsFromStorage());
@@ -45,9 +48,9 @@ export default function AdminPage() {
     let updatedNovels;
     if (editingNovel) {
       updatedNovels = novels.map(n => (n.id === editingNovel.id ? { 
-        ...n, // Keep existing id, views, rating, chapters (unless chapters are passed in data, which they aren't here)
-        ...data, // Apply new title, author, genres, snippet, status, coverImageUrl, aiHint
-        chapters: editingNovel.chapters, // Explicitly keep existing chapters
+        ...n, 
+        ...data, 
+        chapters: editingNovel.chapters, 
       } : n));
     } else {
       const newNovelWithDefaults: Novel = { 
@@ -56,7 +59,7 @@ export default function AdminPage() {
         views: 0, 
         rating: 0, 
         chapters: data.chapters || [],
-        isTrending: false, // Default for new novels
+        isTrending: false, 
       };
       updatedNovels = [...novels, newNovelWithDefaults];
     }
@@ -64,7 +67,6 @@ export default function AdminPage() {
     saveNovelsToStorage(updatedNovels);
     setIsFormModalOpen(false);
     setEditingNovel(null);
-    // No need to call getNovelsFromStorage here again if setNovels triggers re-render with updatedNovels
   };
 
   const promptDeleteNovel = (novel: Novel) => {
@@ -87,13 +89,35 @@ export default function AdminPage() {
     }
   };
 
+  const handleToggleUserStatus = (userId: string) => {
+    if (userId === CURRENT_USER_ID) {
+      toast({ title: "Action Denied", description: "Admin cannot change their own status.", variant: "destructive" });
+      return;
+    }
+    const updatedUsers = users.map(user => {
+      if (user.id === userId) {
+        return { ...user, isActive: !user.isActive };
+      }
+      return user;
+    });
+    setUsers(updatedUsers); // Update local state to re-render
+    // Note: This change is in-memory for the simulation. 
+    // To persist, you'd need to save `updatedUsers` (e.g., to localStorage).
+    const targetUser = updatedUsers.find(u => u.id === userId);
+    toast({
+      title: "User Status Updated",
+      description: `${targetUser?.name} is now ${targetUser?.isActive ? "Active" : "Deactivated"}. (Change is for current session only)`,
+    });
+  };
+
+
   return (
     <div className="space-y-8">
       <header className="text-center space-y-2">
         <ShieldCheck className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Admin Panel</h1>
         <p className="text-xl text-foreground font-body font-semibold">
-          Manage novels and website content.
+          Manage novels, users, and website content.
         </p>
       </header>
 
@@ -174,6 +198,61 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+            <CardTitle className="font-headline text-2xl text-primary flex items-center">
+                <UserCog className="mr-3 h-6 w-6" /> Manage Users
+            </CardTitle>
+            <CardDescription>Activate or deactivate user accounts. (Status changes are for current session only in this simulation)</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {users.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No users found.</p>
+            ) : (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Username</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="text-right w-[180px]">Action</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {users.map((user) => (
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-medium">{user.name} {user.id === CURRENT_USER_ID && "(Admin)"}</TableCell>
+                                    <TableCell>@{user.username}</TableCell>
+                                    <TableCell className="text-center">
+                                        <Badge variant={user.isActive ? 'default' : 'destructive'}>
+                                            {user.isActive ? 'Active' : 'Deactivated'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {user.id !== CURRENT_USER_ID ? (
+                                            <Button
+                                                variant={user.isActive ? "destructive" : "default"}
+                                                size="sm"
+                                                onClick={() => handleToggleUserStatus(user.id)}
+                                            >
+                                                {user.isActive ? <UserX className="mr-2 h-4 w-4" /> : <UserCheckIcon className="mr-2 h-4 w-4" />}
+                                                {user.isActive ? 'Deactivate' : 'Activate'}
+                                            </Button>
+                                        ) : (
+                                          <span className="text-xs text-muted-foreground">N/A (Admin)</span>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
+        </CardContent>
+      </Card>
+
 
       <Dialog open={isFormModalOpen} onOpenChange={(isOpen) => {
           setIsFormModalOpen(isOpen);
