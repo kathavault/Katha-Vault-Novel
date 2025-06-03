@@ -11,7 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpenText, Edit2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
-const CURRENT_USER_NAME = "Katha Explorer"; // Used for identifying user's own posts
+const CURRENT_USER_NAME = "Katha Explorer"; 
+const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
+const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
+
 
 const initialUserProfile = {
   name: CURRENT_USER_NAME,
@@ -42,7 +45,6 @@ const initialFollowing: ModalUser[] = [
   { id: 'following2', name: 'Mystery Lover', username: 'mystery_lover', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ML', dataAiHint: 'person detective' },
 ];
 
-const CURRENT_USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 
 export type UserProfileData = typeof initialUserProfile;
 export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'username' | 'bio' | 'email' | 'emailVisible' | 'gender'>;
@@ -62,7 +64,7 @@ export default function ProfilePage() {
 
   const loadUserPosts = () => {
     try {
-      const storedPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
+      const storedPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
       if (storedPostsRaw) {
         const storedPosts: FeedItemCardProps[] = JSON.parse(storedPostsRaw);
         setMyProfilePosts(storedPosts);
@@ -85,7 +87,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadUserPosts();
-  }, [toast]);
+  }, []);
 
 
   useEffect(() => {
@@ -132,26 +134,28 @@ export default function ProfilePage() {
       setFollowing(prev => prev.filter(user => user.id !== userId));
       toast({ title: "User Unfollowed", description: "This change is local to your session."});
     }
+     // Close modal after action
+    setModalOpenFor(null);
   };
 
   const handleDeleteMyPost = (postId: string) => {
     const updatedPosts = myProfilePosts.filter(post => post.id !== postId);
     setMyProfilePosts(updatedPosts);
-    localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
+    localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
     setUserProfile(prev => ({ ...prev, postsCount: updatedPosts.length }));
-    toast({ title: "Post Deleted", description: "Your post has been removed." });
+    
 
-    // Also remove from general social feed if it exists there
     try {
-        const socialFeedRaw = localStorage.getItem('kathaVaultSocialFeedPosts');
+        const socialFeedRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
         if (socialFeedRaw) {
             let socialFeed: FeedItemCardProps[] = JSON.parse(socialFeedRaw);
             socialFeed = socialFeed.filter(p => p.id !== postId);
-            localStorage.setItem('kathaVaultSocialFeedPosts', JSON.stringify(socialFeed));
+            localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeed));
         }
     } catch (e) {
         console.error("Error removing post from social feed localStorage", e);
     }
+    toast({ title: "Post Deleted", description: "Your post has been removed." });
   };
 
   const handleUpdateMyPostComments = (postId: string, updatedComments: FeedItemComment[]) => {
@@ -159,15 +163,14 @@ export default function ProfilePage() {
       post.id === postId ? { ...post, comments: updatedComments } : post
     );
     setMyProfilePosts(updatedPosts);
-    localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
+    localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
 
-    // Also update in general social feed if it exists there
      try {
-        const socialFeedRaw = localStorage.getItem('kathaVaultSocialFeedPosts');
+        const socialFeedRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
         if (socialFeedRaw) {
             let socialFeed: FeedItemCardProps[] = JSON.parse(socialFeedRaw);
             socialFeed = socialFeed.map(p => p.id === postId ? { ...p, comments: updatedComments } : p);
-            localStorage.setItem('kathaVaultSocialFeedPosts', JSON.stringify(socialFeed));
+            localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeed));
         }
     } catch (e) {
         console.error("Error updating comments in social feed localStorage", e);
@@ -201,7 +204,7 @@ export default function ProfilePage() {
           <TabsTrigger value="reading-progress">
             <BookOpenText className="mr-2 h-4 w-4" /> Reading Progress
           </TabsTrigger>
-          <TabsTrigger value="my-posts" onClick={loadUserPosts}> {/* Reload posts when tab is clicked */}
+          <TabsTrigger value="my-posts" onClick={loadUserPosts}> 
             <Edit2 className="mr-2 h-4 w-4" /> My Posts
           </TabsTrigger>
         </TabsList>
@@ -225,7 +228,7 @@ export default function ProfilePage() {
                   {...post} 
                   onDeletePost={handleDeleteMyPost}
                   onUpdateComments={handleUpdateMyPostComments}
-                  isFullView={false} // Potentially a simplified view for profile posts
+                  isFullView={true} 
                 />
               )) 
             ) : (
@@ -238,7 +241,9 @@ export default function ProfilePage() {
       {modalOpenFor && (
         <UserListModal
           isOpen={!!modalOpenFor}
-          onOpenChange={() => setModalOpenFor(null)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setModalOpenFor(null);
+          }}
           title={modalTitle}
           users={modalUsers}
           actionButtonLabel={modalActionButtonLabel}

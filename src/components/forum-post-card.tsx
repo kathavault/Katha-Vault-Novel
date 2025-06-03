@@ -47,9 +47,10 @@ export interface FeedItemCardProps {
   aiHint?: string;
   comments: FeedItemComment[];
   includeDiscussionGroup?: boolean;
+  discussionGroupName?: string;
   onDeletePost?: (postId: string) => void;
   onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
-  isFullView?: boolean; // To control some UI elements in different contexts like profile page
+  isFullView?: boolean; 
 }
 
 export function FeedItemCard({
@@ -67,9 +68,10 @@ export function FeedItemCard({
   aiHint = "feed image",
   comments: initialComments,
   includeDiscussionGroup = false,
+  discussionGroupName,
   onDeletePost,
   onUpdateComments,
-  isFullView = true, // Default to true for normal feed view
+  isFullView = true,
 }: FeedItemCardProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -95,7 +97,6 @@ export function FeedItemCard({
   const handlePostLike = () => {
     setIsPostLiked(prev => !prev);
     setCurrentPostLikes(prev => isPostLiked ? prev - 1 : prev + 1);
-    // In a real app, you'd call an API here
   };
 
   const updateCommentsStateAndNotifyParent = (updatedComments: FeedItemComment[]) => {
@@ -197,37 +198,30 @@ export function FeedItemCard({
   const handleOpenShareModal = () => setIsShareModalOpen(true);
 
   const handleJoinDiscussion = () => {
-    if (postType === 'forum' && !includeDiscussionGroup) { 
-        toast({
-            title: "Joining General Discussion...",
-            description: `Taking you to the chat area for "${title || 'this post'}".`,
-            duration: 4000,
-        });
-        router.push('/chat');
-    } else { 
-        toast({
-            title: "Joining Discussion Group!",
-            description: `You've joined the discussion for "${title || mainText.substring(0,30)+"..."}"! (Post ID: ${postId})`,
-            duration: 5000,
-        });
-        router.push('/chat'); // Could eventually pass postId to filter chat
-    }
+    const groupName = discussionGroupName || title || `Discussion for post ${postId}`;
+    toast({
+        title: `Joining: ${groupName}`,
+        description: `This would open a dedicated chat. For now, you're redirected to the main chat page. You can discuss post ID: ${postId}.`,
+        duration: 6000,
+    });
+    router.push('/chat');
   };
 
   const handleDeleteDiscussionGroup = () => {
+    const groupName = discussionGroupName || title || `Discussion for post ${postId}`;
     toast({
         title: "Discussion Group Deleted (Simulated)",
-        description: "The dedicated discussion group for this post would be removed.",
+        description: `The discussion group '${groupName}' for this post would be removed by the admin. This action is visual for this session.`,
         variant: "destructive"
     });
-    // In a real app, update the post state to includeDiscussionGroup: false and persist
+    // In a real app, update the post state (e.g., post.includeDiscussionGroup = false) and persist
   };
 
   const handleInternalDeletePost = () => {
     if (onDeletePost) {
       onDeletePost(postId);
     } else {
-      toast({ title: "Error", description: "Delete function not available.", variant: "destructive"});
+      toast({ title: "Error", description: "Delete function not available for this post.", variant: "destructive"});
     }
   }
 
@@ -255,7 +249,7 @@ export function FeedItemCard({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onClick={() => handleDeleteComment(comment.id)}
+                    onSelect={() => handleDeleteComment(comment.id)}
                     className="text-destructive hover:!text-destructive focus:!text-destructive focus:!bg-destructive/10"
                   >
                     <Trash2 className="mr-2 h-4 w-4" /> Delete Comment
@@ -316,7 +310,7 @@ export function FeedItemCard({
                     <Share2 className="h-4 w-4" />
                  </Button>
               )}
-              {isCurrentUserPost && onDeletePost && (
+              {isCurrentUserPost && onDeletePost && isFullView && (
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
@@ -325,7 +319,7 @@ export function FeedItemCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
-                      onClick={handleInternalDeletePost}
+                      onSelect={handleInternalDeletePost}
                       className="text-destructive hover:!text-destructive focus:!text-destructive focus:!bg-destructive/10"
                     >
                       <Trash2 className="mr-2 h-4 w-4" /> Delete Post
@@ -373,16 +367,16 @@ export function FeedItemCard({
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                { (postType === 'forum' || includeDiscussionGroup) && isFullView && (
+                { includeDiscussionGroup && isFullView && (
                     <Button variant="outline" size="sm" onClick={handleJoinDiscussion}>
                         <Users className="mr-2 h-4 w-4" />
-                        Join Discussion
+                        Join {discussionGroupName ? `"${discussionGroupName}"` : "Discussion"}
                     </Button>
                 )}
                 { isCurrentUserPost && includeDiscussionGroup && isFullView && (
                      <Button variant="outline" size="sm" onClick={handleDeleteDiscussionGroup} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Discussion
+                        Delete Group
                     </Button>
                 )}
               </div>
