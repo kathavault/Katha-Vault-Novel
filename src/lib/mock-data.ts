@@ -6,16 +6,31 @@ export interface MockUser {
   avatarUrl: string;
   avatarFallback: string;
   dataAiHint?: string;
-  bio?: string; // Added for public profiles
-  email?: string; // Added for public profiles
-  emailVisible?: boolean; // Added
-  gender?: string; // Added
+  bio?: string;
+  email?: string;
+  emailVisible?: boolean;
+  gender?: string;
 }
 
-export const CURRENT_USER_ID = 'user_ke'; // Katha Explorer's ID
-export const CURRENT_USER_NAME = 'Katha Explorer'; // Consistent name
+export interface Novel {
+  id: string;
+  title: string;
+  author: string;
+  genres: string[];
+  snippet: string;
+  coverImageUrl?: string;
+  aiHint?: string;
+  views?: number;
+  chapters?: number;
+  rating?: number;
+  isTrending?: boolean; // Keep for homepage if needed
+}
+
+export const CURRENT_USER_ID = 'user_ke';
+export const CURRENT_USER_NAME = 'Katha Explorer';
 
 const KATHA_EXPLORER_FOLLOWING_IDS_KEY = 'kathaExplorerFollowingIds';
+const KATHA_VAULT_MANAGED_NOVELS_KEY = 'kathaVaultManagedNovels';
 
 export const kathaExplorerUser: MockUser = {
   id: CURRENT_USER_ID,
@@ -42,7 +57,6 @@ export const allMockUsers: MockUser[] = [
   { id: 'user_th', name: 'Thriller Tom', username: 'thriller_tom', avatarUrl: 'https://placehold.co/128x128.png?text=TT', avatarFallback: 'TT', dataAiHint: 'person thriller', bio: 'Always on the edge of my seat. The more suspense, the better!', email: 'tom@example.com', emailVisible: false, gender: 'Male' },
 ];
 
-// Function to get initial following IDs, defaulting if localStorage is empty
 export const getInitialFollowingIds = (): string[] => {
   if (typeof window !== 'undefined') {
     const storedFollowing = localStorage.getItem(KATHA_EXPLORER_FOLLOWING_IDS_KEY);
@@ -51,20 +65,18 @@ export const getInitialFollowingIds = (): string[] => {
         return JSON.parse(storedFollowing);
       } catch (e) {
         console.error("Error parsing following IDs from localStorage", e);
-        return ['user_er', 'user_mw', 'user_ff']; // Default on error
+        return ['user_er', 'user_mw', 'user_ff'];
       }
     }
   }
-  return ['user_er', 'user_mw', 'user_ff']; // Default if no localStorage or server-side
+  return ['user_er', 'user_mw', 'user_ff'];
 };
 
-// Function to update following IDs in localStorage
 export const updateFollowingIds = (newFollowingIds: string[]): void => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KATHA_EXPLORER_FOLLOWING_IDS_KEY, JSON.stringify(newFollowingIds));
   }
 };
-
 
 export const getKathaExplorerFollowingList = (): MockUser[] => {
   const followingIds = getInitialFollowingIds();
@@ -72,7 +84,48 @@ export const getKathaExplorerFollowingList = (): MockUser[] => {
 };
 
 export const getKathaExplorerFollowersList = (count: number = 3): MockUser[] => {
-  // Simulate followers: users who are not the current user and not followed by the current user.
   const followingIds = getInitialFollowingIds();
   return allMockUsers.filter(user => user.id !== CURRENT_USER_ID && !followingIds.includes(user.id)).slice(0, count);
-}
+};
+
+// --- Novel Data Management ---
+export const initialMockNovels: Novel[] = [
+  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Eleanor Vance', genres: ['Time Travel', 'Science Fiction'], snippet: "A time-traveling journey through the eras in search of a missing chronomancer.", coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'time machine', views: 26000, chapters: 25, rating: 4.8, isTrending: true },
+  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Marcus Stone', genres: ['Fantasy', 'Exploration', 'Magic'], snippet: 'Fantasy exploration into ancient rainforest magic.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'jungle temple', views: 18000, chapters: 20, rating: 4.6, isTrending: true },
+  { id: 'novel-1', title: 'The Alchemist of Moonhaven', author: 'Seraphina Gold', genres: ['Steampunk', 'Mystery', 'Alchemy'], snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', coverImageUrl: 'https://placehold.co/800x500.png', aiHint: 'steampunk city moon', views: 12000, chapters: 50, rating: 4.2 },
+  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Weave', genres: ['Short Story', 'Urban Fantasy', 'Magic'], snippet: 'A short story about a magical tailor who can alter time.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'magic tailor', views: 9600, chapters: 1, rating: 4.3 },
+  { id: 'short-2', title: 'The Clockwork Heart', author: 'Cogsworth Throttleton', genres: ['Short Story', 'Steampunk', 'Romance'], snippet: 'A short tale of love and machinery in a steampunk universe.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'steampunk heart', views: 15000, chapters: 1, rating: 4.7 },
+  { id: 'rom-1', title: 'Love in the Time of Stardust', author: 'Stella Astra', genres: ['Romance', 'Space Opera', 'Adventure'], snippet: 'Two starlit souls find their way toward each other across galaxies, their romance defying all odds.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'galaxy couple romance', views: 28000, chapters: 30, rating: 4.9 },
+  { id: 'scifi-1', title: 'Echoes of the Void', author: 'Orion Nebula', genres: ['Space Opera', 'Horror', 'Existential'], snippet: 'A lone astronaut contemplates an ancient species, adrift at the edge of known space.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'astronaut void space', views: 36000, chapters: 22, rating: 4.9 },
+  { id: 'scifi-2', title: 'The Last Cyberpunk', author: 'Nova Byte', genres: ['Cyberpunk', 'Dystopia', 'Action'], snippet: 'In a ruined electric city, one last hacker fights for freedom.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'cyberpunk hacker city', views: 22000, chapters: 18, rating: 4.6 },
+  { id: 'more-1', title: 'General Thoughts on Reading', author: 'Marcus Stone', genres: ['General', 'Reading', 'Book'], snippet: 'A general story on the general complexity of books, the reader’s state of mind, and what defines a book.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'book thought', views: 10000, chapters: 5, rating: 4.0 },
+  { id: 'lib-1', title: 'The Last Nebula (Library Copy)', author: 'Aria Vale', genres: ['Sci-Fi', 'Adventure'], snippet: 'In a dying galaxy, a lone explorer seeks the fabled Last Nebula, said to hold the key to cosmic rebirth.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space', views: 15000, chapters: 30, rating: 4.5 },
+  { id: 'lib-4', title: 'Echoes in the Silence (Library Copy)', author: 'Lena Petrova', genres: ['Mystery', 'Thriller'], snippet: 'A detective haunted by her past must solve a murder in a remote, snowbound village where everyone has a secret.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'snowy village', views: 9000, chapters: 22, rating: 4.2 },
+];
+
+export const getNovelsFromStorage = (): Novel[] => {
+  if (typeof window !== 'undefined') {
+    const storedNovels = localStorage.getItem(KATHA_VAULT_MANAGED_NOVELS_KEY);
+    if (storedNovels) {
+      try {
+        return JSON.parse(storedNovels);
+      } catch (e) {
+        console.error("Error parsing novels from localStorage", e);
+        // Fallback to initial mock novels if parsing fails
+        localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(initialMockNovels));
+        return initialMockNovels;
+      }
+    } else {
+      // Initialize localStorage if empty
+      localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(initialMockNovels));
+      return initialMockNovels;
+    }
+  }
+  return initialMockNovels; // Default for server-side or if window is not defined
+};
+
+export const saveNovelsToStorage = (novels: Novel[]): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novels));
+  }
+};

@@ -2,41 +2,37 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
 import { StoryCard } from '@/components/story-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bookmark, Search, FilterX, ListFilter, Users, ExternalLink } from 'lucide-react';
-import { allMockUsers, type MockUser } from '@/lib/mock-data'; 
+import { allMockUsers, type MockUser, getNovelsFromStorage, type Novel } from '@/lib/mock-data'; 
 import { useToast } from "@/hooks/use-toast";
 
-
-const initialLibraryStories = [
-  { id: '1', title: 'The Last Nebula', author: 'Aria Vale', genres: ['Sci-Fi', 'Adventure'], snippet: 'In a dying galaxy, a lone explorer seeks the fabled Last Nebula, said to hold the key to cosmic rebirth.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space', views: 15000, chapters: 30, rating: 4.5 },
-  { id: '4', title: 'Echoes in the Silence', author: 'Lena Petrova', genres: ['Mystery', 'Thriller'], snippet: 'A detective haunted by her past must solve a murder in a remote, snowbound village where everyone has a secret.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'snowy village', views: 9000, chapters: 22, rating: 4.2  },
-  { id: '10', title: 'Chronicles of Eldoria', author: 'Marcus Stone', genres: ['Fantasy', 'Epic'], snippet: 'A young warrior discovers his destiny in a land of dragons and ancient magic.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'fantasy warrior dragon', views: 22000, chapters: 50, rating: 4.8 },
-  { id: '11', title: 'Cybernetic Serenade', author: 'Jax Orion', genres: ['Sci-Fi', 'Cyberpunk', 'Romance'], snippet: 'In a neon-lit city, a hacker falls for an AI, blurring the lines between human and machine.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'cyberpunk city romance', views: 12000, chapters: 18, rating: 4.0  },
-  { id: '12', title: 'The Crimson Rose', author: 'Isabella Dubois', genres: ['Historical', 'Romance'], snippet: 'A tale of forbidden love and courtly intrigue in 18th century France.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'historical romance france', views: 18000, chapters: 25, rating: 4.6  },
-  { id: '13', title: 'Whispers from the Deep', author: 'H.P. Lovecraft Jr.', genres: ['Horror', 'Cosmic Horror'], snippet: 'An ancient entity awakens, and madness follows those who hear its call.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'cosmic horror tentacle', views: 7500, chapters: 12, rating: 3.9  },
-];
-
-const ALL_GENRES = ["Sci-Fi", "Adventure", "Mystery", "Thriller", "Fantasy", "Epic", "Cyberpunk", "Romance", "Historical", "Horror", "Cosmic Horror", "Contemporary"];
+const ALL_AVAILABLE_GENRES_FOR_FILTER = ["Sci-Fi", "Adventure", "Mystery", "Thriller", "Fantasy", "Epic", "Cyberpunk", "Romance", "Historical", "Horror", "Cosmic Horror", "Contemporary", "Time Travel", "Steampunk", "Short Story", "Urban Fantasy", "Magic", "Space Opera", "Existential", "Dystopia", "Action", "General", "Reading", "Book"];
 
 export default function LibraryPage() {
   const { toast } = useToast();
+  const [allLibraryNovels, setAllLibraryNovels] = useState<Novel[]>([]);
   const [storySearchTerm, setStorySearchTerm] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [filteredStories, setFilteredStories] = useState(initialLibraryStories);
+  const [filteredStories, setFilteredStories] = useState<Novel[]>([]);
 
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [filteredUsers, setFilteredUsers] = useState<MockUser[]>([]);
 
   useEffect(() => {
-    let stories = initialLibraryStories;
+    const novels = getNovelsFromStorage();
+    setAllLibraryNovels(novels);
+    setFilteredStories(novels); // Initialize filtered stories with all novels
+  }, []);
+
+  useEffect(() => {
+    let stories = allLibraryNovels;
 
     if (storySearchTerm.trim() !== "") {
       stories = stories.filter(story =>
@@ -51,11 +47,11 @@ export default function LibraryPage() {
       );
     }
     setFilteredStories(stories);
-  }, [storySearchTerm, selectedGenres]);
+  }, [storySearchTerm, selectedGenres, allLibraryNovels]);
 
   useEffect(() => {
     if (userSearchTerm.trim() === "") {
-      setFilteredUsers([]); // Clear results if search is empty
+      setFilteredUsers([]);
       return;
     }
     const lowercasedTerm = userSearchTerm.toLowerCase();
@@ -81,9 +77,10 @@ export default function LibraryPage() {
   
   const uniqueAvailableGenres = useMemo(() => {
     const genresFromStories = new Set<string>();
-    initialLibraryStories.forEach(story => story.genres.forEach(genre => genresFromStories.add(genre)));
-    return Array.from(new Set([...ALL_GENRES, ...Array.from(genresFromStories)])).sort();
-  }, []);
+    allLibraryNovels.forEach(story => story.genres.forEach(genre => genresFromStories.add(genre)));
+    // Combine predefined genres with those from actual stories to ensure all are filterable
+    return Array.from(new Set([...ALL_AVAILABLE_GENRES_FOR_FILTER, ...Array.from(genresFromStories)])).sort();
+  }, [allLibraryNovels]);
 
 
   return (
@@ -96,7 +93,6 @@ export default function LibraryPage() {
         </p>
       </header>
 
-      {/* Search and Filter Stories Section */}
       <Card className="shadow-lg border-border">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center">
@@ -141,7 +137,6 @@ export default function LibraryPage() {
         </CardContent>
       </Card>
 
-      {/* Find Friends Section */}
       <Card className="shadow-lg border-border">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center">
@@ -193,7 +188,6 @@ export default function LibraryPage() {
         </CardContent>
       </Card>
 
-      {/* Stories Grid */}
       <h2 className="text-3xl font-headline text-primary mt-12 mb-6">Library Books</h2>
       {filteredStories.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
@@ -204,7 +198,7 @@ export default function LibraryPage() {
       ) : (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground font-body">
-            No stories match your criteria. Try adjusting your search or filters.
+            No stories match your criteria. Try adjusting your search or filters, or add more novels in the Admin Panel.
           </p>
         </div>
       )}

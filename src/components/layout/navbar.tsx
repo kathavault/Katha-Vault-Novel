@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Menu, Moon, UserPlus, Home, Library, Edit3, Users, Bot, LogIn, Sun, MessageSquareText } from 'lucide-react'; // Added MessageSquareText
+import { Menu, Moon, UserPlus, Home, Library, Edit3, Bot, LogIn, Sun, MessageSquareText, Shield } from 'lucide-react'; // Added MessageSquareText, Shield
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
@@ -21,8 +21,9 @@ export function Navbar() {
     { href: '/', label: 'Home', icon: <Home size={20} /> },
     { href: '/library', label: 'My Library', icon: <Library size={20} /> },
     { href: '/create', label: 'Create Story', icon: <Edit3 size={20} /> },
-    { href: '/forum', label: 'Community Feed', icon: <MessageSquareText size={20} /> }, // Updated label and icon
+    { href: '/forum', label: 'Community Feed', icon: <MessageSquareText size={20} /> },
     { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
+    { href: '/admin', label: 'Admin Panel', icon: <Shield size={20} /> },
   ];
 
   const toggleTheme = () => {
@@ -133,19 +134,28 @@ export function Navbar() {
             </Link>
           </div>
           
-          {/* Desktop Nav Links (Hidden for now, can be added back if design changes)
-          <nav className="hidden lg:flex space-x-4 items-center">
-            {navLinks.map((link) => (
+          <nav className="hidden lg:flex flex-wrap items-center justify-center gap-x-1">
+            {navLinks.slice(0, 3).map((link) => ( // First 3 links
               <Button key={link.href} variant="ghost" asChild>
-                <Link href={link.href} className="flex items-center text-sm font-medium">
+                <Link href={link.href} className="flex items-center text-sm font-medium px-2 py-1">
                   {link.icon} <span className="ml-2">{link.label}</span>
                 </Link>
               </Button>
             ))}
+             {navLinks.length > 3 && ( // Remaining links in a dropdown or second row
+              <>
+                {navLinks.slice(3).map((link) => (
+                  <Button key={link.href} variant="ghost" asChild>
+                    <Link href={link.href} className="flex items-center text-sm font-medium px-2 py-1">
+                     {link.icon} <span className="ml-2">{link.label}</span>
+                    </Link>
+                  </Button>
+                ))}
+              </>
+            )}
           </nav>
-          */}
           
-          <div className="flex-grow lg:flex-grow-0"></div> {/* Adjusted for logo centering with flex */}
+          <div className="flex-grow lg:hidden"></div> {/* Adjusted for logo centering with flex on mobile */}
 
 
           <div className="flex items-center space-x-3 sm:space-x-4">
