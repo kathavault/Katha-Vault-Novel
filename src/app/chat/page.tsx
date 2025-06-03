@@ -96,17 +96,10 @@ export default function ChatPage() {
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
   
-  const initialAiMessage = {
-      id: 'initial-ai-message-' + Date.now(),
-      text: 'Hello! How can I help you with your stories today? 😊',
-      sender: 'ai' as 'ai',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-  };
-
   useEffect(() => {
     setAiMessages([
         {
-            id: 'initial-ai-' + Date.now(), // Unique ID for initial message
+            id: 'initial-ai-' + Date.now(),
             text: 'Hello! How can I help you with your stories today? 😊',
             sender: 'ai',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
@@ -183,9 +176,11 @@ export default function ChatPage() {
 
   const handleNicknameChange = () => {
     const newNick = prompt("Enter new nickname for AI:", aiNickname);
-    if (newNick) {
-      setAiNickname(newNick);
-      toast({ title: "AI Nickname Updated", description: `Katha Vault AI will now be called "${newNick}" for you.` });
+    if (newNick && newNick.trim() !== "") {
+      setAiNickname(newNick.trim());
+      toast({ title: "AI Nickname Updated", description: `Katha Vault AI will now be called "${newNick.trim()}" for you.` });
+    } else if (newNick !== null) { // User pressed OK but field was empty
+       toast({ title: "Invalid Nickname", description: "Nickname cannot be empty.", variant: "destructive" });
     }
   };
 
@@ -212,9 +207,9 @@ export default function ChatPage() {
   };
 
   const handleDeleteMessage = (messageId: string, isUserToUserChatContext: boolean) => {
-    if (isUserToUserChatContext) { // If true, it's a user-to-user chat context
+    if (isUserToUserChatContext) {
       setUserMessages(prev => prev.filter(msg => msg.id !== messageId));
-    } else { // If false, it's the AI chat context
+    } else { 
       setAiMessages(prev => prev.filter(msg => msg.id !== messageId));
     }
     toast({ title: "Message Deleted", description: "The message has been removed from your view." });
@@ -244,7 +239,7 @@ export default function ChatPage() {
     chatPartnerFallback,
     messages,
     onSendMessage,
-    isUserChat, // This prop indicates if the context is a user-to-user chat (true) or AI chat (false)
+    isUserChat, 
     isResponding,
     onDeleteMessage, 
   }: {
@@ -312,7 +307,7 @@ export default function ChatPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
                         onSelect={() => onDeleteMessage(msg.id, isUserChat)} 
-                        className="text-red-500 hover:!text-red-500 focus:text-red-500 focus:bg-destructive/10"
+                        className="text-red-500 hover:!text-red-500 focus:!text-red-500 focus:!bg-destructive/10"
                       >
                         <Trash2 className="mr-2 h-4 w-4" /> Delete message
                       </DropdownMenuItem>
@@ -406,8 +401,6 @@ export default function ChatPage() {
                                   setUserMessages([]); 
                                   setCurrentMessage('');
                                 } else {
-                                  // If friend not in detailed chat list, maybe deselect or handle differently
-                                  // For now, deselecting to go back to AI or general view
                                   setSelectedChatUser(null); 
                                    setCurrentMessage('');
                                 }
@@ -494,7 +487,7 @@ export default function ChatPage() {
               chatPartnerFallback={aiChatUser.avatarFallback}
               messages={aiMessages}
               onSendMessage={handleSendAiMessage}
-              isUserChat={false} // AI chat context
+              isUserChat={false} 
               isResponding={isAiResponding}
               onDeleteMessage={handleDeleteMessage}
             />
@@ -505,7 +498,8 @@ export default function ChatPage() {
               chatPartnerFallback={selectedChatUser.avatarFallback}
               messages={userMessages}
               onSendMessage={handleSendUserMessage}
-              isUserChat={true} // User-to-user chat context
+              isUserChat={true} 
+              isResponding={false} // isResponding is typically for AI, can be adjusted if user-to-user simulation needs it
               onDeleteMessage={handleDeleteMessage}
             />
           )}
