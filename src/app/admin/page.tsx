@@ -20,9 +20,9 @@ import {
   getNovelsFromStorage, saveNovelsToStorage, type Novel, 
   allMockUsers, type MockUser, CURRENT_USER_ID,
   getSocialFeedPostsFromStorage, type FeedItemCardProps, type FeedItemComment, SOCIAL_FEED_POSTS_STORAGE_KEY, USER_POSTS_STORAGE_KEY,
-  getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment // Updated import
+  getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment
 } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, ListFilter, BookText, Users } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -32,12 +32,12 @@ interface FlatPostComment extends FeedItemComment {
   originalPostType: 'forum' | 'social';
 }
 
-// For admin view of chapter comments, we flatten them and add novel/chapter titles
 interface FlatChapterComment extends StoredChapterComment {
   novelTitleAdmin: string;
   chapterTitleAdmin: string;
 }
 
+const ITEMS_PER_PAGE_INITIAL = 10;
 
 export default function AdminPage() {
   const { toast } = useToast();
@@ -49,10 +49,12 @@ export default function AdminPage() {
   const [editingNovel, setEditingNovel] = useState<Novel | null>(null);
   const [novelToDelete, setNovelToDelete] = useState<Novel | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [showAllNovels, setShowAllNovels] = useState(false);
 
   // Users state
   const [users, setUsers] = useState<MockUser[]>(allMockUsers);
   const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
   // Post Comments state
   const [allSocialPosts, setAllSocialPosts] = useState<FeedItemCardProps[]>([]);
@@ -60,14 +62,15 @@ export default function AdminPage() {
   const [postCommentSearchTerm, setPostCommentSearchTerm] = useState("");
   const [postCommentToDelete, setPostCommentToDelete] = useState<FlatPostComment | null>(null);
   const [isDeletePostCommentDialogOpen, setIsDeletePostCommentDialogOpen] = useState(false);
+  const [showAllPostComments, setShowAllPostComments] = useState(false);
 
   // Chapter Comments state
-  const [allChapterComments, setAllChapterComments] = useState<StoredChapterComment[]>([]); // Store raw StoredChapterComment
+  const [allChapterComments, setAllChapterComments] = useState<StoredChapterComment[]>([]);
   const [flatChapterComments, setFlatChapterComments] = useState<FlatChapterComment[]>([]);
   const [chapterCommentSearchTerm, setChapterCommentSearchTerm] = useState("");
-  const [chapterCommentToDelete, setChapterCommentToDelete] = useState<FlatChapterComment | null>(null); // Use FlatChapterComment for deletion context
+  const [chapterCommentToDelete, setChapterCommentToDelete] = useState<FlatChapterComment | null>(null);
   const [isDeleteChapterCommentDialogOpen, setIsDeleteChapterCommentDialogOpen] = useState(false);
-
+  const [showAllChapterComments, setShowAllChapterComments] = useState(false);
 
   useEffect(() => {
     const loadedNovels = getNovelsFromStorage();
@@ -91,7 +94,7 @@ export default function AdminPage() {
       }
       extractComments(post.comments, post.id, post.title || post.mainText.substring(0, 50) + "...", post.postType);
     });
-    setFlatPostComments(flattened);
+    setFlatPostComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); // Sort by most recent
   };
 
   const loadChapterComments = (currentNovels: Novel[]) => {
@@ -99,7 +102,7 @@ export default function AdminPage() {
     setAllChapterComments(chapterCommentsData);
     const flattened: FlatChapterComment[] = [];
     
-    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: Novel, chapter: Chapter) => {
+    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: Novel, chapter: globalThis.Chapter) => { // Use globalThis.Chapter
         comments.forEach(comment => {
             flattened.push({
                 ...comment,
@@ -126,19 +129,24 @@ export default function AdminPage() {
             }
         }
     });
-    setFlatChapterComments(flattened);
+    setFlatChapterComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); // Sort by most recent
   };
   
 
   // Novels Management
   const filteredNovels = useMemo(() => {
-    if (!novelSearchTerm.trim()) return novels;
-    const lowerSearchTerm = novelSearchTerm.toLowerCase();
-    return novels.filter(novel => 
-      novel.title.toLowerCase().includes(lowerSearchTerm) ||
-      novel.author.toLowerCase().includes(lowerSearchTerm)
-    );
+    let results = novels;
+    if (novelSearchTerm.trim()) {
+      const lowerSearchTerm = novelSearchTerm.toLowerCase();
+      results = results.filter(novel => 
+        novel.title.toLowerCase().includes(lowerSearchTerm) ||
+        novel.author.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+    return results.sort((a, b) => (b.views || 0) - (a.views || 0)); // Example sort: by views
   }, [novels, novelSearchTerm]);
+  const displayedNovels = showAllNovels ? filteredNovels : filteredNovels.slice(0, ITEMS_PER_PAGE_INITIAL);
+
 
   const handleOpenAddForm = () => { setEditingNovel(null); setIsFormModalOpen(true); };
   const handleOpenEditForm = (novel: Novel) => { setEditingNovel(novel); setIsFormModalOpen(true); };
@@ -161,7 +169,7 @@ export default function AdminPage() {
     saveNovelsToStorage(updatedNovels);
     setIsFormModalOpen(false);
     setEditingNovel(null);
-    loadChapterComments(updatedNovels); // Refresh chapter comments in case novel/chapter titles changed
+    loadChapterComments(updatedNovels);
   };
 
   const promptDeleteNovel = (novel: Novel) => { setNovelToDelete(novel); setIsDeleteDialogOpen(true); };
@@ -172,19 +180,24 @@ export default function AdminPage() {
       saveNovelsToStorage(updatedNovels);
       toast({ title: "Novel Deleted", description: `"${novelToDelete.title}" removed.`, variant: "destructive" });
       setNovelToDelete(null); setIsDeleteDialogOpen(false);
-      loadChapterComments(updatedNovels); // Refresh chapter comments as novel is gone
+      loadChapterComments(updatedNovels);
     }
   };
 
   // Users Management
   const filteredUsers = useMemo(() => {
-    if (!userSearchTerm.trim()) return users;
-    const lowerSearchTerm = userSearchTerm.toLowerCase();
-    return users.filter(user => 
-      user.name.toLowerCase().includes(lowerSearchTerm) ||
-      user.username.toLowerCase().includes(lowerSearchTerm)
-    );
+    let results = users;
+    if (userSearchTerm.trim()) {
+      const lowerSearchTerm = userSearchTerm.toLowerCase();
+      results = results.filter(user => 
+        user.name.toLowerCase().includes(lowerSearchTerm) ||
+        user.username.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+    return results;
   }, [users, userSearchTerm]);
+  const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, ITEMS_PER_PAGE_INITIAL);
+
 
   const handleToggleUserStatus = (userId: string) => {
     if (userId === CURRENT_USER_ID) {
@@ -198,14 +211,19 @@ export default function AdminPage() {
 
   // Post Comments Management
    const filteredPostComments = useMemo(() => {
-    if (!postCommentSearchTerm.trim()) return flatPostComments;
-    const lowerSearchTerm = postCommentSearchTerm.toLowerCase();
-    return flatPostComments.filter(comment =>
-      comment.text.toLowerCase().includes(lowerSearchTerm) ||
-      comment.authorName.toLowerCase().includes(lowerSearchTerm) ||
-      comment.postTitleOrContent.toLowerCase().includes(lowerSearchTerm)
-    );
+    let results = flatPostComments;
+    if (postCommentSearchTerm.trim()) {
+      const lowerSearchTerm = postCommentSearchTerm.toLowerCase();
+      results = results.filter(comment =>
+        comment.text.toLowerCase().includes(lowerSearchTerm) ||
+        comment.authorName.toLowerCase().includes(lowerSearchTerm) ||
+        comment.postTitleOrContent.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+    return results;
   }, [flatPostComments, postCommentSearchTerm]);
+  const displayedPostComments = showAllPostComments ? filteredPostComments : filteredPostComments.slice(0, ITEMS_PER_PAGE_INITIAL);
+
 
   const promptDeletePostComment = (comment: FlatPostComment) => {
     setPostCommentToDelete(comment);
@@ -236,8 +254,8 @@ export default function AdminPage() {
     if (postAuthorId === CURRENT_USER_ID) { 
         const userPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
         if (userPostsRaw) {
-            let userPosts: FeedItemCardProps[] = JSON.parse(userPostsRaw);
-            userPosts = userPosts.map(post => {
+            let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw); // Renamed to avoid conflict with users state
+            userPostsData = userPostsData.map(post => {
                 if (post.id === postCommentToDelete.postId) {
                      const deleteCommentRecursively = (comments: FeedItemComment[], targetId: string): FeedItemComment[] => {
                         return comments
@@ -251,7 +269,7 @@ export default function AdminPage() {
                 }
                 return post;
             });
-           if(typeof window !== 'undefined') localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(userPosts));
+           if(typeof window !== 'undefined') localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(userPostsData));
         }
     }
     
@@ -264,15 +282,20 @@ export default function AdminPage() {
 
   // Chapter Comments Management
   const filteredChapterComments = useMemo(() => {
-    if (!chapterCommentSearchTerm.trim()) return flatChapterComments;
-    const lowerSearchTerm = chapterCommentSearchTerm.toLowerCase();
-    return flatChapterComments.filter(comment => 
-      comment.text.toLowerCase().includes(lowerSearchTerm) ||
-      comment.authorName.toLowerCase().includes(lowerSearchTerm) ||
-      comment.novelTitleAdmin.toLowerCase().includes(lowerSearchTerm) ||
-      comment.chapterTitleAdmin.toLowerCase().includes(lowerSearchTerm)
-    );
+    let results = flatChapterComments;
+    if (chapterCommentSearchTerm.trim()) {
+      const lowerSearchTerm = chapterCommentSearchTerm.toLowerCase();
+      results = results.filter(comment => 
+        comment.text.toLowerCase().includes(lowerSearchTerm) ||
+        comment.authorName.toLowerCase().includes(lowerSearchTerm) ||
+        comment.novelTitleAdmin.toLowerCase().includes(lowerSearchTerm) ||
+        comment.chapterTitleAdmin.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+    return results;
   }, [flatChapterComments, chapterCommentSearchTerm]);
+  const displayedChapterComments = showAllChapterComments ? filteredChapterComments : filteredChapterComments.slice(0, ITEMS_PER_PAGE_INITIAL);
+
   
   const promptDeleteChapterComment = (comment: FlatChapterComment) => {
     setChapterCommentToDelete(comment);
@@ -293,7 +316,7 @@ export default function AdminPage() {
     const updatedStoredChapterComments = deleteCommentRecursively(allChapterComments, chapterCommentToDelete.id);
     
     saveStoredChapterComments(updatedStoredChapterComments);
-    loadChapterComments(novels); // Reload and re-flatten
+    loadChapterComments(novels); 
     toast({ title: "Chapter Comment Deleted", description: `Comment by ${chapterCommentToDelete.authorName} removed.`, variant: "destructive" });
     setChapterCommentToDelete(null);
     setIsDeleteChapterCommentDialogOpen(false);
@@ -310,150 +333,186 @@ export default function AdminPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Column 1: Manage Novels */}
-        <Card className="lg:col-span-1 h-full flex flex-col">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl text-primary flex items-center">
-              <BookOpen className="mr-3 h-6 w-6" /> Manage Novels
-            </CardTitle>
-            <CardDescription>View, add, edit, or delete novels. Configure Home Page layout.</CardDescription>
-            <div className="pt-2 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search novels by title or author..."
-                value={novelSearchTerm}
-                onChange={(e) => setNovelSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="flex-grow overflow-y-auto">
-            {filteredNovels.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No novels found matching your search.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Status</TableHead><TableHead className="text-right w-[180px]">Actions</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {filteredNovels.map((novel) => (
-                      <TableRow key={novel.id}>
-                        <TableCell className="font-medium max-w-[150px] truncate" title={novel.title}>{novel.title}</TableCell>
-                        <TableCell><Badge variant={novel.status === 'published' ? 'default' : 'secondary'} className="capitalize">{novel.status}</Badge></TableCell>
-                        <TableCell className="text-right space-x-1">
-                          <Button variant="ghost" size="icon" asChild title="View Novel"><Link href={`/story/${novel.id}`} target="_blank" rel="noopener noreferrer"><Eye className="h-4 w-4 text-blue-500" /></Link></Button>
-                          <Button variant="ghost" size="icon" asChild title="Manage Chapters"><Link href={`/admin/novel/${novel.id}/chapters`}><BookOpen className="h-4 w-4 text-green-500" /></Link></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenEditForm(novel)} title="Edit Novel"><Edit className="h-4 w-4 text-yellow-500" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => promptDeleteNovel(novel)} title="Delete Novel"><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="mt-auto border-t pt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <Button onClick={handleOpenAddForm} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-5 w-5" /> Add New Novel</Button>
-            <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/admin/home-layout"><LayoutGrid className="mr-2 h-5 w-5" /> Configure Home</Link></Button>
-          </CardFooter>
-        </Card>
+      <Tabs defaultValue="novels" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="novels"><BookText className="mr-2 h-5 w-5" />Manage Novels</TabsTrigger>
+          <TabsTrigger value="comments"><MessageSquareText className="mr-2 h-5 w-5" />Manage Comments</TabsTrigger>
+          <TabsTrigger value="users"><Users className="mr-2 h-5 w-5" />Manage Users</TabsTrigger>
+        </TabsList>
 
-        {/* Column 2: Manage Comments */}
-        <Card className="lg:col-span-1 h-full flex flex-col">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl text-primary flex items-center"><MessageSquareText className="mr-3 h-6 w-6" /> Manage Comments</CardTitle>
-            <CardDescription>Review and moderate comments from posts and chapters.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex-grow overflow-hidden">
-            <Tabs defaultValue="post-comments" className="flex flex-col h-full">
-              <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="post-comments">Post Comments</TabsTrigger><TabsTrigger value="chapter-comments">Chapter Comments</TabsTrigger></TabsList>
-              
-              <TabsContent value="post-comments" className="flex-grow overflow-y-auto mt-0">
-                <div className="pt-4 space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search post comments..." value={postCommentSearchTerm} onChange={(e) => setPostCommentSearchTerm(e.target.value)} className="pl-9" />
-                  </div>
-                  {filteredPostComments.length === 0 ? <p className="text-muted-foreground text-center py-6">No post comments match.</p> : (
-                    <Table><TableHeader><TableRow><TableHead>Author</TableHead><TableHead>Comment</TableHead><TableHead>Post Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {filteredPostComments.map((comment) => (
-                          <TableRow key={`${comment.postId}-${comment.id}`}>
-                            <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
-                            <TableCell className="max-w-[150px] truncate" title={comment.text}>{comment.text}</TableCell>
-                            <TableCell className="max-w-[120px] truncate" title={comment.postTitleOrContent}>{comment.postTitleOrContent}</TableCell>
-                            <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeletePostComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="chapter-comments" className="flex-grow overflow-y-auto mt-0">
-                 <div className="pt-4 space-y-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search ch. comments (novel, ch, user, text)..." value={chapterCommentSearchTerm} onChange={(e) => setChapterCommentSearchTerm(e.target.value)} className="pl-9"/>
-                  </div>
-                  {filteredChapterComments.length === 0 ? <p className="text-muted-foreground text-center py-6">No chapter comments match.</p> : (
-                    <Table><TableHeader><TableRow><TableHead>User</TableHead><TableHead>Comment</TableHead><TableHead>Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {filteredChapterComments.map((comment) => (
-                          <TableRow key={comment.id}>
-                            <TableCell className="max-w-[80px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
-                            <TableCell className="max-w-[150px] truncate" title={comment.text}>{comment.text}</TableCell>
-                            <TableCell className="max-w-[150px] truncate" title={`${comment.novelTitleAdmin} - ${comment.chapterTitleAdmin}`}>{`${comment.novelTitleAdmin.substring(0,12)}... - ${comment.chapterTitleAdmin.substring(0,12)}...`}</TableCell>
-                            <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeleteChapterComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* Column 3: Manage Users */}
-        <Card className="lg:col-span-1 h-full flex flex-col">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserCog className="mr-3 h-6 w-6" /> Manage Users</CardTitle>
-            <CardDescription>Activate or deactivate user accounts. (Status changes for current session only)</CardDescription>
-             <div className="pt-2 relative">
+        <TabsContent value="novels" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl text-primary flex items-center">
+                <BookOpen className="mr-3 h-6 w-6" /> Novels Overview
+              </CardTitle>
+              <CardDescription>View, add, edit, or delete novels. Configure Home Page layout.</CardDescription>
+              <div className="pt-2 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search users by name/username..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="pl-9" />
-            </div>
-          </CardHeader>
-          <CardContent className="flex-grow overflow-y-auto">
-            {filteredUsers.length === 0 ? <p className="text-muted-foreground text-center py-8">No users found matching your search.</p> : (
-              <div className="overflow-x-auto">
-              <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right w-[140px]">Action</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium max-w-[150px] truncate" title={user.name}>{user.name} {user.id === CURRENT_USER_ID && "(Admin)"}</TableCell>
-                      <TableCell><Badge variant={user.isActive ? 'default' : 'destructive'}>{user.isActive ? 'Active' : 'Deactivated'}</Badge></TableCell>
-                      <TableCell className="text-right">
-                        {user.id !== CURRENT_USER_ID ? (
-                          <Button variant={user.isActive ? "destructive" : "default"} size="sm" onClick={() => handleToggleUserStatus(user.id)}>
-                            {user.isActive ? <UserX className="mr-2 h-4 w-4" /> : <UserCheckIcon className="mr-2 h-4 w-4" />}
-                            {user.isActive ? 'Deactivate' : 'Activate'}
-                          </Button>
-                        ) : <span className="text-xs text-muted-foreground">N/A</span>}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                <Input 
+                  placeholder="Search novels by title or author..."
+                  value={novelSearchTerm}
+                  onChange={(e) => setNovelSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardHeader>
+            <CardContent className="flex-grow overflow-y-auto">
+              {displayedNovels.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">{novelSearchTerm ? "No novels found." : "No novels available."}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Status</TableHead><TableHead className="text-right w-[180px]">Actions</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {displayedNovels.map((novel) => (
+                        <TableRow key={novel.id}>
+                          <TableCell className="font-medium max-w-[200px] truncate" title={novel.title}>{novel.title}</TableCell>
+                          <TableCell><Badge variant={novel.status === 'published' ? 'default' : 'secondary'} className="capitalize">{novel.status}</Badge></TableCell>
+                          <TableCell className="text-right space-x-1">
+                            <Button variant="ghost" size="icon" asChild title="View Novel"><Link href={`/story/${novel.id}`} target="_blank" rel="noopener noreferrer"><Eye className="h-4 w-4 text-blue-500" /></Link></Button>
+                            <Button variant="ghost" size="icon" asChild title="Manage Chapters"><Link href={`/admin/novel/${novel.id}/chapters`}><BookOpen className="h-4 w-4 text-green-500" /></Link></Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenEditForm(novel)} title="Edit Novel"><Edit className="h-4 w-4 text-yellow-500" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => promptDeleteNovel(novel)} title="Delete Novel"><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {filteredNovels.length > ITEMS_PER_PAGE_INITIAL && (
+                <div className="mt-4 text-center">
+                  <Button variant="link" onClick={() => setShowAllNovels(!showAllNovels)}>
+                    {showAllNovels ? "Show Less" : `Show All ${filteredNovels.length} Novels`}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="border-t pt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <Button onClick={handleOpenAddForm} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-5 w-5" /> Add New Novel</Button>
+              <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/admin/home-layout"><LayoutGrid className="mr-2 h-5 w-5" /> Configure Home</Link></Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="comments" className="mt-6">
+           <Card>
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><MessageSquareText className="mr-3 h-6 w-6" /> Comments Moderation</CardTitle>
+                <CardDescription>Review and moderate comments from posts and chapters.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Tabs defaultValue="post-comments" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="post-comments">Post Comments</TabsTrigger><TabsTrigger value="chapter-comments">Chapter Comments</TabsTrigger></TabsList>
+                    
+                    <TabsContent value="post-comments" className="pt-4">
+                        <div className="relative mb-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search post comments (text, author, post)..." value={postCommentSearchTerm} onChange={(e) => setPostCommentSearchTerm(e.target.value)} className="pl-9" />
+                        </div>
+                        {displayedPostComments.length === 0 ? <p className="text-muted-foreground text-center py-6">{postCommentSearchTerm ? "No post comments match search." : "No post comments."}</p> : (
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Author</TableHead><TableHead>Comment</TableHead><TableHead>Post Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                {displayedPostComments.map((comment) => (
+                                    <TableRow key={`${comment.postId}-${comment.id}`}>
+                                    <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
+                                    <TableCell className="max-w-[200px] text-sm whitespace-normal" title={comment.text}>{comment.text}</TableCell>
+                                    <TableCell className="max-w-[150px] truncate" title={comment.postTitleOrContent}>{comment.postTitleOrContent}</TableCell>
+                                    <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeletePostComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                        {filteredPostComments.length > ITEMS_PER_PAGE_INITIAL && (
+                            <div className="mt-4 text-center">
+                            <Button variant="link" onClick={() => setShowAllPostComments(!showAllPostComments)}>
+                                {showAllPostComments ? "Show Less" : `Show All ${filteredPostComments.length} Post Comments`}
+                            </Button>
+                            </div>
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="chapter-comments" className="pt-4">
+                        <div className="relative mb-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search chapter comments (text, author, novel, chapter)..." value={chapterCommentSearchTerm} onChange={(e) => setChapterCommentSearchTerm(e.target.value)} className="pl-9"/>
+                        </div>
+                        {displayedChapterComments.length === 0 ? <p className="text-muted-foreground text-center py-6">{chapterCommentSearchTerm ? "No chapter comments match search." : "No chapter comments."}</p> : (
+                            <Table>
+                                <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Comment</TableHead><TableHead>Context (Novel - Chapter)</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                {displayedChapterComments.map((comment) => (
+                                    <TableRow key={comment.id}>
+                                    <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
+                                    <TableCell className="max-w-[200px] text-sm whitespace-normal" title={comment.text}>{comment.text}</TableCell>
+                                    <TableCell className="max-w-[180px] truncate" title={`${comment.novelTitleAdmin} - ${comment.chapterTitleAdmin}`}>{`${comment.novelTitleAdmin.substring(0,20)}... - ${comment.chapterTitleAdmin.substring(0,20)}...`}</TableCell>
+                                    <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeleteChapterComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                         {filteredChapterComments.length > ITEMS_PER_PAGE_INITIAL && (
+                            <div className="mt-4 text-center">
+                            <Button variant="link" onClick={() => setShowAllChapterComments(!showAllChapterComments)}>
+                                {showAllChapterComments ? "Show Less" : `Show All ${filteredChapterComments.length} Chapter Comments`}
+                            </Button>
+                            </div>
+                        )}
+                    </TabsContent>
+                </Tabs>
+            </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="mt-6">
+          <Card>
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserCog className="mr-3 h-6 w-6" /> User Management</CardTitle>
+                <CardDescription>Activate or deactivate user accounts. (Status changes for current session only)</CardDescription>
+                <div className="pt-2 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search users by name/username..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="pl-9" />
+                </div>
+            </CardHeader>
+            <CardContent className="flex-grow overflow-y-auto">
+                {displayedUsers.length === 0 ? <p className="text-muted-foreground text-center py-8">{userSearchTerm ? "No users found." : "No users available."}</p> : (
+                <div className="overflow-x-auto">
+                <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right w-[140px]">Action</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                    {displayedUsers.map((user) => (
+                        <TableRow key={user.id}>
+                        <TableCell className="font-medium max-w-[150px] truncate" title={user.name}>{user.name} {user.id === CURRENT_USER_ID && "(Admin)"}</TableCell>
+                        <TableCell><Badge variant={user.isActive ? 'default' : 'destructive'}>{user.isActive ? 'Active' : 'Deactivated'}</Badge></TableCell>
+                        <TableCell className="text-right">
+                            {user.id !== CURRENT_USER_ID ? (
+                            <Button variant={user.isActive ? "destructive" : "default"} size="sm" onClick={() => handleToggleUserStatus(user.id)}>
+                                {user.isActive ? <UserX className="mr-2 h-4 w-4" /> : <UserCheckIcon className="mr-2 h-4 w-4" />}
+                                {user.isActive ? 'Deactivate' : 'Activate'}
+                            </Button>
+                            ) : <span className="text-xs text-muted-foreground">N/A</span>}
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+                </div>
+                )}
+                {filteredUsers.length > ITEMS_PER_PAGE_INITIAL && (
+                    <div className="mt-4 text-center">
+                    <Button variant="link" onClick={() => setShowAllUsers(!showAllUsers)}>
+                        {showAllUsers ? "Show Less" : `Show All ${filteredUsers.length} Users`}
+                    </Button>
+                    </div>
+                )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
 
       {/* Novel Form Modal */}
       <Dialog open={isFormModalOpen} onOpenChange={(isOpen) => { setIsFormModalOpen(isOpen); if (!isOpen) setEditingNovel(null); }}>
@@ -471,3 +530,6 @@ export default function AdminPage() {
     </div>
   );
 }
+
+
+    
