@@ -326,7 +326,7 @@ export default function AdminPage() {
                     <Table><TableHeader><TableRow><TableHead>Author</TableHead><TableHead>Comment</TableHead><TableHead>Post Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {filteredPostComments.map((comment) => (
-                          <TableRow key={comment.id}>
+                          <TableRow key={`${comment.postId}-${comment.id}`}>
                             <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
                             <TableCell className="max-w-[150px] truncate" title={comment.text}>{comment.text}</TableCell>
                             <TableCell className="max-w-[120px] truncate" title={comment.postTitleOrContent}>{comment.postTitleOrContent}</TableCell>
