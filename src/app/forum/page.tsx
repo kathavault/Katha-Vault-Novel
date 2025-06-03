@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { FeedItemCard, type FeedItemComment, type FeedItemCardProps } from '@/components/forum-post-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,7 +69,7 @@ export default function FeedPage() {
   }, []);
 
   useEffect(() => {
-    if (!isLoadingFeed && socialFeedPosts.length > 0) { // Only save if not loading and there are posts
+    if (!isLoadingFeed && socialFeedPosts.length >= 0) { // Allow saving empty state
       try {
         localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeedPosts));
       } catch (error) {
@@ -100,7 +100,7 @@ export default function FeedPage() {
       likesCount: 0,
       comments: [],
       includeDiscussionGroup: includeDiscussion,
-      discussionGroupName: includeDiscussion ? (discussionGroupName.trim() || `Discussion for post ${Date.now()}`) : undefined,
+      discussionGroupName: includeDiscussion ? (discussionGroupName.trim() || `Discussion for: ${newPostContent.substring(0,30)}...`) : undefined,
     };
 
     const updatedSocialFeed = [newPost, ...socialFeedPosts];
@@ -202,10 +202,11 @@ export default function FeedPage() {
                     <Checkbox
                       id="includeDiscussion"
                       checked={includeDiscussion}
-                      onCheckedChange={(checked) => {
-                        setIncludeDiscussion(checked as boolean);
-                        if (!(checked as boolean)) {
-                          setDiscussionGroupName(""); // Clear group name if discussion is unchecked
+                      onCheckedChange={(checkedState) => {
+                        const newChecked = checkedState === true;
+                        setIncludeDiscussion(newChecked);
+                        if (!newChecked) {
+                          setDiscussionGroupName(""); 
                         }
                       }}
                     />
@@ -213,20 +214,19 @@ export default function FeedPage() {
                       Include 'Join Discussion' Group?
                     </Label>
                   </div>
-                  {includeDiscussion && (
-                    <div className="pl-6 space-y-1">
-                       <Label htmlFor="discussionGroupName" className="font-body text-sm">
-                        Discussion Group Name (Optional)
-                      </Label>
-                      <Input
-                        id="discussionGroupName"
-                        placeholder="E.g., Book Club Chat, Chapter 5 Theories"
-                        value={discussionGroupName}
-                        onChange={(e) => setDiscussionGroupName(e.target.value)}
-                        className="font-body text-sm"
-                      />
-                    </div>
-                  )}
+                  <div className={`pl-6 space-y-1 ${includeDiscussion ? 'block' : 'hidden'}`}>
+                     <Label htmlFor="discussionGroupName" className="font-body text-sm">
+                      Discussion Group Name (Optional)
+                    </Label>
+                    <Input
+                      id="discussionGroupName"
+                      placeholder="E.g., Book Club Chat, Chapter 5 Theories"
+                      value={discussionGroupName}
+                      onChange={(e) => setDiscussionGroupName(e.target.value)}
+                      className="font-body text-sm"
+                      disabled={!includeDiscussion}
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-end">
                   <Button type="submit" size="lg">
@@ -246,6 +246,7 @@ export default function FeedPage() {
                 {...post} 
                 onDeletePost={handleDeletePost}
                 onUpdateComments={handleUpdatePostComments}
+                isFullView={true}
               />
             ))
           ) : ( 
@@ -256,7 +257,17 @@ export default function FeedPage() {
         <TabsContent value="trending-posts">
           <div className="space-y-6">
             {trendingPosts.map(post => (
-              <FeedItemCard key={post.id} {...post} />
+              <FeedItemCard 
+                key={post.id} 
+                {...post} 
+                isFullView={true}
+                onDeletePost={() => toast({ title: "Action Denied", description: "Trending posts cannot be deleted from this view."})}
+                onUpdateComments={(postId, comments) => {
+                  // This is a simplified update for trending posts for consistency.
+                  // Ideally, trending posts would be immutable or have their own update logic.
+                  setTrendingPosts(prev => prev.map(p => p.id === postId ? {...p, comments} : p));
+                }}
+              />
             ))}
             {trendingPosts.length === 0 && (
               <p className="text-center text-muted-foreground py-8">No trending posts right now. Check back later!</p>
@@ -267,4 +278,3 @@ export default function FeedPage() {
     </div>
   );
 }
-
