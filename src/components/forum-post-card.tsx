@@ -8,11 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck, UserCog } from 'lucide-react'; // Added UserCog for Custom Audience
 import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
+import { allMockUsers, CURRENT_USER_ID, kathaExplorerFollowingIds } from '@/lib/mock-data'; // For SharePostModal simulation
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -37,6 +38,7 @@ export interface FeedItemCardProps {
   authorName: string;
   authorAvatarUrl?: string;
   authorInitials: string;
+  authorId?: string; // Added authorId
   timestamp: string;
   likesCount: number;
   viewsCount?: number;
@@ -46,10 +48,12 @@ export interface FeedItemCardProps {
   includeDiscussionGroup?: boolean;
   discussionGroupName?: string;
   privacy: 'public' | 'private' | 'custom';
+  customAudienceUserIds?: string[]; // Added for custom privacy
   onDeletePost?: (postId: string) => void;
   onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
   isFullView?: boolean;
-  currentUserName?: string; // To determine if the current viewer is the author
+  currentUserName?: string; 
+  currentUserId?: string; // Added currentUserId
 }
 
 export function FeedItemCard({
@@ -60,6 +64,7 @@ export function FeedItemCard({
   authorName,
   authorAvatarUrl,
   authorInitials,
+  authorId,
   timestamp,
   likesCount: initialLikesCount,
   viewsCount,
@@ -69,10 +74,12 @@ export function FeedItemCard({
   includeDiscussionGroup = false,
   discussionGroupName,
   privacy,
+  customAudienceUserIds,
   onDeletePost,
   onUpdateComments,
   isFullView = true,
   currentUserName,
+  currentUserId,
 }: FeedItemCardProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -84,7 +91,7 @@ export function FeedItemCard({
   const [replyText, setReplyText] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  const isAuthorViewing = authorName === currentUserName;
+  const isAuthorViewing = authorId === currentUserId || (authorName === currentUserName && !authorId && !currentUserId); // Fallback if IDs are not present everywhere
 
   useEffect(() => {
     setPostComments(initialComments);
@@ -143,9 +150,9 @@ export function FeedItemCard({
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: currentUserName || "Anonymous", // Use current user or fallback
+      authorName: currentUserName || "Anonymous", 
       authorInitials: currentUserName ? currentUserName.substring(0,2).toUpperCase() : "AN",
-      authorAvatarUrl: currentUserName === "Katha Explorer" ? "https://placehold.co/40x40.png?text=KE" : undefined, // Example avatar
+      authorAvatarUrl: currentUserId === CURRENT_USER_ID ? allMockUsers.find(u=>u.id === CURRENT_USER_ID)?.avatarUrl : undefined,
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -214,13 +221,13 @@ export function FeedItemCard({
         localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(joinedDiscussions));
         toast({
           title: `Added to "Joined Discussions"!`,
-          description: `You can find "${groupNameDisplay}" in the Chat section.`,
+          description: `You can find "${groupNameDisplay}" in the Chat section. Post ID: ${postId}`,
           duration: 6000,
         });
       } else {
          toast({
           title: `Already Joined`,
-          description: `"${groupNameDisplay}" is already in your "Joined Discussions".`,
+          description: `"${groupNameDisplay}" is already in your "Joined Discussions". Post ID: ${postId}`,
           duration: 6000,
         });
       }
@@ -253,9 +260,10 @@ export function FeedItemCard({
   }
 
   const PrivacyIcon = () => {
-    if (!isAuthorViewing || privacy === 'public') return null;
+    if (!isAuthorViewing) return null; // Only show detailed privacy icons to the author
+    if (privacy === 'public') return <Globe className="h-3.5 w-3.5 text-blue-500 ml-1.5" title="Public Post"/>;
     if (privacy === 'private') return <Lock className="h-3.5 w-3.5 text-orange-500 ml-1.5" title="Private Post"/>;
-    if (privacy === 'custom') return <UserCheck className="h-3.5 w-3.5 text-green-500 ml-1.5" title="Custom Audience"/>;
+    if (privacy === 'custom') return <UserCog className="h-3.5 w-3.5 text-teal-500 ml-1.5" title={`Custom Audience (${customAudienceUserIds?.length || 0})`}/>;
     return null;
   };
 
@@ -324,6 +332,10 @@ export function FeedItemCard({
       </div>
     );
   };
+  
+  // Friends list for SharePostModal - using mock data for simulation
+  const friendsForShareModal = allMockUsers.filter(u => u.id !== currentUserId && kathaExplorerFollowingIds.includes(u.id));
+
 
   return (
     <>
@@ -376,13 +388,14 @@ export function FeedItemCard({
           </p>
           {postType === 'social' && imageUrl && (
             <div className="mt-3 rounded-lg overflow-hidden border border-border">
-              <div className="relative aspect-video w-full">
+              <div className="relative aspect-video w-full"> {/* Ensure parent has dimensions */}
                 <Image
                   src={imageUrl}
                   alt={title || "Post image"}
                   fill
                   style={{objectFit: "cover"}}
                   data-ai-hint={aiHint}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
                 />
               </div>
             </div>
@@ -444,10 +457,9 @@ export function FeedItemCard({
           onOpenChange={setIsShareModalOpen}
           postTitle={title || mainText.substring(0, 50) + "..."}
           postId={postId}
+          // friendsList={friendsForShareModal} // Pass the filtered list
         />
       )}
     </>
   );
 }
-
-    

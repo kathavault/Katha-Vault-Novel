@@ -3,6 +3,7 @@
 
 import { useState, useEffect, type FormEvent } from 'react';
 import { FeedItemCard, type FeedItemComment, type FeedItemCardProps } from '@/components/forum-post-card';
+import { CustomAudienceModal } from '@/components/profile/custom-audience-modal'; // New Modal
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCheck } from 'lucide-react';
+import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus } from 'lucide-react'; // Added UserCog, UserPlus
 import { useToast } from "@/hooks/use-toast";
+import { allMockUsers, kathaExplorerUser, kathaExplorerFollowingIds, CURRENT_USER_ID } from '@/lib/mock-data'; // Import mock data
 
-// Enhanced sample comments data structure (example)
 const sampleCommentsLevel2: FeedItemComment[] = [
   { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
 ];
@@ -28,18 +29,15 @@ const sampleCommentsTopLevel: FeedItemComment[] = [
 ];
 
 const initialTrendingPosts: FeedItemCardProps[] = [
-  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true, discussionGroupName: "Last Nebula Leveling", privacy: 'public' },
-  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false, privacy: 'public' },
+  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', authorId: 'user_gx', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true, discussionGroupName: "Last Nebula Leveling", privacy: 'public' },
+  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', authorId: 'user_pl', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false, privacy: 'public' },
 ];
 
 const initialSocialFeedPosts: FeedItemCardProps[] = [
-  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true, discussionGroupName: "Introductions", privacy: 'public' },
-  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false, privacy: 'public' },
+  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorId: 'user_ka', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true, discussionGroupName: "Introductions", privacy: 'public' },
+  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorId: 'user_em', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false, privacy: 'public' },
 ];
 
-const CURRENT_USER_NAME = "Katha Explorer";
-const CURRENT_USER_INITIALS = "KE";
-const CURRENT_USER_AVATAR_URL = "https://placehold.co/40x40.png?text=KE";
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 
@@ -49,6 +47,8 @@ export default function FeedPage() {
   const [includeDiscussion, setIncludeDiscussion] = useState(false);
   const [discussionGroupName, setDiscussionGroupName] = useState("");
   const [postPrivacy, setPostPrivacy] = useState<'public' | 'private' | 'custom'>('public');
+  const [customAudienceUserIds, setCustomAudienceUserIds] = useState<string[]>([]);
+  const [isCustomAudienceModalOpen, setIsCustomAudienceModalOpen] = useState(false);
   
   const [socialFeedPosts, setSocialFeedPosts] = useState<FeedItemCardProps[]>([]);
   const [trendingPosts, setTrendingPosts] = useState<FeedItemCardProps[]>(initialTrendingPosts); 
@@ -67,7 +67,7 @@ export default function FeedPage() {
       }
     } catch (error) {
       console.error("Error loading social feed posts from localStorage:", error);
-      setSocialFeedPosts(initialSocialFeedPosts); // Fallback to initial if error
+      setSocialFeedPosts(initialSocialFeedPosts); 
     }
     setIsLoadingFeed(false);
   }, []);
@@ -92,26 +92,32 @@ export default function FeedPage() {
       toast({ title: "Missing Group Name", description: "Please provide a name for your discussion group.", variant: "destructive" });
       return;
     }
+    if (postPrivacy === 'custom' && customAudienceUserIds.length === 0) {
+      toast({ title: "Custom Audience Empty", description: "Please select at least one person for your custom audience.", variant: "destructive"});
+      return;
+    }
 
     const newPost: FeedItemCardProps = {
       id: `social-${Date.now()}`,
       postType: 'social',
       mainText: newPostContent,
-      authorName: CURRENT_USER_NAME,
-      authorInitials: CURRENT_USER_INITIALS, 
-      authorAvatarUrl: CURRENT_USER_AVATAR_URL, 
+      authorName: kathaExplorerUser.name,
+      authorInitials: kathaExplorerUser.avatarFallback, 
+      authorAvatarUrl: kathaExplorerUser.avatarUrl, 
+      authorId: kathaExplorerUser.id,
       timestamp: 'Just now',
       likesCount: 0,
       comments: [],
       includeDiscussionGroup: includeDiscussion,
       discussionGroupName: includeDiscussion ? (discussionGroupName.trim() || `Discussion for: ${newPostContent.substring(0,30)}...`) : undefined,
       privacy: postPrivacy,
+      customAudienceUserIds: postPrivacy === 'custom' ? customAudienceUserIds : undefined,
     };
 
     const updatedSocialFeed = [newPost, ...socialFeedPosts];
     setSocialFeedPosts(updatedSocialFeed);
 
-    if (newPost.authorName === CURRENT_USER_NAME) {
+    if (newPost.authorId === kathaExplorerUser.id) {
       try {
         const existingUserPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
         const existingUserPosts: FeedItemCardProps[] = existingUserPostsRaw ? JSON.parse(existingUserPostsRaw) : [];
@@ -125,7 +131,8 @@ export default function FeedPage() {
     setNewPostContent("");
     setIncludeDiscussion(false);
     setDiscussionGroupName("");
-    setPostPrivacy('public'); // Reset privacy to default
+    setPostPrivacy('public'); 
+    setCustomAudienceUserIds([]);
     toast({ title: "Post Submitted!", description: "Your thoughts have been shared." });
   };
 
@@ -147,18 +154,21 @@ export default function FeedPage() {
   };
 
   const handleUpdatePostComments = (postId: string, updatedComments: FeedItemComment[]) => {
-    const updatedFeed = socialFeedPosts.map(post => 
-      post.id === postId ? { ...post, comments: updatedComments } : post
-    );
-    setSocialFeedPosts(updatedFeed);
+    const updateCommentsRecursively = (posts: FeedItemCardProps[]): FeedItemCardProps[] => {
+      return posts.map(post => {
+        if (post.id === postId) {
+          return { ...post, comments: updatedComments };
+        }
+        return post;
+      });
+    };
+    setSocialFeedPosts(prevPosts => updateCommentsRecursively(prevPosts));
 
      try {
       const existingUserPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
       if (existingUserPostsRaw) {
         const existingUserPosts: FeedItemCardProps[] = JSON.parse(existingUserPostsRaw);
-        const updatedUserPosts = existingUserPosts.map(post =>
-          post.id === postId ? { ...post, comments: updatedComments } : post
-        );
+        const updatedUserPosts = updateCommentsRecursively(existingUserPosts);
         localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedUserPosts));
       }
     } catch (error) {
@@ -168,10 +178,12 @@ export default function FeedPage() {
 
   const filteredSocialFeedPosts = socialFeedPosts.filter(post => {
     if (post.privacy === 'public') return true;
-    if (post.privacy === 'private' || post.privacy === 'custom') { // Custom behaves like private for this sim
-      return post.authorName === CURRENT_USER_NAME;
+    if (post.authorId === kathaExplorerUser.id) return true; // Author always sees their own posts
+    if (post.privacy === 'private') return false; // For client-side, only author sees private in main feed
+    if (post.privacy === 'custom') {
+      return post.customAudienceUserIds?.includes(kathaExplorerUser.id) ?? false;
     }
-    return true; // Should not happen with defined privacy types
+    return true; // Should not happen
   });
 
 
@@ -205,7 +217,7 @@ export default function FeedPage() {
             <CardContent>
               <form onSubmit={handleCreatePost} className="space-y-4">
                 <Textarea
-                  placeholder={`What's on your mind, ${CURRENT_USER_NAME}?`}
+                  placeholder={`What's on your mind, ${kathaExplorerUser.name}?`}
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   className="min-h-[100px] font-body text-base"
@@ -260,13 +272,26 @@ export default function FeedPage() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="custom" id="privacy-custom" />
-                      <Label htmlFor="privacy-custom" className="font-body text-sm flex items-center"><UserCheck className="mr-1.5 h-4 w-4 text-green-500"/>Custom</Label>
+                      <Label htmlFor="privacy-custom" className="font-body text-sm flex items-center"><UserCog className="mr-1.5 h-4 w-4 text-teal-500"/>Custom</Label>
                     </div>
                   </RadioGroup>
+                   {postPrivacy === 'custom' && (
+                    <div className="pl-1 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCustomAudienceModalOpen(true)}
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Select Audience ({customAudienceUserIds.length} selected)
+                      </Button>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground font-body pl-1">
                     {postPrivacy === 'public' && 'Visible to everyone.'}
-                    {postPrivacy === 'private' && 'Visible to you. (Simulation: In a real app, this would be followers/following).'}
-                    {postPrivacy === 'custom' && 'Visible to you. (Simulation: In a real app, you could select specific users).'}
+                    {postPrivacy === 'private' && 'Simulated: Only you see this in the main feed. Followers/following would see it in a real app.'}
+                    {postPrivacy === 'custom' && `Visible to you and ${customAudienceUserIds.length} selected user(s).`}
                   </p>
                 </div>
 
@@ -290,7 +315,8 @@ export default function FeedPage() {
                 onDeletePost={handleDeletePost}
                 onUpdateComments={handleUpdatePostComments}
                 isFullView={true}
-                currentUserName={CURRENT_USER_NAME}
+                currentUserName={kathaExplorerUser.name}
+                currentUserId={kathaExplorerUser.id}
               />
             ))
           ) : ( 
@@ -309,7 +335,8 @@ export default function FeedPage() {
                 onUpdateComments={(postId, comments) => {
                   setTrendingPosts(prev => prev.map(p => p.id === postId ? {...p, comments} : p));
                 }}
-                currentUserName={CURRENT_USER_NAME}
+                currentUserName={kathaExplorerUser.name}
+                currentUserId={kathaExplorerUser.id}
               />
             ))}
             {trendingPosts.length === 0 && (
@@ -318,8 +345,20 @@ export default function FeedPage() {
           </div>
         </TabsContent>
       </Tabs>
+      {isCustomAudienceModalOpen && (
+        <CustomAudienceModal
+            isOpen={isCustomAudienceModalOpen}
+            onOpenChange={setIsCustomAudienceModalOpen}
+            allUsers={allMockUsers.filter(u => u.id !== kathaExplorerUser.id)} // Exclude current user from selection
+            followingUserIds={kathaExplorerFollowingIds}
+            initialSelectedUserIds={customAudienceUserIds}
+            onConfirm={(selectedIds) => {
+                setCustomAudienceUserIds(selectedIds);
+                toast({ title: "Audience Updated", description: `${selectedIds.length} user(s) selected for custom post.`})
+            }}
+            postTitlePreview={newPostContent || "your new post"}
+        />
+      )}
     </div>
   );
 }
-
-    
