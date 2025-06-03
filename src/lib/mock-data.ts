@@ -16,7 +16,7 @@ export interface MockUser {
   email?: string;
   emailVisible?: boolean;
   gender?: string;
-  isActive: boolean; // New field
+  isActive: boolean;
 }
 
 export interface Novel {
@@ -39,12 +39,64 @@ export interface HomeLayoutConfig {
   showMoreNovelsSection: boolean;
 }
 
+// For Forum/Post Comments (from FeedItemCardProps)
+export interface FeedItemComment {
+  id: string;
+  authorName: string;
+  authorAvatarUrl?: string;
+  authorInitials: string;
+  authorId?: string;
+  text: string;
+  timestamp: string;
+  commentLikes: number;
+  isCommentLikedByUser: boolean;
+  replies: FeedItemComment[];
+}
+
+export interface FeedItemCardProps {
+  id: string;
+  postType: 'forum' | 'social';
+  title?: string;
+  mainText: string;
+  authorName: string;
+  authorAvatarUrl?: string;
+  authorInitials: string;
+  authorId: string;
+  timestamp: string;
+  likesCount: number;
+  viewsCount?: number;
+  imageUrl?: string;
+  aiHint?: string;
+  comments: FeedItemComment[];
+  includeDiscussionGroup?: boolean;
+  discussionGroupName?: string;
+  privacy: 'public' | 'private' | 'custom';
+  customAudienceUserIds?: string[];
+}
+
+
+export interface SimulatedChapterComment {
+  id: string;
+  novelId: string;
+  novelTitle: string;
+  chapterId: string; 
+  chapterTitle: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: string;
+}
+
+
 export const CURRENT_USER_ID = 'user_ke';
 export const CURRENT_USER_NAME = 'Katha Explorer';
 
 const KATHA_EXPLORER_FOLLOWING_IDS_KEY = 'kathaExplorerFollowingIds';
 const KATHA_VAULT_MANAGED_NOVELS_KEY = 'kathaVaultManagedNovels';
 export const KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY = 'kathaVaultHomeSectionsConfig';
+export const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
+export const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
+export const KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY = 'kathaVaultSimulatedChapterComments';
 
 
 export const kathaExplorerUser: MockUser = {
@@ -104,10 +156,10 @@ export const getKathaExplorerFollowersList = (count: number = 3): MockUser[] => 
   return allMockUsers.filter(user => user.id !== CURRENT_USER_ID && !followingIds.includes(user.id)).slice(0, count);
 };
 
-const defaultChapterContent = (title: string, chapterNum: number) => `
-Placeholder content for Chapter ${chapterNum} of "${title}".
+const defaultChapterContent = (novelTitle: string, chapterNum: number, chapterTitle: string) => `
+Placeholder content for ${chapterTitle} (Chapter ${chapterNum}) of "${novelTitle}".
 
-This chapter, titled "${title} - Chapter ${chapterNum}", continues the enthralling saga.
+This chapter continues the enthralling saga.
 Readers will find themselves captivated by the unfolding events and the rich character development.
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
@@ -119,18 +171,11 @@ The narrative builds, adding new layers of intrigue and excitement...
 `;
 
 export const initialMockNovels: Novel[] = [
-  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Eleanor Vance', genres: ['Time Travel', 'Sci-Fi'], status: 'published', snippet: "A time-traveling journey through the eras in search of a missing chronomancer.", coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'time machine', views: 26000, chapters: Array.from({ length: 25 }, (_, i) => ({ id: `chronos-ch-${i+1}`, title: `Chapter ${i+1}: Epoch's Echo`, content: defaultChapterContent("The Whispers of Chronos", i+1) })), rating: 4.8 },
-  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Marcus Stone', genres: ['Fantasy', 'Adventure'], status: 'published', snippet: 'Fantasy exploration into ancient rainforest magic.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'jungle temple', views: 18000, chapters: Array.from({ length: 20 }, (_, i) => ({ id: `canopy-ch-${i+1}`, title: `Chapter ${i+1}: Root and Ritual`, content: defaultChapterContent("Beneath the Emerald Canopy", i+1) })), rating: 4.6 },
-  { id: 'novel-1', title: 'The Alchemist of Moonhaven', author: 'Seraphina Gold', genres: ['Steampunk', 'Mystery'], status: 'published', snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk city moon', views: 12000, chapters: Array.from({ length: 50 }, (_, i) => ({ id: `moonhaven-ch-${i+1}`, title: `Chapter ${i+1}: Lunar Brews`, content: defaultChapterContent("The Alchemist of Moonhaven", i+1) })), rating: 4.2 },
-  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Weave', genres: ['Short Story', 'Urban Fantasy'], status: 'published', snippet: 'A short story about a magical tailor who can alter time.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'magic tailor', views: 9600, chapters: [{id: 'stitch-ch-1', title: 'Chapter 1: The Golden Thread', content: defaultChapterContent("A Stitch in Time", 1)}], rating: 4.3 },
-  { id: 'draft-1', title: 'The Crimson Comet (Draft)', author: 'Jax Orion', genres: ['Sci-Fi', 'Mystery'], status: 'draft', snippet: 'A rogue comet appears, and with it, a series of strange disappearances. (This is a DRAFT novel)', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'comet space mystery', views: 100, chapters: [{id: 'comet-draft-ch-1', title: 'Chapter 1: First Sighting', content: defaultChapterContent("The Crimson Comet (Draft)", 1)}], rating: 0 },
-  { id: 'short-2', title: 'The Clockwork Heart', author: 'Cogsworth Throttleton', genres: ['Short Story', 'Steampunk', 'Romance'], status: 'published', snippet: 'A short tale of love and machinery in a steampunk universe.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk heart', views: 15000, chapters: [{id: 'clockwork-ch-1', title: 'Chapter 1: Gears of Affection', content: defaultChapterContent("The Clockwork Heart", 1)}], rating: 4.7 },
-  { id: 'rom-1', title: 'Love in the Time of Stardust', author: 'Stella Astra', genres: ['Romance', 'Space Opera'], status: 'published', snippet: 'Two starlit souls find their way toward each other across galaxies, their romance defying all odds.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'galaxy couple romance', views: 28000, chapters: Array.from({ length: 30 }, (_, i) => ({ id: `stardust-ch-${i+1}`, title: `Chapter ${i+1}: Cosmic Embrace`, content: defaultChapterContent("Love in the Time of Stardust", i+1) })), rating: 4.9 },
-  { id: 'scifi-1', title: 'Echoes of the Void', author: 'Orion Nebula', genres: ['Space Opera', 'Sci-Fi'], status: 'published', snippet: 'A lone astronaut contemplates an ancient species, adrift at the edge of known space.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'astronaut void space', views: 36000, chapters: Array.from({ length: 22 }, (_, i) => ({ id: `void-ch-${i+1}`, title: `Chapter ${i+1}: Silent Signals`, content: defaultChapterContent("Echoes of the Void", i+1) })), rating: 4.9 },
-  { id: 'scifi-2', title: 'The Last Cyberpunk', author: 'Nova Byte', genres: ['Cyberpunk', 'Sci-Fi'], status: 'published', snippet: 'In a ruined electric city, one last hacker fights for freedom.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'cyberpunk hacker city', views: 22000, chapters: Array.from({ length: 18 }, (_, i) => ({ id: `cyberpunk-ch-${i+1}`, title: `Chapter ${i+1}: Neon Shadows`, content: defaultChapterContent("The Last Cyberpunk", i+1) })), rating: 4.6 },
-  { id: 'more-1', title: 'General Thoughts on Reading', author: 'Marcus Stone', genres: ['General', 'Essay'], status: 'published', snippet: 'A general story on the general complexity of books, the reader’s state of mind, and what defines a book.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'book thought', views: 10000, chapters: Array.from({ length: 5 }, (_, i) => ({ id: `reading-ch-${i+1}`, title: `Chapter ${i+1}: Perspectives`, content: defaultChapterContent("General Thoughts on Reading", i+1) })), rating: 4.0 },
-  { id: 'lib-1', title: 'The Last Nebula (Library Copy)', author: 'Aria Vale', genres: ['Sci-Fi', 'Adventure'], status: 'published', snippet: 'In a dying galaxy, a lone explorer seeks the fabled Last Nebula, said to hold the key to cosmic rebirth.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'nebula space', views: 15000, chapters: Array.from({ length: 30 }, (_, i) => ({ id: `nebula-lib-ch-${i+1}`, title: `Chapter ${i+1}: Galactic Hope`, content: defaultChapterContent("The Last Nebula (Library Copy)", i+1) })), rating: 4.5 },
-  { id: 'lib-4', title: 'Echoes in the Silence (Library Copy)', author: 'Lena Petrova', genres: ['Mystery', 'Thriller'], status: 'published', snippet: 'A detective haunted by her past must solve a murder in a remote, snowbound village where everyone has a secret.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'snowy village', views: 9000, chapters: Array.from({ length: 22 }, (_, i) => ({ id: `silence-lib-ch-${i+1}`, title: `Chapter ${i+1}: Frozen Clues`, content: defaultChapterContent("Echoes in the Silence (Library Copy)", i+1) })), rating: 4.2 },
+  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Eleanor Vance', genres: ['Time Travel', 'Sci-Fi'], status: 'published', snippet: "A time-traveling journey through the eras in search of a missing chronomancer.", coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'time machine', views: 26000, chapters: Array.from({ length: 3 }, (_, i) => ({ id: `chronos-ch-${i+1}`, title: `Chapter ${i+1}: Epoch's Echo`, content: defaultChapterContent("The Whispers of Chronos", i+1, `Chapter ${i+1}: Epoch's Echo`) })), rating: 4.8 },
+  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Marcus Stone', genres: ['Fantasy', 'Adventure'], status: 'published', snippet: 'Fantasy exploration into ancient rainforest magic.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'jungle temple', views: 18000, chapters: Array.from({ length: 2 }, (_, i) => ({ id: `canopy-ch-${i+1}`, title: `Chapter ${i+1}: Root and Ritual`, content: defaultChapterContent("Beneath the Emerald Canopy", i+1, `Chapter ${i+1}: Root and Ritual`) })), rating: 4.6 },
+  { id: 'novel-1', title: 'The Alchemist of Moonhaven', author: 'Seraphina Gold', genres: ['Steampunk', 'Mystery'], status: 'published', snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk city moon', views: 12000, chapters: Array.from({ length: 1 }, (_, i) => ({ id: `moonhaven-ch-${i+1}`, title: `Chapter ${i+1}: Lunar Brews`, content: defaultChapterContent("The Alchemist of Moonhaven", i+1, `Chapter ${i+1}: Lunar Brews`) })), rating: 4.2 },
+  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Weave', genres: ['Short Story', 'Urban Fantasy'], status: 'published', snippet: 'A short story about a magical tailor who can alter time.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'magic tailor', views: 9600, chapters: [{id: 'stitch-ch-1', title: 'The Golden Thread', content: defaultChapterContent("A Stitch in Time", 1, 'The Golden Thread')}], rating: 4.3 },
+  { id: 'draft-1', title: 'The Crimson Comet (Draft)', author: 'Jax Orion', genres: ['Sci-Fi', 'Mystery'], status: 'draft', snippet: 'A rogue comet appears, and with it, a series of strange disappearances. (This is a DRAFT novel)', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'comet space mystery', views: 100, chapters: [{id: 'comet-draft-ch-1', title: 'First Sighting', content: defaultChapterContent("The Crimson Comet (Draft)", 1, 'First Sighting')}], rating: 0 },
 ];
 
 export const getNovelsFromStorage = (): Novel[] => {
@@ -158,11 +203,11 @@ export const getNovelsFromStorage = (): Novel[] => {
     status: novel.status || 'draft',
     views: novel.views ?? 0,
     rating: novel.rating ?? 0,
-    chapters: Array.isArray(novel.chapters) ? novel.chapters.map(ch => ({
+    chapters: Array.isArray(novel.chapters) && novel.chapters.length > 0 ? novel.chapters.map(ch => ({
         id: ch.id || `ch-random-${Math.random().toString(36).substring(2, 9)}`,
         title: ch.title || 'Untitled Chapter',
         content: ch.content || 'No content available.'
-    })) : [{id: 'ch-fallback-1', title: 'Chapter 1', content: 'Fallback chapter content.'}],
+    })) : [{id: `fallback-ch-${novel.id}`, title: 'Chapter 1', content: defaultChapterContent(novel.title, 1, 'Chapter 1')}],
   }));
 
   const publishedNovels = processedNovels.filter(n => n.status === 'published');
@@ -225,9 +270,52 @@ export const getAllUniqueGenres = (novels: Novel[]): string[] => {
     novels.forEach(novel => novel.genres.forEach(genre => allGenres.add(genre)));
     return Array.from(allGenres).sort();
 };
-    
-// Helper function to get user status (simulated)
+
 export const isUserActive = (userId: string): boolean => {
   const user = allMockUsers.find(u => u.id === userId);
-  return user ? user.isActive : false; // Default to false if user not found, though this shouldn't happen
+  return user ? user.isActive : false; 
+};
+
+// Simulated Chapter Comments
+export const getSimulatedChapterCommentsFromStorage = (): SimulatedChapterComment[] => {
+  if (typeof window !== 'undefined') {
+    const storedComments = localStorage.getItem(KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY);
+    if (storedComments) {
+      try {
+        return JSON.parse(storedComments);
+      } catch (e) {
+        console.error("Error parsing simulated chapter comments from localStorage", e);
+      }
+    }
+    // Create some default simulated chapter comments if none exist
+    const defaultSimulatedComments: SimulatedChapterComment[] = [
+      { id: 'scc1', novelId: 'trend-1', novelTitle: 'The Whispers of Chronos', chapterId: 'chronos-ch-1', chapterTitle: 'Chapter 1: Epoch\'s Echo', userId: 'user_er', userName: 'Elara Reads', text: 'Fascinating start to Chronos! Can\'t wait to see where this goes.', timestamp: '2 days ago' },
+      { id: 'scc2', novelId: 'trend-2', novelTitle: 'Beneath the Emerald Canopy', chapterId: 'canopy-ch-1', chapterTitle: 'Chapter 1: Root and Ritual', userId: 'user_mw', userName: 'Marcus Writes', text: 'The world-building in Emerald Canopy is amazing!', timestamp: '1 day ago' },
+      { id: 'scc3', novelId: 'trend-1', novelTitle: 'The Whispers of Chronos', chapterId: 'chronos-ch-2', chapterTitle: 'Chapter 2: Paradox Alley', userId: 'user_sf', userName: 'SciFi Guru', text: 'The paradox in chapter 2 was mind-bending!', timestamp: '3 hours ago' },
+    ];
+    localStorage.setItem(KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY, JSON.stringify(defaultSimulatedComments));
+    return defaultSimulatedComments;
+  }
+  return [];
+};
+
+export const saveSimulatedChapterCommentsToStorage = (comments: SimulatedChapterComment[]): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY, JSON.stringify(comments));
+  }
+};
+
+// Helper function to get all social feed posts (used by admin comment management)
+export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
+    if (typeof window !== 'undefined') {
+        const storedPosts = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
+        if (storedPosts) {
+            try {
+                return JSON.parse(storedPosts) as FeedItemCardProps[];
+            } catch (e) {
+                console.error("Error parsing social feed posts from localStorage", e);
+            }
+        }
+    }
+    return []; // Return empty if not in browser or error
 };
