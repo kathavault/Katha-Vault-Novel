@@ -23,7 +23,7 @@ export interface Novel {
   views?: number;
   chapters?: number;
   rating?: number;
-  isTrending?: boolean; // Keep for homepage if needed
+  isTrending?: boolean; 
 }
 
 export const CURRENT_USER_ID = 'user_ke';
@@ -104,28 +104,58 @@ export const initialMockNovels: Novel[] = [
 ];
 
 export const getNovelsFromStorage = (): Novel[] => {
+  let novelsFromStorage: Novel[] = [];
   if (typeof window !== 'undefined') {
     const storedNovels = localStorage.getItem(KATHA_VAULT_MANAGED_NOVELS_KEY);
     if (storedNovels) {
       try {
-        return JSON.parse(storedNovels);
+        novelsFromStorage = JSON.parse(storedNovels);
       } catch (e) {
         console.error("Error parsing novels from localStorage", e);
         // Fallback to initial mock novels if parsing fails
-        localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(initialMockNovels));
-        return initialMockNovels;
+        novelsFromStorage = [...initialMockNovels]; // Deep copy
+        localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novelsFromStorage));
       }
     } else {
       // Initialize localStorage if empty
-      localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(initialMockNovels));
-      return initialMockNovels;
+      novelsFromStorage = [...initialMockNovels]; // Deep copy
+      localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novelsFromStorage));
     }
+  } else {
+    novelsFromStorage = [...initialMockNovels]; // Deep copy for server-side or if window is not defined
   }
-  return initialMockNovels; // Default for server-side or if window is not defined
+
+  // Ensure all novels have default views, rating and chapters if undefined
+  const processedNovels = novelsFromStorage.map(novel => ({
+    ...novel,
+    views: novel.views ?? 0,
+    rating: novel.rating ?? 0,
+    chapters: novel.chapters ?? 1,
+    // isTrending will be dynamically set below
+  }));
+
+  // Automatic Trending Logic
+  // Create a new array for sorting to avoid mutating processedNovels directly if it's referenced elsewhere
+  const sortedByViews = [...processedNovels].sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
+  const TRENDING_COUNT = 3; // For example, top 3 novels are trending
+
+  return processedNovels.map(novel => {
+    // Check if the novel is in the top TRENDING_COUNT by comparing IDs
+    const isTopTrending = sortedByViews.slice(0, TRENDING_COUNT).some(trendingNovel => trendingNovel.id === novel.id);
+    return {
+      ...novel,
+      isTrending: isTopTrending,
+    };
+  });
 };
+
 
 export const saveNovelsToStorage = (novels: Novel[]): void => {
   if (typeof window !== 'undefined') {
+    // When saving, we save the core data. `isTrending` is always recalculated on load.
+    // So, we can optionally strip or ignore `isTrending` before saving,
+    // or just save it as is, knowing `getNovelsFromStorage` will overwrite it.
+    // For simplicity, save as is.
     localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novels));
   }
 };

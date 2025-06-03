@@ -29,10 +29,8 @@ const novelFormSchema = z.object({
   snippet: z.string().min(10, "Snippet must be at least 10 characters."),
   coverImageUrl: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
   aiHint: z.string().optional(),
-  views: z.coerce.number().min(0, "Views must be non-negative.").optional(),
   chapters: z.coerce.number().int("Chapters must be a whole number.").min(1, "Must have at least 1 chapter.").optional(),
-  rating: z.coerce.number().min(0, "Rating must be between 0 and 5.").max(5, "Rating must be between 0 and 5.").optional(),
-  isTrending: z.boolean().optional(),
+  // views, rating, isTrending are no longer directly editable by admin
 });
 
 type NovelFormValues = z.infer<typeof novelFormSchema>;
@@ -55,22 +53,20 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       snippet: initialData?.snippet || "",
       coverImageUrl: initialData?.coverImageUrl || "",
       aiHint: initialData?.aiHint || "",
-      views: initialData?.views || 0,
       chapters: initialData?.chapters || 1,
-      rating: initialData?.rating || 0,
-      isTrending: initialData?.isTrending || false,
     },
   });
 
   useEffect(() => {
     if (initialData) {
       form.reset({
-        ...initialData,
+        title: initialData.title || "",
+        author: initialData.author || "",
         genres: initialData.genres?.join(", ") || "",
-        views: initialData.views ?? 0,
+        snippet: initialData.snippet || "",
+        coverImageUrl: initialData.coverImageUrl || "",
+        aiHint: initialData.aiHint || "",
         chapters: initialData.chapters ?? 1,
-        rating: initialData.rating ?? 0,
-        isTrending: initialData.isTrending ?? false,
       });
     } else {
       form.reset({
@@ -80,34 +76,31 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         snippet: "",
         coverImageUrl: "",
         aiHint: "",
-        views: 0,
         chapters: 1,
-        rating: 0,
-        isTrending: false,
       });
     }
   }, [initialData, form]);
 
   function processSubmit(data: NovelFormValues) {
     const novelToSubmit: Novel = {
-      id: initialData?.id || `novel-${Date.now()}`, // Generate new ID if not editing
+      id: initialData?.id || `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: data.title,
       author: data.author,
       genres: data.genres.split(",").map(g => g.trim()).filter(g => g.length > 0),
       snippet: data.snippet,
-      coverImageUrl: data.coverImageUrl || undefined, // Ensure empty string becomes undefined
+      coverImageUrl: data.coverImageUrl || undefined,
       aiHint: data.aiHint || undefined,
-      views: data.views,
       chapters: data.chapters,
-      rating: data.rating,
-      isTrending: data.isTrending,
+      views: initialData?.views || 0, // Preserve existing views or default to 0 for new
+      rating: initialData?.rating || 0, // Preserve existing rating or default to 0 for new
+      isTrending: initialData?.isTrending || false, // This will be dynamically recalculated by getNovelsFromStorage
     };
     onSubmitForm(novelToSubmit);
     toast({
       title: initialData ? "Novel Updated!" : "Novel Added!",
       description: `"${novelToSubmit.title}" has been saved.`,
     });
-    if (!initialData) { // Reset form only if it was an "add" operation
+    if (!initialData) { 
         form.reset();
     }
   }
@@ -183,19 +176,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormField
-            control={form.control}
-            name="views"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Views</FormLabel>
-                <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
+        <FormField
             control={form.control}
             name="chapters"
             render={({ field }) => (
@@ -205,35 +186,6 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
                 <FormMessage />
                 </FormItem>
             )}
-            />
-            <FormField
-            control={form.control}
-            name="rating"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Rating (0-5)</FormLabel>
-                <FormControl><Input type="number" step="0.1" placeholder="0.0" {...field} /></FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-         <FormField
-          control={form.control}
-          name="isTrending"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-              <div className="space-y-0.5">
-                <FormLabel>Mark as Trending?</FormLabel>
-                <FormDescription>
-                  If checked, this novel might be highlighted on the homepage.
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Input type="checkbox" checked={field.value} onChange={field.onChange} className="h-5 w-5"/>
-              </FormControl>
-            </FormItem>
-          )}
         />
         <div className="flex justify-end space-x-3">
           {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>}
