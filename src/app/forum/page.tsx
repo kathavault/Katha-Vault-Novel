@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Users, TrendingUp, MessageSquareText, Send, Edit } from 'lucide-react'; 
 import { useToast } from "@/hooks/use-toast";
-import Link from 'next/link';
 
 // Enhanced sample comments data structure
 const sampleCommentsLevel2: FeedItemComment[] = [
@@ -88,34 +89,54 @@ const sampleCommentsTopLevel: FeedItemComment[] = [
 ];
 
 const initialTrendingPosts: FeedItemCardProps[] = [
-  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1) },
-  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel },
-  { id: 'trend-3', postType: 'social', mainText: 'My latest short story "The Clockwork Nightingale" is now published on Katha Vault! Check it out and let me know what you think! 🐦⚙️ #NewStory #Steampunk', authorName: 'AuthorAnne', authorInitials: 'AA', timestamp: '6 hours ago', likesCount: 850, authorAvatarUrl: 'https://placehold.co/40x40.png?text=AA', comments: [] },
+  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true },
+  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false },
+  { id: 'trend-3', postType: 'social', mainText: 'My latest short story "The Clockwork Nightingale" is now published on Katha Vault! Check it out and let me know what you think! 🐦⚙️ #NewStory #Steampunk', authorName: 'AuthorAnne', authorInitials: 'AA', timestamp: '6 hours ago', likesCount: 850, authorAvatarUrl: 'https://placehold.co/40x40.png?text=AA', comments: [], includeDiscussionGroup: false },
 ];
 
 const initialSocialFeedPosts: FeedItemCardProps[] = [
-  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2) },
-  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3) },
-  { id: 'social-3', postType: 'forum', title: 'Seeking Beta Readers for Sci-Fi Novel', authorName: 'Jax Orion', authorInitials: 'JO', timestamp: '15 hours ago', mainText: 'Looking for 3-4 beta readers for my upcoming sci-fi novel "Planetfall". DM me if interested! Genre: Space Opera, Adventure.', likesCount: 18, viewsCount: 95, authorAvatarUrl: 'https://placehold.co/40x40.png?text=JO', comments: [] },
-  { id: 'social-4', postType: 'social', mainText: 'Just read an amazing short story by @Elara Moonwhisper! Highly recommend "The Sunstone Amulet". #ReadingCommunity', authorName: 'SciFiFanatic', authorInitials: 'SF', timestamp: '5 hours ago', likesCount: 25, authorAvatarUrl: 'https://placehold.co/40x40.png?text=SF', comments: [sampleCommentsTopLevel[0]] },
-  { id: 'social-5', postType: 'social', mainText: 'Brainstorming session for my next horror story. Thinking something involving an abandoned lighthouse... 👻 #horrorwriting #plotbunnies', authorName: 'SpookyStories', authorInitials: 'SS', timestamp: '30 mins ago', likesCount: 15, authorAvatarUrl: 'https://placehold.co/40x40.png?text=SS', imageUrl: 'https://placehold.co/600x400.png', aiHint: 'lighthouse night', comments: [sampleCommentsTopLevel[2]] },
+  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true },
+  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false },
+  { id: 'social-3', postType: 'forum', title: 'Seeking Beta Readers for Sci-Fi Novel', authorName: 'Jax Orion', authorInitials: 'JO', timestamp: '15 hours ago', mainText: 'Looking for 3-4 beta readers for my upcoming sci-fi novel "Planetfall". DM me if interested! Genre: Space Opera, Adventure.', likesCount: 18, viewsCount: 95, authorAvatarUrl: 'https://placehold.co/40x40.png?text=JO', comments: [], includeDiscussionGroup: false },
+  { id: 'social-4', postType: 'social', mainText: 'Just read an amazing short story by @Elara Moonwhisper! Highly recommend "The Sunstone Amulet". #ReadingCommunity', authorName: 'SciFiFanatic', authorInitials: 'SF', timestamp: '5 hours ago', likesCount: 25, authorAvatarUrl: 'https://placehold.co/40x40.png?text=SF', comments: [sampleCommentsTopLevel[0]], includeDiscussionGroup: true },
+  { id: 'social-5', postType: 'social', mainText: 'Brainstorming session for my next horror story. Thinking something involving an abandoned lighthouse... 👻 #horrorwriting #plotbunnies', authorName: 'SpookyStories', authorInitials: 'SS', timestamp: '30 mins ago', likesCount: 15, authorAvatarUrl: 'https://placehold.co/40x40.png?text=SS', imageUrl: 'https://placehold.co/600x400.png', aiHint: 'lighthouse night', comments: [sampleCommentsTopLevel[2]], includeDiscussionGroup: false },
 ];
 
 const CURRENT_USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
+const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 
 export default function FeedPage() {
   const { toast } = useToast();
   const [newPostContent, setNewPostContent] = useState("");
-  const [socialFeedPosts, setSocialFeedPosts] = useState<FeedItemCardProps[]>(initialSocialFeedPosts);
-  const [trendingPosts] = useState<FeedItemCardProps[]>(initialTrendingPosts); 
+  const [includeDiscussion, setIncludeDiscussion] = useState(false);
+  const [socialFeedPosts, setSocialFeedPosts] = useState<FeedItemCardProps[]>([]);
+  const [trendingPosts, setTrendingPosts] = useState<FeedItemCardProps[]>(initialTrendingPosts); 
+  const [isLoadingFeed, setIsLoadingFeed] = useState(true);
 
   useEffect(() => {
-    // Load current user's posts from localStorage to supplement initialSocialFeedPosts if needed for consistency
-    // Or, ensure initialSocialFeedPosts is the single source of truth on first load for the feed, 
-    // and localStorage is primarily for the profile page.
-    // For simplicity, we'll let new posts add to localStorage and this feed's state.
-    // If we wanted to persist ALL posts in the feed across sessions, that would be a larger change.
+    try {
+      const storedSocialFeedPostsRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
+      if (storedSocialFeedPostsRaw) {
+        setSocialFeedPosts(JSON.parse(storedSocialFeedPostsRaw));
+      } else {
+        setSocialFeedPosts(initialSocialFeedPosts); 
+      }
+    } catch (error) {
+      console.error("Error loading social feed posts from localStorage:", error);
+      setSocialFeedPosts(initialSocialFeedPosts);
+    }
+    setIsLoadingFeed(false);
   }, []);
+
+  useEffect(() => {
+    if (!isLoadingFeed) {
+      try {
+        localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeedPosts));
+      } catch (error) {
+        console.error("Error saving social feed posts to localStorage:", error);
+      }
+    }
+  }, [socialFeedPosts, isLoadingFeed]);
 
 
   const handleCreatePost = (event: React.FormEvent<HTMLFormElement>) => {
@@ -134,22 +155,22 @@ export default function FeedPage() {
       postType: 'social',
       mainText: newPostContent,
       authorName: 'Katha Explorer', // Placeholder for current user
-      authorInitials: 'KE', // Placeholder
-      authorAvatarUrl: 'https://placehold.co/40x40.png?text=KE', // Placeholder for current user
+      authorInitials: 'KE', 
+      authorAvatarUrl: 'https://placehold.co/40x40.png?text=KE', 
       timestamp: 'Just now',
       likesCount: 0,
       comments: [],
+      includeDiscussionGroup: includeDiscussion,
     };
 
     setSocialFeedPosts(prevPosts => [newPost, ...prevPosts]);
 
-    // Save to localStorage for "My Posts" tab on profile page
     try {
-      const existingPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
-      const existingPosts: FeedItemCardProps[] = existingPostsRaw ? JSON.parse(existingPostsRaw) : [];
-      localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify([newPost, ...existingPosts]));
+      const existingUserPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
+      const existingUserPosts: FeedItemCardProps[] = existingUserPostsRaw ? JSON.parse(existingUserPostsRaw) : [];
+      localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify([newPost, ...existingUserPosts]));
     } catch (error) {
-      console.error("Error saving post to localStorage:", error);
+      console.error("Error saving post to user's posts localStorage:", error);
       toast({
         title: "Storage Error",
         description: "Could not save your post for your profile page due to a local storage issue.",
@@ -158,6 +179,7 @@ export default function FeedPage() {
     }
 
     setNewPostContent("");
+    setIncludeDiscussion(false);
     toast({
       title: "Post Submitted!",
       description: "Your thoughts have been shared.",
@@ -200,6 +222,16 @@ export default function FeedPage() {
                   className="min-h-[100px] font-body text-base"
                   rows={4}
                 />
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="includeDiscussion"
+                    checked={includeDiscussion}
+                    onCheckedChange={(checked) => setIncludeDiscussion(checked as boolean)}
+                  />
+                  <Label htmlFor="includeDiscussion" className="font-body text-sm text-muted-foreground">
+                    Include 'Join Discussion' Group?
+                  </Label>
+                </div>
                 <div className="flex justify-end">
                   <Button type="submit" size="lg">
                     <Send className="mr-2 h-5 w-5" /> Post
@@ -209,10 +241,13 @@ export default function FeedPage() {
             </CardContent>
           </Card>
 
-          {socialFeedPosts.map(post => (
-            <FeedItemCard key={post.id} {...post} />
-          ))}
-          {socialFeedPosts.length === 0 && ( 
+          {isLoadingFeed ? (
+            <p className="text-center text-muted-foreground py-8">Loading feed...</p>
+          ) : socialFeedPosts.length > 0 ? (
+             socialFeedPosts.map(post => (
+              <FeedItemCard key={post.id} {...post} />
+            ))
+          ) : ( 
             <p className="text-center text-muted-foreground py-8">The social feed is quiet for now. Create a post or follow others to see updates!</p>
           )}
         </TabsContent>
@@ -231,5 +266,3 @@ export default function FeedPage() {
     </div>
   );
 }
-
-    

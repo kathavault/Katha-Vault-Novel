@@ -5,15 +5,12 @@ import { useState, useEffect } from 'react';
 import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
-// UserPostItem is no longer used here, FeedItemCard will be used instead.
-// import { UserPostItem } from '@/components/profile/user-post-item'; 
-import { FeedItemCard, type FeedItemCardProps } from '@/components/forum-post-card'; // Import FeedItemCard
+import { FeedItemCard, type FeedItemCardProps } from '@/components/forum-post-card'; 
 import { UserListModal, type ModalUser } from '@/components/profile/user-list-modal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpenText, Edit2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
-// Placeholder data
 const initialUserProfile = {
   name: 'Katha Explorer',
   username: 'katha_explorer',
@@ -22,7 +19,7 @@ const initialUserProfile = {
   email: 'katha.explorer@example.com',
   emailVisible: true,
   gender: 'Prefer not to say',
-  postsCount: 0, // Will be updated dynamically
+  postsCount: 0, 
   followersCount: 3,
   followingCount: 2,
 };
@@ -31,9 +28,6 @@ const readingProgress = [
   { id: 'story1', title: 'The Last Nebula', progress: 75, coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space' },
   { id: 'story2', title: 'Echoes in the Silence', progress: 30, coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'snowy village' },
 ];
-
-// Static userPosts is removed, will fetch from localStorage
-// const userPosts = [ ... ]; 
 
 const initialFollowers: ModalUser[] = [
   { id: 'follower1', name: 'Elara Reads', username: 'elara_reads', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ER', dataAiHint: 'person reading' },
@@ -65,7 +59,6 @@ export default function ProfilePage() {
   const [modalActionButtonLabel, setModalActionButtonLabel] = useState("");
 
   useEffect(() => {
-    // Load user's posts from localStorage
     try {
       const storedPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
       if (storedPostsRaw) {
@@ -131,7 +124,6 @@ export default function ProfilePage() {
       setFollowing(prev => prev.filter(user => user.id !== userId));
       toast({ title: "User Unfollowed", description: "This change is local to your session."});
     }
-    // Note: This does not update postsCount as postsCount refers to user's own created posts.
   };
 
   return (
@@ -176,9 +168,9 @@ export default function ProfilePage() {
         </TabsContent>
         <TabsContent value="my-posts" className="mt-6">
           <div className="space-y-6">
-            <h2 className="text-2xl font-headline text-primary">My Posts</h2>
+            <h2 className="text-2xl font-headline text-primary" id="my-posts-section">My Posts</h2>
             {myProfilePosts.length > 0 ? (
-              myProfilePosts.map(post => <FeedItemCard key={post.id} {...post} />) // Use FeedItemCard
+              myProfilePosts.map(post => <FeedItemCard key={post.id} {...post} />) 
             ) : (
               <p className="text-muted-foreground font-body">You haven't made any posts yet. Create one in the Community Feed!</p>
             )}
@@ -200,5 +192,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

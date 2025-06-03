@@ -7,20 +7,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2 } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
-import { SharePostModal, type FriendForModal } from '@/components/share-post-modal';
-
-// For client-side simulation, directly import friends list data
-// In a real app, this would come from a shared state/context or API
-const placeholderUserChatsForFriendsList = [
-  { id: 'user1', name: 'Elara Reads', username: '@elara', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ER' },
-  { id: 'user2', name: 'Marcus Writes', username: '@marcus_w', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'MW' },
-  { id: 'user3', name: 'SciFiFanatic', username: '@scifi_guru', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'SF' },
-];
-
+import { SharePostModal } from '@/components/share-post-modal';
 
 export interface FeedItemComment {
   id: string;
@@ -34,7 +25,7 @@ export interface FeedItemComment {
   replies: FeedItemComment[];
 }
 
-interface FeedItemCardProps {
+export interface FeedItemCardProps {
   id: string;
   postType: 'forum' | 'social';
   title?: string;
@@ -48,6 +39,7 @@ interface FeedItemCardProps {
   imageUrl?: string;
   aiHint?: string;
   comments: FeedItemComment[];
+  includeDiscussionGroup?: boolean;
 }
 
 export function FeedItemCard({
@@ -63,7 +55,8 @@ export function FeedItemCard({
   viewsCount,
   imageUrl,
   aiHint = "feed image",
-  comments: initialComments
+  comments: initialComments,
+  includeDiscussionGroup = false,
 }: FeedItemCardProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -73,8 +66,10 @@ export function FeedItemCard({
   const [showAllComments, setShowAllComments] = useState(false);
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
-
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  // Simulate current user for OP actions
+  const isCurrentUserPost = authorName === 'Katha Explorer';
 
   const handlePostLike = () => {
     setIsPostLiked(prev => !prev);
@@ -117,9 +112,9 @@ export function FeedItemCard({
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: 'CurrentUser', 
-      authorInitials: 'CU',
-      authorAvatarUrl: 'https://placehold.co/32x32.png?text=CU', 
+      authorName: 'Katha Explorer', // Placeholder for current user
+      authorInitials: 'KE',
+      authorAvatarUrl: 'https://placehold.co/32x32.png?text=KE', 
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -148,7 +143,7 @@ export function FeedItemCard({
     setPostComments(prevComments => addReplyRecursively(prevComments));
     setReplyText("");
     setReplyingToCommentId(null); 
-    toast({ title: "Reply Posted", description: "Your reply has been added (client-side)." });
+    toast({ title: "Reply Posted", description: "Your reply has been added." });
   };
 
   const commentsToDisplay = showAllComments ? postComments : postComments.slice(0, 2);
@@ -159,12 +154,32 @@ export function FeedItemCard({
   };
 
   const handleJoinDiscussion = () => {
+    if (postType === 'forum' && !includeDiscussionGroup) { // Original forum post behavior
+        toast({
+            title: "Joining General Discussion...",
+            description: `Taking you to the chat area for "${title || 'this post'}". This is a general discussion topic.`,
+            duration: 4000,
+        });
+        router.push('/chat');
+    } else { // For posts with specific discussion groups (social or forum)
+        toast({
+            title: "Joining Discussion Group!",
+            description: `You've joined the discussion for "${title || mainText.substring(0,30)+"..."}"! (This would typically open a dedicated chat. For now, you can use the main chat page to discuss this post with ID: ${postId})`,
+            duration: 5000,
+        });
+        // Potentially copy postId to clipboard or pass to chat page via query param in a real scenario
+        // navigator.clipboard.writeText(`Post ID for discussion: ${postId}`);
+    }
+  };
+
+  const handleDeleteDiscussion = () => {
     toast({
-        title: "Joining Discussion...",
-        description: `Taking you to the chat area for "${title || 'this post'}". Imagine this is the dedicated discussion group!`,
-        duration: 4000,
+        title: "Discussion Group Deleted (Simulated)",
+        description: "If this were a real feature, the dedicated discussion group for this post would be removed.",
+        variant: "destructive"
     });
-    router.push('/chat');
+    // In a real app, you'd update the post's state (e.g., set includeDiscussionGroup to false)
+    // and persist this change. For now, it's just a visual confirmation.
   };
 
 
@@ -224,9 +239,11 @@ export function FeedItemCard({
               <p className="text-sm font-semibold text-foreground">{authorName}</p>
               <CardDescription className="font-body text-xs text-muted-foreground">{timestamp}</CardDescription>
             </div>
+             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8" onClick={handleOpenShareModal}>
+                <Share2 className="h-4 w-4" />
+             </Button>
           </div>
           {postType === 'forum' && title && (
-             // For forum posts, the title itself is the main link, or we navigate via "Join Discussion"
             <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
           )}
         </CardHeader>
@@ -263,18 +280,20 @@ export function FeedItemCard({
                   </span>
                 )}
               </div>
-               {postType === 'forum' ? (
-                 <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={handleJoinDiscussion}>Join Discussion</Button>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8" onClick={handleOpenShareModal}>
-                        <Share2 className="h-4 w-4" />
+              <div className="flex items-center space-x-2">
+                { (postType === 'forum' || includeDiscussionGroup) && (
+                    <Button variant="outline" size="sm" onClick={handleJoinDiscussion}>
+                        <Users className="mr-2 h-4 w-4" />
+                        Join Discussion
                     </Button>
-                 </div>
-              ) : ( // social post
-                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8" onClick={handleOpenShareModal}>
-                   <Share2 className="h-4 w-4" />
-                 </Button>
-              )}
+                )}
+                { isCurrentUserPost && includeDiscussionGroup && (
+                     <Button variant="outline" size="sm" onClick={handleDeleteDiscussion} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Discussion
+                    </Button>
+                )}
+              </div>
           </div>
           
           {postComments.length > 0 && (
@@ -302,7 +321,6 @@ export function FeedItemCard({
           onOpenChange={setIsShareModalOpen}
           postTitle={title || mainText.substring(0, 50) + "..."}
           postId={postId}
-          // friendsList={placeholderUserChatsForFriendsList} // Passing imported data
         />
       )}
     </>
