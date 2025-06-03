@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link'; // Import Link
 import { StoryCard } from '@/components/story-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,12 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bookmark, Search, FilterX, ListFilter, Users } from 'lucide-react';
-import { allMockUsers, type MockUser } from '@/lib/mock-data'; // Import mock users
+import { Bookmark, Search, FilterX, ListFilter, Users, ExternalLink } from 'lucide-react';
+import { allMockUsers, type MockUser } from '@/lib/mock-data'; 
 import { useToast } from "@/hooks/use-toast";
 
 
-// Expanded placeholder data
 const initialLibraryStories = [
   { id: '1', title: 'The Last Nebula', author: 'Aria Vale', genres: ['Sci-Fi', 'Adventure'], snippet: 'In a dying galaxy, a lone explorer seeks the fabled Last Nebula, said to hold the key to cosmic rebirth.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space', views: 15000, chapters: 30, rating: 4.5 },
   { id: '4', title: 'Echoes in the Silence', author: 'Lena Petrova', genres: ['Mystery', 'Thriller'], snippet: 'A detective haunted by her past must solve a murder in a remote, snowbound village where everyone has a secret.', coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'snowy village', views: 9000, chapters: 22, rating: 4.2  },
@@ -55,7 +55,7 @@ export default function LibraryPage() {
 
   useEffect(() => {
     if (userSearchTerm.trim() === "") {
-      setFilteredUsers([]);
+      setFilteredUsers([]); // Clear results if search is empty
       return;
     }
     const lowercasedTerm = userSearchTerm.toLowerCase();
@@ -145,7 +145,7 @@ export default function LibraryPage() {
       <Card className="shadow-lg border-border">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center">
-            <Users className="mr-3 h-6 w-6" /> Find Friends
+            <Users className="mr-3 h-6 w-6" /> Find Friends & Authors
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-2">
@@ -164,7 +164,7 @@ export default function LibraryPage() {
               <div className="space-y-2">
                 {filteredUsers.map(user => (
                   <div key={user.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md">
-                    <div className="flex items-center space-x-3">
+                    <Link href={`/profile/${user.id}`} className="flex items-center space-x-3 flex-grow">
                       <Avatar>
                         <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint={user.dataAiHint || "person avatar"} />
                         <AvatarFallback>{user.avatarFallback}</AvatarFallback>
@@ -173,9 +173,11 @@ export default function LibraryPage() {
                         <p className="text-sm font-semibold text-foreground">{user.name}</p>
                         <p className="text-xs text-muted-foreground">@{user.username}</p>
                       </div>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => toast({ title: "View Profile", description: `Feature to view ${user.name}'s profile is coming soon!`})}>
-                      View Profile
+                    </Link>
+                    <Button variant="outline" size="sm" asChild>
+                       <Link href={`/profile/${user.id}`}>
+                          <ExternalLink className="mr-2 h-3.5 w-3.5" /> View Profile
+                       </Link>
                     </Button>
                   </div>
                 ))}
@@ -184,6 +186,9 @@ export default function LibraryPage() {
           )}
            {userSearchTerm && filteredUsers.length === 0 && (
              <p className="text-sm text-muted-foreground text-center py-4">No users found matching "{userSearchTerm}".</p>
+           )}
+           {!userSearchTerm && (
+             <p className="text-sm text-muted-foreground text-center py-4">Type above to search for users.</p>
            )}
         </CardContent>
       </Card>

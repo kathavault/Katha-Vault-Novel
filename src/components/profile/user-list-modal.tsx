@@ -2,6 +2,7 @@
 "use client";
 
 import type React from 'react';
+import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +26,7 @@ interface UserListModalProps {
   actionButtonLabel: string;
   onActionButtonClick: (userId: string) => void;
   emptyStateMessage?: string;
+  currentUserId: string; // To avoid showing action button for self
 }
 
 export function UserListModal({
@@ -34,7 +36,8 @@ export function UserListModal({
   users,
   actionButtonLabel,
   onActionButtonClick,
-  emptyStateMessage = "No users to display."
+  emptyStateMessage = "No users to display.",
+  currentUserId,
 }: UserListModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -46,11 +49,11 @@ export function UserListModal({
           )}
         </DialogHeader>
         {users.length > 0 && (
-          <ScrollArea className="flex-grow pr-4 -mr-4 my-4 max-h-[calc(80vh-180px)]"> {/* Adjusted max-h */}
+          <ScrollArea className="flex-grow pr-4 -mr-4 my-4 max-h-[calc(80vh-180px)]">
             <div className="space-y-4">
               {users.map((user) => (
                 <div key={user.id} className="flex items-center justify-between space-x-3">
-                  <div className="flex items-center space-x-3">
+                  <Link href={`/profile/${user.id}`} className="flex items-center space-x-3 hover:bg-muted/50 p-1 rounded-md flex-grow">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint={user.dataAiHint || "person avatar"} />
                       <AvatarFallback>{user.avatarFallback}</AvatarFallback>
@@ -59,14 +62,16 @@ export function UserListModal({
                       <p className="text-sm font-semibold text-foreground">{user.name}</p>
                       <p className="text-xs text-muted-foreground">@{user.username}</p>
                     </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onActionButtonClick(user.id)}
-                  >
-                    {actionButtonLabel}
-                  </Button>
+                  </Link>
+                  {user.id !== currentUserId && ( // Only show button if not the current user
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onActionButtonClick(user.id)}
+                    >
+                      {actionButtonLabel}
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

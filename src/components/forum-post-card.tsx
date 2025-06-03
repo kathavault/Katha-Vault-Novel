@@ -8,12 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck, UserCog } from 'lucide-react'; // Added UserCog for Custom Audience
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck, UserCog } from 'lucide-react';
 import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
-import { allMockUsers, CURRENT_USER_ID, kathaExplorerFollowingIds } from '@/lib/mock-data'; // For SharePostModal simulation
+import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, CURRENT_USER_NAME } from '@/lib/mock-data';
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -23,6 +23,7 @@ export interface FeedItemComment {
   authorName: string;
   authorAvatarUrl?: string;
   authorInitials: string;
+  authorId?: string; // Added authorId to comments
   text: string;
   timestamp: string;
   commentLikes: number;
@@ -38,7 +39,7 @@ export interface FeedItemCardProps {
   authorName: string;
   authorAvatarUrl?: string;
   authorInitials: string;
-  authorId?: string; // Added authorId
+  authorId: string; 
   timestamp: string;
   likesCount: number;
   viewsCount?: number;
@@ -48,12 +49,12 @@ export interface FeedItemCardProps {
   includeDiscussionGroup?: boolean;
   discussionGroupName?: string;
   privacy: 'public' | 'private' | 'custom';
-  customAudienceUserIds?: string[]; // Added for custom privacy
+  customAudienceUserIds?: string[]; 
   onDeletePost?: (postId: string) => void;
   onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
   isFullView?: boolean;
-  currentUserName?: string; 
-  currentUserId?: string; // Added currentUserId
+  currentUserName: string; 
+  currentUserId: string; 
 }
 
 export function FeedItemCard({
@@ -91,7 +92,7 @@ export function FeedItemCard({
   const [replyText, setReplyText] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  const isAuthorViewing = authorId === currentUserId || (authorName === currentUserName && !authorId && !currentUserId); // Fallback if IDs are not present everywhere
+  const isAuthorViewingPost = authorId === currentUserId;
 
   useEffect(() => {
     setPostComments(initialComments);
@@ -105,6 +106,7 @@ export function FeedItemCard({
   const handlePostLike = () => {
     setIsPostLiked(prev => !prev);
     setCurrentPostLikes(prev => isPostLiked ? prev - 1 : prev + 1);
+    // In a real app, this would also update the backend and potentially localStorage for the post.
   };
 
   const updateCommentsStateAndNotifyParent = (updatedComments: FeedItemComment[]) => {
@@ -147,12 +149,14 @@ export function FeedItemCard({
       toast({ title: "Empty Reply", description: "Cannot submit an empty reply.", variant: "destructive" });
       return;
     }
+    const currentUser = allMockUsers.find(u => u.id === currentUserId) || kathaExplorerUser;
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: currentUserName || "Anonymous", 
-      authorInitials: currentUserName ? currentUserName.substring(0,2).toUpperCase() : "AN",
-      authorAvatarUrl: currentUserId === CURRENT_USER_ID ? allMockUsers.find(u=>u.id === CURRENT_USER_ID)?.avatarUrl : undefined,
+      authorName: currentUser.name, 
+      authorInitials: currentUser.avatarFallback,
+      authorAvatarUrl: currentUser.avatarUrl,
+      authorId: currentUserId,
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -244,23 +248,26 @@ export function FeedItemCard({
 
   const handleDeleteDiscussionGroup = () => {
     const groupNameDisplay = discussionGroupName || title || `Discussion for post ${postId}`;
+    // Here, you would also update the post object in localStorage to remove includeDiscussionGroup
     toast({
         title: "Discussion Group Deleted (Simulated)",
-        description: `The discussion group '${groupNameDisplay}' for this post would be removed by the admin. This action is visual for this session.`,
+        description: `The discussion group '${groupNameDisplay}' for this post would be removed. This change is local.`,
         variant: "destructive"
     });
+    // To make this persist visually for the session, onUpdatePostData would be needed
+    // e.g., onUpdatePostData(postId, { ...currentPostData, includeDiscussionGroup: false, discussionGroupName: undefined });
   };
 
   const handleInternalDeletePost = () => {
-    if (onDeletePost) {
+    if (onDeletePost && isAuthorViewingPost) {
       onDeletePost(postId);
     } else {
-      toast({ title: "Error", description: "Delete function not available for this post.", variant: "destructive"});
+      toast({ title: "Action Denied", description: "You cannot delete this post.", variant: "destructive"});
     }
   }
 
   const PrivacyIcon = () => {
-    if (!isAuthorViewing) return null; // Only show detailed privacy icons to the author
+    if (!isAuthorViewingPost) return null;
     if (privacy === 'public') return <Globe className="h-3.5 w-3.5 text-blue-500 ml-1.5" title="Public Post"/>;
     if (privacy === 'private') return <Lock className="h-3.5 w-3.5 text-orange-500 ml-1.5" title="Private Post"/>;
     if (privacy === 'custom') return <UserCog className="h-3.5 w-3.5 text-teal-500 ml-1.5" title={`Custom Audience (${customAudienceUserIds?.length || 0})`}/>;
@@ -268,18 +275,23 @@ export function FeedItemCard({
   };
 
   const CommentItem = ({ comment, depth = 0 }: { comment: FeedItemComment, depth?: number }) => {
-    const canCurrentUserDeleteThisComment = comment.authorName === currentUserName || isAuthorViewing;
+    const isCommentByCurrentUser = comment.authorId === currentUserId;
+    const canCurrentUserDeleteThisComment = isCommentByCurrentUser || isAuthorViewingPost;
 
     return (
       <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
-          <AvatarFallback>{comment.authorInitials}</AvatarFallback>
-        </Avatar>
+        <Link href={`/profile/${comment.authorId || ''}`} className="flex-shrink-0">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
+            <AvatarFallback>{comment.authorInitials}</AvatarFallback>
+          </Avatar>
+        </Link>
         <div className="flex-1 space-y-1">
           <div className="flex items-center justify-between">
             <div>
-              <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
+              <Link href={`/profile/${comment.authorId || ''}`} className="hover:underline">
+                <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
+              </Link>
               <span className="text-xs text-muted-foreground ml-2">{comment.timestamp}</span>
             </div>
             {canCurrentUserDeleteThisComment && (
@@ -333,8 +345,7 @@ export function FeedItemCard({
     );
   };
   
-  // Friends list for SharePostModal - using mock data for simulation
-  const friendsForShareModal = allMockUsers.filter(u => u.id !== currentUserId && kathaExplorerFollowingIds.includes(u.id));
+  const friendsForShareModal = allMockUsers.filter(u => u.id !== currentUserId && getInitialFollowingIds().includes(u.id));
 
 
   return (
@@ -342,12 +353,16 @@ export function FeedItemCard({
       <Card className="hover:shadow-lg transition-shadow duration-200 bg-card border-border">
         <CardHeader className="pb-3">
           <div className="flex items-start space-x-3 mb-2">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={authorAvatarUrl} alt={authorName} data-ai-hint="person avatar" />
-              <AvatarFallback>{authorInitials}</AvatarFallback>
-            </Avatar>
+            <Link href={`/profile/${authorId}`} className="flex-shrink-0">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={authorAvatarUrl} alt={authorName} data-ai-hint="person avatar" />
+                <AvatarFallback>{authorInitials}</AvatarFallback>
+              </Avatar>
+            </Link>
             <div className="flex-grow">
-              <p className="text-sm font-semibold text-foreground">{authorName}</p>
+              <Link href={`/profile/${authorId}`} className="hover:underline">
+                <p className="text-sm font-semibold text-foreground">{authorName}</p>
+              </Link>
               <CardDescription className="font-body text-xs text-muted-foreground flex items-center">
                 {timestamp}
                 <PrivacyIcon />
@@ -359,7 +374,7 @@ export function FeedItemCard({
                     <Share2 className="h-4 w-4" />
                  </Button>
               )}
-              {isAuthorViewing && onDeletePost && isFullView && (
+              {isAuthorViewingPost && onDeletePost && isFullView && (
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
@@ -379,23 +394,25 @@ export function FeedItemCard({
             </div>
           </div>
           {postType === 'forum' && title && (
-            <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
+             <Link href={`/forum/post/${postId}`} legacyBehavior={false}>
+                <a className="hover:text-primary transition-colors"><CardTitle className="font-headline text-xl mt-1">{title}</CardTitle></a>
+            </Link>
           )}
         </CardHeader>
         <CardContent className="pt-0 pb-3">
-          <p className={`font-body text-foreground/90 ${postType === 'forum' && isFullView ? 'line-clamp-4' : 'whitespace-pre-wrap'}`}>
+          <p className={`font-body text-foreground/90 ${postType === 'forum' && !isFullView ? 'line-clamp-4' : 'whitespace-pre-wrap'}`}>
             {mainText}
           </p>
           {postType === 'social' && imageUrl && (
             <div className="mt-3 rounded-lg overflow-hidden border border-border">
-              <div className="relative aspect-video w-full"> {/* Ensure parent has dimensions */}
+              <div className="relative aspect-video w-full">
                 <Image
                   src={imageUrl}
                   alt={title || "Post image"}
                   fill
                   style={{objectFit: "cover"}}
                   data-ai-hint={aiHint}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
               </div>
             </div>
@@ -423,7 +440,7 @@ export function FeedItemCard({
                         Join {discussionGroupName ? `"${discussionGroupName}"` : "Discussion"}
                     </Button>
                 )}
-                { isAuthorViewing && includeDiscussionGroup && isFullView && (
+                { isAuthorViewingPost && includeDiscussionGroup && isFullView && (
                      <Button variant="outline" size="sm" onClick={handleDeleteDiscussionGroup} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Group
@@ -457,7 +474,6 @@ export function FeedItemCard({
           onOpenChange={setIsShareModalOpen}
           postTitle={title || mainText.substring(0, 50) + "..."}
           postId={postId}
-          // friendsList={friendsForShareModal} // Pass the filtered list
         />
       )}
     </>

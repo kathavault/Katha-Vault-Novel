@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,48 +12,66 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette, MoreVertical, Smile, Loader2, Trash2, Users, MessageSquareQuote, ListFilter } from 'lucide-react';
+import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette, MoreVertical, Smile, Loader2, Trash2, Users, MessageSquareQuote, ListFilter, ExternalLink } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { chatWithKathaVaultAI, type KathaVaultAIChatInput } from '@/ai/flows/katha-vault-chat-flow';
+import Link from 'next/link'; // Import Link
+import { allMockUsers, CURRENT_USER_ID } from '@/lib/mock-data'; // Import allMockUsers for profile links
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
-// Placeholder data
 const aiChatUser = {
+  id: 'ai_assistant',
   name: "Katha Vault AI",
   avatarFallback: "AI",
   avatarUrl: "https://placehold.co/40x40.png?text=AI",
+  username: "katha_ai", // Added username for consistency
   nickname: "Katha AI (Default)",
 };
 
-const placeholderUserChats = [
-  { id: 'user1', name: 'Elara Reads', username: '@elara', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ER', lastMessage: 'Hey, did you read that new chapter yet?', timestamp: '10:30 AM', unreadCount: 2, isOnline: true, dataAiHint: 'person reading' },
-  { id: 'user2', name: 'Marcus Writes', username: '@marcus_w', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'MW', lastMessage: 'Sure, I can give you feedback on that.', timestamp: 'Yesterday', unreadCount: 0, isOnline: false, dataAiHint: 'person writing' },
-  { id: 'user3', name: 'SciFiFanatic', username: '@scifi_guru', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'SF', lastMessage: 'That plot twist was insane!', timestamp: 'Mon', unreadCount: 0, isOnline: true, dataAiHint: 'person space' },
-];
+// Use allMockUsers for placeholderUserChats, excluding current user
+const placeholderUserChats = allMockUsers
+  .filter(user => user.id !== CURRENT_USER_ID && user.id !== aiChatUser.id) // Exclude current user and AI if it has an ID in allMockUsers
+  .map(user => ({
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    avatarUrl: user.avatarUrl || 'https://placehold.co/40x40.png',
+    avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
+    lastMessage: `Chat with ${user.name}`, // Placeholder
+    timestamp: '10:30 AM', // Placeholder
+    unreadCount: Math.floor(Math.random() * 3), // Placeholder
+    isOnline: Math.random() > 0.5, // Placeholder
+    dataAiHint: user.dataAiHint || 'person chat',
+  }));
 
-const placeholderOnlineFriends = [
-  { id: 'online1', name: 'Elara Reads', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'ER', dataAiHint: 'person reading' },
-  { id: 'online2', name: 'Marcus Writes', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'MW', dataAiHint: 'person writing' },
-  { id: 'online3', name: 'SciFiFanatic', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'SF', dataAiHint: 'person space' },
-  { id: 'online4', name: 'Katha Explorer', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'KE', dataAiHint: 'person map' },
-  { id: 'online5', name: 'PixelPioneer', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'PP', dataAiHint: 'person computer' },
-  { id: 'online6', name: 'Reader Digest', avatarUrl: 'https://placehold.co/48x48.png', avatarFallback: 'RD', dataAiHint: 'person book' },
-];
+
+const placeholderOnlineFriends = allMockUsers
+  .filter(user => user.id !== CURRENT_USER_ID)
+  .slice(0, 6) // Take first 6 for online bar
+  .map(user => ({
+    id: user.id,
+    name: user.name,
+    avatarUrl: user.avatarUrl || 'https://placehold.co/48x48.png',
+    avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
+    dataAiHint: user.dataAiHint || 'person active',
+}));
+
 
 const EMOJIS = ['😊', '😂', '❤️', '👍', '🤔', '🎉', '📚', '✨', '✍️', '👀', '👋', '🙏'];
 
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'ai' | 'discussion'; // Added 'discussion' sender type
+  sender: 'user' | 'ai' | 'discussion'; 
   timestamp: string;
-  userName?: string; // Optional for discussion messages
+  userName?: string; 
+  userId?: string; // Added userId for sender
 }
 
 interface JoinedDiscussion {
-  id: string; // Corresponds to postId
-  name: string; // Group name or post title
+  id: string; 
+  name: string; 
   postId: string;
 }
 
@@ -68,14 +87,14 @@ const OnlineFriendsBar = () => (
             <TooltipProvider key={friend.id}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="relative cursor-pointer flex flex-col items-center w-16">
+                  <Link href={`/profile/${friend.id}`} className="relative cursor-pointer flex flex-col items-center w-16">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={friend.avatarUrl} alt={friend.name} data-ai-hint={friend.dataAiHint} />
                       <AvatarFallback>{friend.avatarFallback}</AvatarFallback>
                     </Avatar>
                     <span className="absolute top-0 right-2 block h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-card ring-1 ring-green-500" />
                     <p className="text-xs mt-1 text-muted-foreground truncate w-full text-center">{friend.name.split(' ')[0]}</p>
-                  </div>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{friend.name}</p>
@@ -85,15 +104,19 @@ const OnlineFriendsBar = () => (
           ))}
         </div>
         <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </ScrollArea
     </CardContent>
   </Card>
 );
 
 function ChatPageContent() {
   const { toast } = useToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialSection = searchParams.get('section') === 'discussions' ? 'discussions' : 'direct';
+  const userIdToOpen = searchParams.get('userId');
+  const discussionIdToOpen = searchParams.get('discussionId');
+
 
   const [activeMainTab, setActiveMainTab] = useState<'direct' | 'discussions'>(initialSection);
   
@@ -101,7 +124,6 @@ function ChatPageContent() {
   const [aiAvatar, setAiAvatar] = useState(aiChatUser.avatarUrl);
   const [currentMessage, setCurrentMessage] = useState("");
   
-  // Consolidated messages state. Context will determine if it's AI, user-to-user, or discussion.
   const [messages, setMessages] = useState<Message[]>([]); 
   
   const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<typeof placeholderUserChats[0] | null>(null);
@@ -115,21 +137,45 @@ function ChatPageContent() {
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Load joined discussions from localStorage
     try {
       const storedDiscussionsRaw = localStorage.getItem(JOINED_DISCUSSIONS_STORAGE_KEY);
       if (storedDiscussionsRaw) {
-        setJoinedDiscussions(JSON.parse(storedDiscussionsRaw));
+        const parsedDiscussions: JoinedDiscussion[] = JSON.parse(storedDiscussionsRaw);
+        setJoinedDiscussions(parsedDiscussions);
+        if (discussionIdToOpen && parsedDiscussions.some(d => d.id === discussionIdToOpen)) {
+            setSelectedDiscussionGroup(parsedDiscussions.find(d => d.id === discussionIdToOpen) || null);
+            setActiveMainTab('discussions');
+        }
       }
     } catch (error) {
       console.error("Error loading joined discussions from localStorage:", error);
       toast({ title: "Error", description: "Could not load your joined discussions.", variant: "destructive"});
     }
-  }, []);
+  }, [discussionIdToOpen, toast]);
+
+  useEffect(() => {
+    if (userIdToOpen) {
+      const userToChat = placeholderUserChats.find(u => u.id === userIdToOpen);
+      if (userToChat) {
+        setSelectedDirectChatUser(userToChat);
+        setActiveMainTab('direct');
+        setMessages([
+            {
+                id: 'initial-user-chat-' + Date.now(),
+                text: `You are now chatting with ${userToChat.name}. Say hello!`,
+                sender: 'ai', 
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+            }
+        ]);
+      } else if (userIdToOpen === aiChatUser.id) {
+         setSelectedDirectChatUser(null); // AI chat
+         setActiveMainTab('direct');
+      }
+    }
+  }, [userIdToOpen]);
   
   useEffect(() => {
-    // Initial message based on context
-    if (activeMainTab === 'direct' && !selectedDirectChatUser) { // AI chat
+    if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen) { 
       setMessages([
           {
               id: 'initial-ai-' + Date.now(),
@@ -138,28 +184,28 @@ function ChatPageContent() {
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
           }
       ]);
-    } else if (activeMainTab === 'direct' && selectedDirectChatUser) { // User-to-user chat
+    } else if (activeMainTab === 'direct' && selectedDirectChatUser && !userIdToOpen) { 
         setMessages([
             {
                 id: 'initial-user-chat-' + Date.now(),
                 text: `You are now chatting with ${selectedDirectChatUser.name}. Say hello!`,
-                sender: 'ai', // System message style
+                sender: 'ai', 
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             }
         ]);
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { // Discussion group chat
+    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup && !discussionIdToOpen) { 
         setMessages([
             {
                 id: 'initial-discussion-' + Date.now(),
                 text: `Welcome to the discussion: "${selectedDiscussionGroup.name}". Start chatting!`,
-                sender: 'ai', // System message style
+                sender: 'ai', 
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             }
         ]);
-    } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup) {
-        setMessages([]); // Clear messages if no discussion is selected
+    } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup && !discussionIdToOpen) {
+        setMessages([]); 
     }
-  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup]);
+  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, userIdToOpen, discussionIdToOpen]);
 
   useEffect(() => {
     if (chatScrollAreaRef.current) {
@@ -178,7 +224,8 @@ function ChatPageContent() {
       id: 'msg-' + Date.now(),
       text: userMessageText,
       sender: 'user',
-      userName: "You", // Or current user's name
+      userName: CURRENT_USER_ID, 
+      userId: CURRENT_USER_ID,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
     setMessages(prev => [...prev, newMessage]);
@@ -209,25 +256,26 @@ function ChatPageContent() {
       } finally {
         setIsAiResponding(false);
       }
-    } else if (activeMainTab === 'direct' && selectedDirectChatUser) { // User-to-User Chat
+    } else if (activeMainTab === 'direct' && selectedDirectChatUser) { 
       const otherUserResponse: Message = {
         id: 'other-user-resp-' + Date.now(),
         text: `This is a simulated reply to: "${userMessageText}". Simulating as if I am ${selectedDirectChatUser.name}.`,
-        sender: 'ai', // Simulating as other user
+        sender: 'ai', 
         userName: selectedDirectChatUser.name,
+        userId: selectedDirectChatUser.id,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
-      setTimeout(() => setMessages(prev => [...prev, otherUserResponse]), 500); // Simulate delay
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { // Discussion Group Chat
-      // Simulate other users' replies in discussion, or just log the message
+      setTimeout(() => setMessages(prev => [...prev, otherUserResponse]), 500); 
+    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { 
       const discussionReply: Message = {
         id: 'discussion-reply-' + Date.now(),
         text: `Someone in "${selectedDiscussionGroup.name}" might reply to: "${userMessageText}". (Simulated)`,
         sender: 'discussion', 
-        userName: 'Another User',
+        userName: 'Another User', // Placeholder
+        userId: 'user_another', // Placeholder
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
-      setTimeout(() => setMessages(prev => [...prev, discussionReply]), 700); // Simulate delay
+      setTimeout(() => setMessages(prev => [...prev, discussionReply]), 700); 
     }
   };
   
@@ -267,7 +315,7 @@ function ChatPageContent() {
   };
 
   const handleClearChat = () => {
-    if (activeMainTab === 'direct' && !selectedDirectChatUser) { // AI chat
+    if (activeMainTab === 'direct' && !selectedDirectChatUser) { 
         setMessages([{
             id: 'initial-ai-cleared-' + Date.now(),
             text: 'Hello! How can I help you with your stories today? 😊',
@@ -275,19 +323,19 @@ function ChatPageContent() {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         }]);
         toast({ title: "AI Chat Cleared", description: "Your conversation with the AI has been reset." });
-    } else if (activeMainTab === 'direct' && selectedDirectChatUser) { // User chat
+    } else if (activeMainTab === 'direct' && selectedDirectChatUser) { 
         setMessages([{
             id: 'cleared-user-chat-' + Date.now(),
             text: `Chat with ${selectedDirectChatUser.name} cleared.`,
-            sender: 'ai', // System message
+            sender: 'ai', 
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         }]);
         toast({ title: "Chat Cleared", description: "The conversation has been cleared." });
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { // Discussion
+    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { 
          setMessages([{
             id: 'cleared-discussion-' + Date.now(),
             text: `Discussion in "${selectedDiscussionGroup.name}" cleared.`,
-            sender: 'ai', // System message
+            sender: 'ai', 
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         }]);
         toast({ title: "Discussion Cleared", description: `The discussion in "${selectedDiscussionGroup.name}" has been cleared.` });
@@ -296,17 +344,17 @@ function ChatPageContent() {
   
   const ChatPartnerDetails = () => {
     if (activeMainTab === 'direct' && !selectedDirectChatUser) {
-      return { name: aiNickname, avatar: aiAvatar, fallback: aiChatUser.avatarFallback, isOnline: undefined, context: 'ai' as const };
+      return { id: aiChatUser.id, name: aiNickname, avatar: aiAvatar, fallback: aiChatUser.avatarFallback, isOnline: undefined, context: 'ai' as const };
     }
     if (activeMainTab === 'direct' && selectedDirectChatUser) {
-      return { name: selectedDirectChatUser.name, avatar: selectedDirectChatUser.avatarUrl, fallback: selectedDirectChatUser.avatarFallback, isOnline: selectedDirectChatUser.isOnline, context: 'user' as const };
+      return { id: selectedDirectChatUser.id, name: selectedDirectChatUser.name, avatar: selectedDirectChatUser.avatarUrl, fallback: selectedDirectChatUser.avatarFallback, isOnline: selectedDirectChatUser.isOnline, context: 'user' as const };
     }
     if (activeMainTab === 'discussions' && selectedDiscussionGroup) {
-      return { name: selectedDiscussionGroup.name, avatar: "https://placehold.co/40x40.png?text=DG", fallback: "DG", isOnline: undefined, context: 'discussion' as const };
+      return { id: selectedDiscussionGroup.id, name: selectedDiscussionGroup.name, avatar: "https://placehold.co/40x40.png?text=DG", fallback: selectedDiscussionGroup.name.substring(0,2).toUpperCase(), isOnline: undefined, context: 'discussion' as const };
     }
-    return { name: "Select a chat or discussion", avatar: "", fallback: "?", isOnline: undefined, context: 'none' as const };
+    return { id: '', name: "Select a chat or discussion", avatar: "", fallback: "?", isOnline: undefined, context: 'none' as const };
   };
-  const { name: chatPartnerName, avatar: chatPartnerAvatar, fallback: chatPartnerFallback, isOnline: chatPartnerIsOnline, context: chatContext } = ChatPartnerDetails();
+  const { id: chatPartnerId, name: chatPartnerName, avatar: chatPartnerAvatar, fallback: chatPartnerFallback, isOnline: chatPartnerIsOnline, context: chatContext } = ChatPartnerDetails();
 
   const CurrentChatInterface = () => (
     <Card className="flex flex-col h-full shadow-xl">
@@ -317,7 +365,13 @@ function ChatPageContent() {
             <AvatarFallback>{chatPartnerFallback}</AvatarFallback>
           </Avatar>
           <div>
-            <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+            {chatContext === 'user' ? (
+                <Link href={`/profile/${chatPartnerId}`} className="hover:underline">
+                    <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+                </Link>
+            ) : (
+                 <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+            )}
             {chatContext === 'user' && chatPartnerIsOnline && <CardDescription className="text-xs text-green-500">Online</CardDescription>}
             {chatContext === 'discussion' && <CardDescription className="text-xs text-blue-500">Discussion Group</CardDescription>}
           </div>
@@ -332,7 +386,7 @@ function ChatPageContent() {
             <DropdownMenuContent align="end">
               {chatContext === 'user' ? (
                 <>
-                  <DropdownMenuItem onSelect={() => toast({ title: "View Profile", description: "This feature is coming soon!"})}>View Profile</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => router.push(`/profile/${chatPartnerId}`)}> <ExternalLink className="mr-2 h-4 w-4" /> View Profile</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => toast({ title: "Block User", description: "This feature is coming soon!"})}>Block User</DropdownMenuItem>
                   <DropdownMenuItem onSelect={handleClearChat}>Clear Chat</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => toast({ title: "Report User", description: "This feature is coming soon!"})}>Report User</DropdownMenuItem>
@@ -345,14 +399,16 @@ function ChatPageContent() {
                 </>
               ) : chatContext === 'discussion' ? (
                 <>
-                  <DropdownMenuItem onSelect={() => toast({title: "Discussion Info", description: "Feature coming soon!"})}>View Discussion Info</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => toast({title: "Discussion Info", description: `Post ID: ${selectedDiscussionGroup?.postId}. Feature coming soon!`})}>View Discussion Info</DropdownMenuItem>
                   <DropdownMenuItem onSelect={handleClearChat}>Clear Discussion History</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => {
-                    setJoinedDiscussions(prev => prev.filter(d => d.id !== selectedDiscussionGroup?.id));
-                    localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(joinedDiscussions.filter(d => d.id !== selectedDiscussionGroup?.id)));
+                    const newJoinedDiscussions = joinedDiscussions.filter(d => d.id !== selectedDiscussionGroup?.id);
+                    setJoinedDiscussions(newJoinedDiscussions);
+                    localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(newJoinedDiscussions));
+                    const oldGroupName = selectedDiscussionGroup?.name;
                     setSelectedDiscussionGroup(null);
                     setMessages([]);
-                    toast({title: "Left Discussion", description: `You have left "${selectedDiscussionGroup?.name}".`});
+                    toast({title: "Left Discussion", description: `You have left "${oldGroupName}".`});
                   }}>Leave Discussion</DropdownMenuItem>
                 </>
               ) : null }
@@ -365,7 +421,11 @@ function ChatPageContent() {
           {messages.map((msg) => (
             <div key={msg.id} className={`flex group ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[70%] p-3 rounded-lg shadow relative ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
-                {msg.sender !== 'user' && msg.userName && chatContext === 'discussion' && <p className="text-xs font-semibold mb-1 text-primary">{msg.userName}</p>}
+                {msg.sender !== 'user' && msg.userName && chatContext === 'discussion' && (
+                  <Link href={`/profile/${msg.userId || ''}`} className="hover:underline">
+                     <p className="text-xs font-semibold mb-1 text-primary">{msg.userName}</p>
+                  </Link>
+                )}
                 <p className="text-sm font-body whitespace-pre-wrap">{msg.text}</p>
                 {msg.timestamp && <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>}
                 {msg.sender === 'user' && (
@@ -445,7 +505,7 @@ function ChatPageContent() {
         <ScrollArea className="h-full">
           <div
             className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${chatContext === 'ai' ? 'bg-muted' : ''}`}
-            onClick={() => { setSelectedDirectChatUser(null); setSelectedDiscussionGroup(null); setCurrentMessage(''); setActiveMainTab('direct'); }}
+            onClick={() => { setSelectedDirectChatUser(null); setSelectedDiscussionGroup(null); setCurrentMessage(''); setActiveMainTab('direct'); router.replace('/chat?section=direct', undefined);}}
           >
             <Avatar>
               <AvatarImage src={aiAvatar} alt={aiChatUser.name} data-ai-hint="robot ai" />
@@ -459,9 +519,9 @@ function ChatPageContent() {
           {placeholderUserChats.map(chat => (
             <div key={chat.id}
               className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedDirectChatUser?.id === chat.id ? 'bg-muted': ''}`}
-              onClick={() => { setSelectedDirectChatUser(chat); setSelectedDiscussionGroup(null); setCurrentMessage(''); setActiveMainTab('direct');}}
+              onClick={() => { setSelectedDirectChatUser(chat); setSelectedDiscussionGroup(null); setCurrentMessage(''); setActiveMainTab('direct'); router.replace(`/chat?section=direct&userId=${chat.id}`, undefined); }}
             >
-              <div className="relative">
+              <Link href={`/profile/${chat.id}`} className="relative flex-shrink-0">
                 <Avatar>
                   <AvatarImage src={chat.avatarUrl} alt={chat.name} data-ai-hint="person chat"/>
                   <AvatarFallback>{chat.avatarFallback}</AvatarFallback>
@@ -469,9 +529,11 @@ function ChatPageContent() {
                 {chat.isOnline && (
                   <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 border-2 border-background ring-1 ring-green-500" />
                 )}
-              </div>
+              </Link>
               <div className="flex-grow overflow-hidden">
-                <p className="font-semibold text-sm text-foreground truncate">{chat.name}</p>
+                <Link href={`/profile/${chat.id}`} className="hover:underline">
+                  <p className="font-semibold text-sm text-foreground truncate">{chat.name}</p>
+                </Link>
                 <p className="text-xs text-muted-foreground truncate">{chat.lastMessage}</p>
               </div>
               <div className="flex flex-col items-end text-xs text-muted-foreground">
@@ -501,7 +563,7 @@ function ChatPageContent() {
                 {joinedDiscussions.map(discussion => (
                     <div key={discussion.id}
                         className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedDiscussionGroup?.id === discussion.id ? 'bg-muted' : ''}`}
-                        onClick={() => { setSelectedDiscussionGroup(discussion); setSelectedDirectChatUser(null); setCurrentMessage(''); setActiveMainTab('discussions');}}
+                        onClick={() => { setSelectedDiscussionGroup(discussion); setSelectedDirectChatUser(null); setCurrentMessage(''); setActiveMainTab('discussions'); router.replace(`/chat?section=discussions&discussionId=${discussion.id}`, undefined);}}
                     >
                         <Avatar>
                             <AvatarImage src="https://placehold.co/40x40.png?text=DG" alt={discussion.name} data-ai-hint="group discussion icon" />
@@ -529,7 +591,14 @@ function ChatPageContent() {
         </p>
       </header>
       
-      <Tabs value={activeMainTab} onValueChange={(value) => setActiveMainTab(value as 'direct' | 'discussions')} className="w-full">
+      <Tabs value={activeMainTab} onValueChange={(value) => {
+        const newTab = value as 'direct' | 'discussions';
+        setActiveMainTab(newTab);
+        if (newTab === 'direct' && !selectedDirectChatUser) router.replace('/chat?section=direct', undefined);
+        else if (newTab === 'direct' && selectedDirectChatUser) router.replace(`/chat?section=direct&userId=${selectedDirectChatUser.id}`, undefined);
+        else if (newTab === 'discussions' && !selectedDiscussionGroup) router.replace('/chat?section=discussions', undefined);
+        else if (newTab === 'discussions' && selectedDiscussionGroup) router.replace(`/chat?section=discussions&discussionId=${selectedDiscussionGroup.id}`, undefined);
+      }} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="direct"><CircleUserRound className="mr-2 h-5 w-5" />Direct Chats</TabsTrigger>
           <TabsTrigger value="discussions"><MessageSquareQuote className="mr-2 h-5 w-5" />Joined Discussions</TabsTrigger>
@@ -553,8 +622,9 @@ function ChatPageContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center h-full"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading Chat...</div>}>
+    <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading Chat...</div>}>
       <ChatPageContent />
     </Suspense>
   )
 }
+

@@ -6,33 +6,14 @@ import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
 import { FeedItemCard, type FeedItemCardProps, type FeedItemComment } from '@/components/forum-post-card'; 
-import { UserListModal, type ModalUser as ProfileModalUser } from '@/components/profile/user-list-modal'; // Renamed to avoid conflict
+import { UserListModal, type ModalUser as ProfileModalUser } from '@/components/profile/user-list-modal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpenText, Edit2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { kathaExplorerUser, allMockUsers, kathaExplorerFollowingIds, MockUser } from '@/lib/mock-data';
+import { kathaExplorerUser, allMockUsers, getInitialFollowingIds, getKathaExplorerFollowersList, CURRENT_USER_ID, CURRENT_USER_NAME, updateFollowingIds, MockUser } from '@/lib/mock-data';
 
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts'; 
-
-
-const initialUserProfileData = { // Renamed from initialUserProfile to avoid conflict if any
-  name: kathaExplorerUser.name,
-  username: kathaExplorerUser.username,
-  avatarUrl: kathaExplorerUser.avatarUrl,
-  bio: 'Avid reader and aspiring writer. Exploring worlds one story at a time.',
-  email: 'katha.explorer@example.com',
-  emailVisible: true,
-  gender: 'Prefer not to say',
-  postsCount: 0, 
-  followersCount: 0, // Will be updated from mock data
-  followingCount: 0, // Will be updated from mock data
-};
-
-const readingProgress = [
-  { id: 'story1', title: 'The Last Nebula', progress: 75, coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space' },
-  { id: 'story2', title: 'Echoes in the Silence', progress: 30, coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'snowy village' },
-];
 
 // Convert MockUser to ProfileModalUser for the modal
 const mapMockUsersToProfileModalUsers = (mockUsers: MockUser[]): ProfileModalUser[] => {
@@ -46,25 +27,23 @@ const mapMockUsersToProfileModalUsers = (mockUsers: MockUser[]): ProfileModalUse
   }));
 };
 
-// Simulated followers/following lists derived from allMockUsers and kathaExplorerFollowingIds
-const initialFollowersList: ProfileModalUser[] = mapMockUsersToProfileModalUsers(
-  allMockUsers.filter(u => u.id !== kathaExplorerUser.id && !kathaExplorerFollowingIds.includes(u.id)).slice(0, 3) // Example: first 3 non-following users
-); 
-const initialFollowingList: ProfileModalUser[] = mapMockUsersToProfileModalUsers(
-  allMockUsers.filter(u => kathaExplorerFollowingIds.includes(u.id))
-);
-
-
-export type UserProfileData = typeof initialUserProfileData;
+export type UserProfileData = typeof kathaExplorerUser & { postsCount: number, followersCount: number, followingCount: number };
 export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'username' | 'bio' | 'email' | 'emailVisible' | 'gender'>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const [userProfile, setUserProfile] = useState<UserProfileData>(initialUserProfileData);
+  // For current user, profile data is mostly static from kathaExplorerUser, but counts can change.
+  const [currentUserProfileData, setCurrentUserProfileData] = useState<UserProfileData>({
+    ...kathaExplorerUser,
+    postsCount: 0,
+    followersCount: 0,
+    followingCount: 0,
+  });
   const [myProfilePosts, setMyProfilePosts] = useState<FeedItemCardProps[]>([]);
   
-  const [followers, setFollowers] = useState<ProfileModalUser[]>(initialFollowersList);
-  const [following, setFollowing] = useState<ProfileModalUser[]>(initialFollowingList);
+  const [followers, setFollowers] = useState<ProfileModalUser[]>(mapMockUsersToProfileModalUsers(getKathaExplorerFollowersList()));
+  const [following, setFollowing] = useState<ProfileModalUser[]>(mapMockUsersToProfileModalUsers(allMockUsers.filter(u => getInitialFollowingIds().includes(u.id) && u.id !== CURRENT_USER_ID)));
+
 
   const [modalOpenFor, setModalOpenFor] = useState<'followers' | 'following' | null>(null);
   const [modalUsers, setModalUsers] = useState<ProfileModalUser[]>([]);
@@ -77,10 +56,10 @@ export default function ProfilePage() {
       if (storedPostsRaw) {
         const storedPosts: FeedItemCardProps[] = JSON.parse(storedPostsRaw);
         setMyProfilePosts(storedPosts);
-        setUserProfile(prev => ({ ...prev, postsCount: storedPosts.length }));
+        setCurrentUserProfileData(prev => ({ ...prev, postsCount: storedPosts.length }));
       } else {
          setMyProfilePosts([]);
-        setUserProfile(prev => ({ ...prev, postsCount: 0 }));
+        setCurrentUserProfileData(prev => ({ ...prev, postsCount: 0 }));
       }
     } catch (error) {
       console.error("Error loading posts from localStorage:", error);
@@ -90,42 +69,44 @@ export default function ProfilePage() {
         variant: "destructive",
       });
        setMyProfilePosts([]);
-       setUserProfile(prev => ({ ...prev, postsCount: 0 }));
+       setCurrentUserProfileData(prev => ({ ...prev, postsCount: 0 }));
     }
+  };
+
+  const refreshFollowCounts = () => {
+     const currentFollowingIds = getInitialFollowingIds();
+     setFollowing(mapMockUsersToProfileModalUsers(allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== CURRENT_USER_ID)));
+     // Followers are simulated, so we might just use the initial mock or a fixed number for current user
+     setFollowers(mapMockUsersToProfileModalUsers(getKathaExplorerFollowersList(5))); // Example: show 5 simulated followers
+
+     setCurrentUserProfileData(prev => ({
+        ...prev,
+        followersCount: followers.length,
+        followingCount: currentFollowingIds.filter(id => id !== CURRENT_USER_ID).length,
+      }));
   };
 
   useEffect(() => {
     loadUserPosts();
-    setUserProfile(prev => ({
-      ...prev,
-      followersCount: followers.length,
-      followingCount: following.length,
-    }));
-  }, []); // Initial load for posts and set counts from static follower/following lists
+    refreshFollowCounts();
+  }, []); 
 
-
-  useEffect(() => { // Update counts if followers/following lists change
-    setUserProfile(prev => ({
-      ...prev,
-      followersCount: followers.length,
-      followingCount: following.length,
-    }));
-  }, [followers, following]);
 
   const handleAvatarChange = (newAvatarUrl: string) => {
-    setUserProfile(prevProfile => ({ ...prevProfile, avatarUrl: newAvatarUrl }));
-     // In a real app, also update kathaExplorerUser in mock-data or backend
+    setCurrentUserProfileData(prevProfile => ({ ...prevProfile, avatarUrl: newAvatarUrl }));
+    // In a real app, update kathaExplorerUser or backend
+    toast({ title: "Avatar Updated", description: "Your avatar has been changed (local simulation)." });
   };
 
   const handleProfileSave = (updatedProfile: EditableUserProfileData) => {
-    setUserProfile(prevProfile => ({
+    setCurrentUserProfileData(prevProfile => ({
       ...prevProfile,
       ...updatedProfile,
     }));
-    // In a real app, also update kathaExplorerUser in mock-data or backend if name/username changed
+    // In a real app, update kathaExplorerUser or backend
     toast({
       title: "Profile Updated",
-      description: "Your profile details have been updated (local changes).",
+      description: "Your profile details have been updated (local simulation).",
     });
   };
 
@@ -133,7 +114,7 @@ export default function ProfilePage() {
     if (type === 'followers') {
       setModalUsers(followers);
       setModalTitle("Followers");
-      setModalActionButtonLabel("Remove"); // Or "View Profile" if non-interactive
+      setModalActionButtonLabel("View Profile"); 
     } else {
       setModalUsers(following);
       setModalTitle("Following");
@@ -144,25 +125,23 @@ export default function ProfilePage() {
 
   const handleModalActionClick = (userId: string) => {
     if (modalOpenFor === 'followers') {
-      setFollowers(prev => prev.filter(user => user.id !== userId));
-      toast({ title: "Follower Removed (Simulated)", description: "This change is local to your session."});
+      // Just navigate to profile or show toast for "View Profile"
+      toast({ title: "View Profile", description: `Would navigate to ${userId}'s profile.` });
     } else if (modalOpenFor === 'following') {
-      setFollowing(prev => {
-        const updatedFollowing = prev.filter(user => user.id !== userId);
-        // Also update kathaExplorerFollowingIds in mock-data for consistency if needed elsewhere
-        // For now, this is a local simulation for the profile page display
-        return updatedFollowing;
-      });
-      toast({ title: "User Unfollowed (Simulated)", description: "This change is local to your session."});
+      const currentFollowingIds = getInitialFollowingIds();
+      const updatedFollowingIds = currentFollowingIds.filter(id => id !== userId);
+      updateFollowingIds(updatedFollowingIds);
+      refreshFollowCounts(); // Re-fetch and update counts
+      toast({ title: "User Unfollowed", description: "You are no longer following this user (local simulation)." });
     }
-    setModalOpenFor(null); // Close modal after action
+    setModalOpenFor(null); 
   };
 
   const handleDeleteMyPost = (postId: string) => {
     const updatedPosts = myProfilePosts.filter(post => post.id !== postId);
     setMyProfilePosts(updatedPosts);
     localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
-    setUserProfile(prev => ({ ...prev, postsCount: updatedPosts.length }));
+    setCurrentUserProfileData(prev => ({ ...prev, postsCount: updatedPosts.length }));
     
     try {
         const socialFeedRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
@@ -196,24 +175,30 @@ export default function ProfilePage() {
     }
   };
 
+const readingProgress = [
+  { id: 'story1', title: 'The Last Nebula', progress: 75, coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'nebula space' },
+  { id: 'story2', title: 'Echoes in the Silence', progress: 30, coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'snowy village' },
+];
 
   return (
     <div className="space-y-8">
       <UserProfileHeader
-        name={userProfile.name}
-        username={userProfile.username}
-        avatarUrl={userProfile.avatarUrl}
-        bio={userProfile.bio}
-        email={userProfile.email}
-        emailVisible={userProfile.emailVisible}
-        gender={userProfile.gender}
+        userId={CURRENT_USER_ID}
+        name={currentUserProfileData.name}
+        username={currentUserProfileData.username}
+        avatarUrl={currentUserProfileData.avatarUrl}
+        bio={currentUserProfileData.bio}
+        email={currentUserProfileData.email}
+        emailVisible={currentUserProfileData.emailVisible}
+        gender={currentUserProfileData.gender}
+        isViewingOwnProfile={true}
         onAvatarChange={handleAvatarChange}
         onProfileSave={handleProfileSave}
       />
       <UserStats
-        postsCount={userProfile.postsCount}
-        followersCount={userProfile.followersCount}
-        followingCount={userProfile.followingCount}
+        postsCount={currentUserProfileData.postsCount}
+        followersCount={currentUserProfileData.followersCount}
+        followingCount={currentUserProfileData.followingCount}
         onViewFollowers={() => openUserListModal('followers')}
         onViewFollowing={() => openUserListModal('following')}
       />
@@ -238,8 +223,8 @@ export default function ProfilePage() {
                   onDeletePost={handleDeleteMyPost}
                   onUpdateComments={handleUpdateMyPostComments}
                   isFullView={true} 
-                  currentUserName={kathaExplorerUser.name}
-                  currentUserId={kathaExplorerUser.id}
+                  currentUserName={CURRENT_USER_NAME}
+                  currentUserId={CURRENT_USER_ID}
                 />
               )) 
             ) : (
@@ -270,6 +255,7 @@ export default function ProfilePage() {
           actionButtonLabel={modalActionButtonLabel}
           onActionButtonClick={handleModalActionClick}
           emptyStateMessage={modalOpenFor === 'followers' ? "You don't have any followers yet." : "You are not following anyone yet."}
+          currentUserId={CURRENT_USER_ID}
         />
       )}
     </div>

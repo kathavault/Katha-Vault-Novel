@@ -3,6 +3,7 @@
 
 import type React from 'react';
 import { useRef, useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,61 +11,75 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, Save, XCircle, Mail, UserSquare2, Camera, ShieldAlert, Info } from 'lucide-react';
+import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { EditableUserProfileData } from '@/app/profile/page';
+import type { EditableUserProfileData } from '@/app/profile/page'; // Keep for own profile editing
 
-
-interface UserProfileHeaderProps extends EditableUserProfileData {
+interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
+  userId: string; // ID of the profile being viewed
+  name: string;
+  username: string;
   avatarUrl: string;
-  onAvatarChange: (newAvatarUrl: string) => void;
-  onProfileSave: (updatedProfile: EditableUserProfileData) => void;
+  bio?: string;
+  email?: string;
+  emailVisible?: boolean;
+  gender?: string;
+  isViewingOwnProfile: boolean;
+  isFollowing?: boolean; // Only relevant if !isViewingOwnProfile
+  onAvatarChange?: (newAvatarUrl: string) => void; // Only for own profile
+  onProfileSave?: (updatedProfile: EditableUserProfileData) => void; // Only for own profile
+  onFollowToggle?: () => void; // Only for other profiles
 }
 
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
 
 export function UserProfileHeader({
-  name,
-  username,
-  avatarUrl,
-  bio,
-  email,
-  emailVisible,
-  gender,
+  userId,
+  name: initialName,
+  username: initialUsername,
+  avatarUrl: initialAvatarUrl,
+  bio: initialBio = '',
+  email: initialEmail = '',
+  emailVisible: initialEmailVisible = false,
+  gender: initialGender = 'Prefer not to say',
+  isViewingOwnProfile,
+  isFollowing,
   onAvatarChange,
-  onProfileSave
+  onProfileSave,
+  onFollowToggle,
 }: UserProfileHeaderProps) {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
 
-  const [editableName, setEditableName] = useState(name);
-  const [editableUsername, setEditableUsername] = useState(username);
-  const [editableBio, setEditableBio] = useState(bio);
-  const [editableEmail, setEditableEmail] = useState(email);
-  const [editableEmailVisible, setEditableEmailVisible] = useState(emailVisible);
-  const [editableGender, setEditableGender] = useState(gender);
-  const [editableAvatarUrl, setEditableAvatarUrl] = useState(avatarUrl); // For preview in edit mode
+  // Editable state for own profile
+  const [editableName, setEditableName] = useState(initialName);
+  const [editableUsername, setEditableUsername] = useState(initialUsername);
+  const [editableBio, setEditableBio] = useState(initialBio);
+  const [editableEmail, setEditableEmail] = useState(initialEmail);
+  const [editableEmailVisible, setEditableEmailVisible] = useState(initialEmailVisible);
+  const [editableGender, setEditableGender] = useState(initialGender);
+  const [editableAvatarUrl, setEditableAvatarUrl] = useState(initialAvatarUrl);
 
   useEffect(() => {
-    if (!isEditing) {
-      setEditableName(name);
-      setEditableUsername(username);
-      setEditableBio(bio);
-      setEditableEmail(email);
-      setEditableEmailVisible(emailVisible);
-      setEditableGender(gender);
-      setEditableAvatarUrl(avatarUrl); // Reset preview on exiting edit mode
+    if (!isEditing || !isViewingOwnProfile) {
+      setEditableName(initialName);
+      setEditableUsername(initialUsername);
+      setEditableBio(initialBio);
+      setEditableEmail(initialEmail);
+      setEditableEmailVisible(initialEmailVisible);
+      setEditableGender(initialGender);
+      setEditableAvatarUrl(initialAvatarUrl);
     } else {
-      // When entering edit mode, ensure editableAvatarUrl is current
-      setEditableAvatarUrl(avatarUrl);
+      setEditableAvatarUrl(initialAvatarUrl);
     }
-  }, [name, username, bio, email, emailVisible, gender, avatarUrl, isEditing]);
+  }, [initialName, initialUsername, initialBio, initialEmail, initialEmailVisible, initialGender, initialAvatarUrl, isEditing, isViewingOwnProfile]);
 
   const handleAvatarInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isViewingOwnProfile || !onAvatarChange) return;
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // Max 2MB
+      if (file.size > 2 * 1024 * 1024) {
         toast({ title: "Image Too Large", description: "Please select an image smaller than 2MB.", variant: "destructive" });
         return;
       }
@@ -75,52 +90,58 @@ export function UserProfileHeader({
       const reader = new FileReader();
       reader.onloadend = () => {
         const newAvatarDataUrl = reader.result as string;
-        setEditableAvatarUrl(newAvatarDataUrl); // Update preview in edit mode
-        // onAvatarChange will be called on save
+        setEditableAvatarUrl(newAvatarDataUrl);
       };
       reader.readAsDataURL(file);
     }
-    if (event.target) event.target.value = ''; // Reset file input
+    if (event.target) event.target.value = '';
   };
   
   const handleSaveChanges = () => {
+    if (!isViewingOwnProfile || !onProfileSave) return;
     onProfileSave({ 
       name: editableName, 
       username: editableUsername,
       bio: editableBio,
       email: editableEmail,
       emailVisible: editableEmailVisible,
-      gender: editableGender
+      gender: editableGender,
     });
-    if (editableAvatarUrl !== avatarUrl) { // If avatar was changed during edit
+    if (editableAvatarUrl !== initialAvatarUrl && onAvatarChange) {
         onAvatarChange(editableAvatarUrl);
     }
     setIsEditing(false);
-    // Toast is handled by the parent onProfileSave or onAvatarChange
   };
 
   const handleCancelEdit = () => {
-    // Reset all editable fields to original prop values
-    setEditableName(name); 
-    setEditableUsername(username);
-    setEditableBio(bio);
-    setEditableEmail(email);
-    setEditableEmailVisible(emailVisible);
-    setEditableGender(gender);
-    setEditableAvatarUrl(avatarUrl); // Reset avatar preview
+    setEditableName(initialName); 
+    setEditableUsername(initialUsername);
+    setEditableBio(initialBio);
+    setEditableEmail(initialEmail);
+    setEditableEmailVisible(initialEmailVisible);
+    setEditableGender(initialGender);
+    setEditableAvatarUrl(initialAvatarUrl);
     setIsEditing(false);
   };
+
+  const currentName = isViewingOwnProfile && isEditing ? editableName : initialName;
+  const currentUsername = isViewingOwnProfile && isEditing ? editableUsername : initialUsername;
+  const currentAvatarUrl = isViewingOwnProfile && isEditing ? editableAvatarUrl : initialAvatarUrl;
+  const currentBio = isViewingOwnProfile && isEditing ? editableBio : initialBio;
+  const currentEmail = isViewingOwnProfile && isEditing ? editableEmail : initialEmail;
+  const currentEmailVisible = isViewingOwnProfile && isEditing ? editableEmailVisible : initialEmailVisible;
+  const currentGender = isViewingOwnProfile && isEditing ? editableGender : initialGender;
+
 
   return (
     <div className="p-4 md:p-6 rounded-lg bg-card shadow-md">
       <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-        {/* Avatar Section */}
         <div className="flex flex-col items-center md:items-start gap-3 flex-shrink-0">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary">
-            <AvatarImage src={isEditing ? editableAvatarUrl : avatarUrl} alt={name} data-ai-hint="person portrait" />
-            <AvatarFallback>{(isEditing ? editableName : name).substring(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarImage src={currentAvatarUrl} alt={currentName} data-ai-hint="person portrait" />
+            <AvatarFallback>{currentName.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          {isEditing && (
+          {isViewingOwnProfile && isEditing && (
             <>
               <Button variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()} className="w-full md:w-auto">
                 <Camera className="mr-2 h-4 w-4" /> Change Photo
@@ -136,10 +157,9 @@ export function UserProfileHeader({
           )}
         </div>
 
-        {/* Details Section */}
         <div className="flex-grow space-y-3 w-full">
-          {isEditing ? (
-            // EDITING MODE
+          {isViewingOwnProfile && isEditing ? (
+            // EDITING MODE (Own Profile)
             <div className="space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="profileName" className="font-semibold">Name</Label>
@@ -148,9 +168,6 @@ export function UserProfileHeader({
               <div className="space-y-1">
                 <Label htmlFor="profileUsername" className="font-semibold">Username</Label>
                 <Input id="profileUsername" value={editableUsername} onChange={(e) => setEditableUsername(e.target.value)} />
-                 <p className="text-xs text-muted-foreground flex items-center gap-1 pt-1">
-                  <Info className="h-3 w-3" /> Username changes are local. Real changes need server validation.
-                </p>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="profileBio" className="font-semibold">Bio</Label>
@@ -179,39 +196,58 @@ export function UserProfileHeader({
               </div>
             </div>
           ) : (
-            // VIEW MODE
+            // VIEW MODE (Own or Other's Profile)
             <div className="space-y-1 md:space-y-2">
               <div className="flex flex-col md:flex-row md:items-center md:gap-4">
-                <h1 className="text-2xl md:text-3xl font-headline text-foreground">{name}</h1>
-                <p className="text-md md:text-lg text-muted-foreground font-body">@{username}</p>
+                <h1 className="text-2xl md:text-3xl font-headline text-foreground">{currentName}</h1>
+                <p className="text-md md:text-lg text-muted-foreground font-body">@{currentUsername}</p>
               </div>
-               {!isEditing && (
+              {!isEditing && isViewingOwnProfile && (
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="w-full md:w-auto md:hidden mt-3">
                     <Edit className="mr-2 h-4 w-4" /> Edit Profile
                 </Button>
               )}
-              <p className="font-body text-foreground/90 max-w-md whitespace-pre-wrap pt-1">{bio}</p>
-              <div className="flex items-center text-sm text-muted-foreground font-body pt-2 gap-1">
-                <Mail className="h-4 w-4" />
-                <span>{emailVisible ? email : "Email hidden"}</span>
-              </div>
-              <div className="flex items-center text-sm text-muted-foreground font-body gap-1">
-                <UserSquare2 className="h-4 w-4" />
-                <span>Gender: {gender}</span>
-              </div>
+              <p className="font-body text-foreground/90 max-w-md whitespace-pre-wrap pt-1">{currentBio}</p>
+              {currentEmail && (
+                <div className="flex items-center text-sm text-muted-foreground font-body pt-2 gap-1">
+                  <Mail className="h-4 w-4" />
+                  <span>{currentEmailVisible ? currentEmail : "Email hidden"}</span>
+                </div>
+              )}
+              {currentGender && (
+                <div className="flex items-center text-sm text-muted-foreground font-body gap-1">
+                  <UserSquare2 className="h-4 w-4" />
+                  <span>Gender: {currentGender}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
-         {/* Edit Button for Desktop View - Placed outside the details flex grow to align it better */}
-          {!isEditing && (
+        
+        {isViewingOwnProfile && !isEditing && (
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="hidden md:inline-flex self-start">
                 <Edit className="mr-2 h-4 w-4" /> Edit Profile
             </Button>
-          )}
+        )}
+
+        {!isViewingOwnProfile && onFollowToggle && (
+          <div className="flex flex-col sm:flex-row gap-2 self-start md:self-center mt-3 md:mt-0">
+            <Button onClick={onFollowToggle} variant={isFollowing ? "outline" : "default"} size="sm">
+              {isFollowing ? <UserMinus className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
+              {isFollowing ? 'Unfollow' : 'Follow'}
+            </Button>
+            {isFollowing && (
+              <Button variant="default" size="sm" asChild>
+                <Link href={`/chat?userId=${userId}`}>
+                  <MessageSquare className="mr-2 h-4 w-4" /> Message
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Save/Cancel buttons for Edit Mode - Placed at the bottom of the card */}
-      {isEditing && (
+      {isViewingOwnProfile && isEditing && (
         <div className="flex gap-3 mt-6 justify-end">
           <Button variant="ghost" onClick={handleCancelEdit}>
             <XCircle className="mr-2 h-4 w-4" /> Cancel
