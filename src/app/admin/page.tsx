@@ -16,14 +16,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { NovelForm } from '@/components/novel-form';
-import { 
-  getNovelsFromStorage, saveNovelsToStorage, type Novel, 
+import {
+  getNovelsFromStorage, saveNovelsToStorage, type Novel,
   allMockUsers, type MockUser, CURRENT_USER_ID,
   getSocialFeedPostsFromStorage, type FeedItemCardProps, type FeedItemComment, SOCIAL_FEED_POSTS_STORAGE_KEY, USER_POSTS_STORAGE_KEY,
   getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment,
-  getKathaExplorerUser, 
+  getKathaExplorerUser,
   isUserActive,
-  KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL // Import special emails
+  KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL
 } from '@/lib/mock-data';
 import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,7 @@ import Link from 'next/link';
 
 interface FlatPostComment extends FeedItemComment {
   postId: string;
-  postTitleOrContent: string; 
+  postTitleOrContent: string;
   originalPostType: 'forum' | 'social';
 }
 
@@ -44,8 +44,8 @@ const ITEMS_PER_PAGE_INITIAL = 10;
 
 export default function AdminPage() {
   const { toast } = useToast();
-  const [adminUser, setAdminUser] = useState(getKathaExplorerUser()); 
-  
+  const [adminUser, setAdminUser] = useState<MockUser | null>(null);
+
   const [novels, setNovels] = useState<Novel[]>([]);
   const [novelSearchTerm, setNovelSearchTerm] = useState("");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -54,7 +54,7 @@ export default function AdminPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [showAllNovels, setShowAllNovels] = useState(false);
 
-  const [users, setUsers] = useState<MockUser[]>(allMockUsers);
+  const [users, setUsers] = useState<MockUser[]>([]); // Will be populated after adminUser is set
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [showAllUsers, setShowAllUsers] = useState(false);
 
@@ -73,13 +73,26 @@ export default function AdminPage() {
   const [showAllChapterComments, setShowAllChapterComments] = useState(false);
 
   useEffect(() => {
-    setAdminUser(getKathaExplorerUser()); 
+    const currentUser = getKathaExplorerUser();
+    setAdminUser(currentUser);
+
     const loadedNovels = getNovelsFromStorage();
     setNovels(loadedNovels);
     loadPostComments();
     loadChapterComments(loadedNovels);
-    // Ensure the allMockUsers list is refreshed to reflect any changes to kathaExplorerUser
-    setUsers(allMockUsers.map(u => u.id === CURRENT_USER_ID ? getKathaExplorerUser() : u));
+
+    // Initialize users list after adminUser is set
+    let baseUsers = [...allMockUsers];
+    const adminIndex = baseUsers.findIndex(u => u.id === currentUser.id);
+    if (adminIndex !== -1) {
+      baseUsers[adminIndex] = currentUser; // Ensure admin's latest details are in the list
+    } else {
+      // This case should ideally not happen if allMockUsers contains an entry for CURRENT_USER_ID
+      baseUsers.push(currentUser);
+    }
+    setUsers(baseUsers.filter((user, index, self) => index === self.findIndex(u => u.id === user.id)));
+
+
   }, []);
 
   const loadPostComments = () => {
@@ -91,21 +104,21 @@ export default function AdminPage() {
         comments.forEach(comment => {
           flattened.push({ ...comment, postId, postTitleOrContent: postContext, originalPostType: postType });
           if (comment.replies && comment.replies.length > 0) {
-            extractComments(comment.replies, postId, postContext, postType); 
+            extractComments(comment.replies, postId, postContext, postType);
           }
         });
       }
       extractComments(post.comments, post.id, post.title || post.mainText.substring(0, 50) + "...", post.postType);
     });
-    setFlatPostComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); 
+    setFlatPostComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0));
   };
 
   const loadChapterComments = (currentNovels: Novel[]) => {
     const chapterCommentsData = getStoredChapterComments();
     setAllChapterComments(chapterCommentsData);
     const flattened: FlatChapterComment[] = [];
-    
-    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: Novel, chapter: globalThis.Chapter) => {
+
+    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => {
         comments.forEach(comment => {
             flattened.push({
                 ...comment,
@@ -113,7 +126,7 @@ export default function AdminPage() {
                 chapterTitleAdmin: chapter.title,
             });
             if (comment.replies && comment.replies.length > 0) {
-                extractChapterCommentsRecursively(comment.replies, novel, chapter);
+                 extractChapterCommentsRecursively(comment.replies, novel, chapter);
             }
         });
     };
@@ -132,19 +145,19 @@ export default function AdminPage() {
             }
         }
     });
-    setFlatChapterComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); 
+    setFlatChapterComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0));
   };
-  
+
   const filteredNovels = useMemo(() => {
     let results = novels;
     if (novelSearchTerm.trim()) {
       const lowerSearchTerm = novelSearchTerm.toLowerCase();
-      results = results.filter(novel => 
+      results = results.filter(novel =>
         novel.title.toLowerCase().includes(lowerSearchTerm) ||
         novel.author.toLowerCase().includes(lowerSearchTerm)
       );
     }
-    return results.sort((a, b) => (b.views || 0) - (a.views || 0)); 
+    return results.sort((a, b) => (b.views || 0) - (a.views || 0));
   }, [novels, novelSearchTerm]);
   const displayedNovels = showAllNovels ? filteredNovels : filteredNovels.slice(0, ITEMS_PER_PAGE_INITIAL);
 
@@ -155,18 +168,18 @@ export default function AdminPage() {
   const handleNovelFormSubmit = (data: Omit<Novel, 'id' | 'views' | 'rating' | 'isTrending'> & { chapters?: Novel['chapters'] }) => {
     let updatedNovels;
     if (editingNovel) {
-      updatedNovels = novels.map(n => (n.id === editingNovel.id ? { 
-        ...n, ...data, 
-        chapters: data.chapters || editingNovel.chapters || [], 
-        views: n.views || 0, 
-        rating: n.rating || 0, 
-        isTrending: n.isTrending || false 
+      updatedNovels = novels.map(n => (n.id === editingNovel.id ? {
+        ...n, ...data,
+        chapters: data.chapters || editingNovel.chapters || [],
+        views: n.views || 0,
+        rating: n.rating || 0,
+        isTrending: n.isTrending || false
       } : n));
     } else {
-      const newNovelWithDefaults: Novel = { 
-        ...data, 
-        id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
-        views: 0, rating: 0, chapters: data.chapters || [], isTrending: false, 
+      const newNovelWithDefaults: Novel = {
+        ...data,
+        id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        views: 0, rating: 0, chapters: data.chapters || [], isTrending: false,
       };
       updatedNovels = [...novels, newNovelWithDefaults];
     }
@@ -190,42 +203,70 @@ export default function AdminPage() {
   };
 
   const filteredUsers = useMemo(() => {
-    const currentAdminUser = getKathaExplorerUser(); // Get fresh admin data
-    let results = allMockUsers.map(u => u.id === currentAdminUser.id ? currentAdminUser : u); // Update current user in the list
+    // Users state is now populated in useEffect after adminUser is set
+    let results = [...users];
+
+    if (adminUser) { // Ensure adminUser is populated
+        const adminIndex = results.findIndex(u => u.id === adminUser.id);
+        if (adminIndex !== -1) {
+            results[adminIndex] = adminUser; // Update the admin's details in the list
+        } else {
+             // If adminUser (from localStorage after login) is not in the static allMockUsers list (e.g., new email),
+             // add them. This scenario implies allMockUsers might not have a placeholder for every possible admin email.
+             // For special admins (Kritika, KathaVault), their IDs *are* in allMockUsers.
+             // This primarily handles a generic katha_explorer changing email.
+            if (!results.find(u => u.id === adminUser.id)) {
+                 results.push(adminUser);
+            }
+        }
+    }
+    results = results.filter((user, index, self) => index === self.findIndex(u => u.id === user.id));
+
 
     if (userSearchTerm.trim()) {
       const lowerSearchTerm = userSearchTerm.toLowerCase();
-      results = results.filter(user => 
+      results = results.filter(user =>
         user.name.toLowerCase().includes(lowerSearchTerm) ||
         (user.username && user.username.toLowerCase().includes(lowerSearchTerm)) ||
         (user.email && user.email.toLowerCase().includes(lowerSearchTerm))
       );
     }
     return results;
-  }, [userSearchTerm, adminUser]); // adminUser dependency ensures re-filter if admin's own data changes
+  }, [userSearchTerm, adminUser, users]);
   const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, ITEMS_PER_PAGE_INITIAL);
 
 
-  const handleToggleUserStatus = (userId: string) => {
-    const targetUser = users.find(u => u.id === userId);
+  const handleToggleUserStatus = (userIdToToggle: string) => {
+    const targetUser = users.find(u => u.id === userIdToToggle);
     if (!targetUser) return;
 
     if (targetUser.email === KRITIKA_EMAIL || targetUser.email === KATHAVAULT_OWNER_EMAIL) {
         toast({ title: "Action Denied", description: "This special admin account cannot be deactivated.", variant: "destructive"});
         return;
     }
-    if (userId === CURRENT_USER_ID) {
+    if (userIdToToggle === CURRENT_USER_ID) {
       toast({ title: "Action Denied", description: "Admin cannot change own status directly here. Use profile settings for general active status, or this account cannot be deactivated if special.", variant: "destructive" }); return;
     }
 
-    const updatedUsers = users.map(user => 
-        user.id === userId ? { ...user, isActive: !user.isActive } : user
+    const updatedUsers = users.map(user =>
+        user.id === userIdToToggle ? { ...user, isActive: !user.isActive } : user
     );
-    setUsers(updatedUsers); 
+    setUsers(updatedUsers);
     // This is a UI simulation for other users in the admin panel.
     // For `kathaExplorerUser` (admin), `isActive` is persisted via `saveKathaExplorerUser` elsewhere.
-    const changedUser = updatedUsers.find(u => u.id === userId);
-    toast({ title: "User Status Updated", description: `${changedUser?.name} is now ${changedUser?.isActive ? "Active" : "Deactivated"}. (Change is for current session only for non-admin users unless persisted elsewhere)` });
+    // For other users, this change is local to the admin panel session unless persisted by a broader system.
+    const changedUser = updatedUsers.find(u => u.id === userIdToToggle);
+    if (changedUser) {
+        const mockUserToUpdate = allMockUsers.find(u => u.id === userIdToToggle);
+        if (mockUserToUpdate) {
+            // This would be where you'd call a global update function if it existed
+            // For now, it's a visual change in the admin panel.
+            // To make it "persist" for other mock users for the session, one might update a shared state
+            // or modify a temporary in-memory version of allMockUsers if this panel was a central user manager.
+            // This mock doesn't have a global user state persistence beyond kathaExplorerUser.
+             toast({ title: "User Status Updated", description: `${changedUser.name} is now ${changedUser.isActive ? "Active" : "Deactivated"}. (This status change is for the current admin session view of this user).` });
+        }
+    }
   };
 
    const filteredPostComments = useMemo(() => {
@@ -269,10 +310,10 @@ export default function AdminPage() {
     if(typeof window !== 'undefined') localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(updatedSocialPosts));
 
     const postAuthorId = allSocialPosts.find(p => p.id === postCommentToDelete.postId)?.authorId;
-    if (postAuthorId === CURRENT_USER_ID) { 
+    if (postAuthorId === CURRENT_USER_ID) {
         const userPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
         if (userPostsRaw) {
-            let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw); 
+            let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw);
             userPostsData = userPostsData.map(post => {
                 if (post.id === postCommentToDelete.postId) {
                      const deleteCommentRecursively = (comments: FeedItemComment[], targetId: string): FeedItemComment[] => {
@@ -290,8 +331,8 @@ export default function AdminPage() {
            if(typeof window !== 'undefined') localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(userPostsData));
         }
     }
-    
-    loadPostComments(); 
+
+    loadPostComments();
     toast({ title: "Post Comment Deleted", description: `Comment by ${postCommentToDelete.authorName} removed.`, variant: "destructive" });
     setPostCommentToDelete(null);
     setIsDeletePostCommentDialogOpen(false);
@@ -301,7 +342,7 @@ export default function AdminPage() {
     let results = flatChapterComments;
     if (chapterCommentSearchTerm.trim()) {
       const lowerSearchTerm = chapterCommentSearchTerm.toLowerCase();
-      results = results.filter(comment => 
+      results = results.filter(comment =>
         comment.text.toLowerCase().includes(lowerSearchTerm) ||
         comment.authorName.toLowerCase().includes(lowerSearchTerm) ||
         (comment.novelTitleAdmin && comment.novelTitleAdmin.toLowerCase().includes(lowerSearchTerm)) ||
@@ -312,7 +353,7 @@ export default function AdminPage() {
   }, [flatChapterComments, chapterCommentSearchTerm]);
   const displayedChapterComments = showAllChapterComments ? filteredChapterComments : filteredChapterComments.slice(0, ITEMS_PER_PAGE_INITIAL);
 
-  
+
   const promptDeleteChapterComment = (comment: FlatChapterComment) => {
     setChapterCommentToDelete(comment);
     setIsDeleteChapterCommentDialogOpen(true);
@@ -320,7 +361,7 @@ export default function AdminPage() {
 
   const confirmDeleteChapterComment = () => {
     if (!chapterCommentToDelete) return;
-  
+
     function filterRecursively(comments: StoredChapterComment[], targetId: string): StoredChapterComment[] {
       return comments
         .filter(comment => comment.id !== targetId)
@@ -329,12 +370,12 @@ export default function AdminPage() {
           replies: comment.replies ? filterRecursively(comment.replies, targetId) : [],
         }));
     }
-  
+
     const currentAllChapterComments = getStoredChapterComments();
     const updatedStoredChapterComments = filterRecursively(currentAllChapterComments, chapterCommentToDelete.id);
-    
+
     saveStoredChapterComments(updatedStoredChapterComments);
-    loadChapterComments(novels); 
+    loadChapterComments(novels);
     toast({ title: "Chapter Comment Deleted", description: `Comment by ${chapterCommentToDelete.authorName} removed.`, variant: "destructive" });
     setChapterCommentToDelete(null);
     setIsDeleteChapterCommentDialogOpen(false);
@@ -347,7 +388,7 @@ export default function AdminPage() {
         <ShieldCheck className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Admin Panel</h1>
         <p className="text-xl text-foreground font-body font-semibold">
-          Manage site content and users. Welcome, {adminUser.name}!
+          Manage site content and users. Welcome, {adminUser ? adminUser.name : 'Admin'}!
         </p>
       </header>
 
@@ -367,7 +408,7 @@ export default function AdminPage() {
               <CardDescription>View, add, edit, or delete novels. Configure Home Page layout.</CardDescription>
               <div className="pt-2 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
+                <Input
                   placeholder="Search novels by title or author..."
                   value={novelSearchTerm}
                   onChange={(e) => setNovelSearchTerm(e.target.value)}
@@ -423,7 +464,7 @@ export default function AdminPage() {
             <CardContent>
                 <Tabs defaultValue="post-comments" className="w-full">
                     <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="post-comments">Post Comments</TabsTrigger><TabsTrigger value="chapter-comments">Chapter Comments</TabsTrigger></TabsList>
-                    
+
                     <TabsContent value="post-comments" className="pt-4">
                         <div className="relative mb-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -507,8 +548,8 @@ export default function AdminPage() {
                         return (
                         <TableRow key={user.id}>
                         <TableCell className="font-medium max-w-[200px] truncate" title={`${user.name} (${user.username || 'N/A'})`}>
-                            {user.name} {user.id === CURRENT_USER_ID && "(Current Admin)"}
-                            {isSpecialAdmin && user.id !== CURRENT_USER_ID && " (Special Admin)"}
+                            {user.name} {user.id === adminUser?.id && "(Current Admin)"}
+                            {isSpecialAdmin && user.id !== adminUser?.id && " (Special Admin)"}
                         </TableCell>
                         <TableCell><Badge variant={user.isActive ? 'default' : 'destructive'}>{user.isActive ? 'Active' : 'Deactivated'}</Badge></TableCell>
                         <TableCell className="text-right">
@@ -546,7 +587,7 @@ export default function AdminPage() {
 
       {/* Delete Novel Confirmation */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Deletion</DialogTitle><DialogDescription>Delete novel "{novelToDelete?.title}"? This also deletes chapters and cannot be undone.</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeleteNovel}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
-    
+
       {/* Delete Post Comment Confirmation */}
       <Dialog open={isDeletePostCommentDialogOpen} onOpenChange={setIsDeletePostCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Post Comment Deletion</DialogTitle><DialogDescription>Delete comment by "{postCommentToDelete?.authorName}": "{postCommentToDelete?.text.substring(0,50)}..."? Cannot be undone.</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeletePostCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeletePostComment}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
 
