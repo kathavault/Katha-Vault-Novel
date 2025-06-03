@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter as DialogModalFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -408,13 +408,14 @@ export default function AdminPage() {
       </Dialog>
 
       {/* Delete Novel Confirmation */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Deletion</DialogTitle><DialogDescription>Delete novel "{novelToDelete?.title}"? This also deletes chapters and cannot be undone.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeleteNovel}>Delete</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Deletion</DialogTitle><DialogDescription>Delete novel "{novelToDelete?.title}"? This also deletes chapters and cannot be undone.</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeleteNovel}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
     
       {/* Delete Post Comment Confirmation */}
-      <Dialog open={isDeletePostCommentDialogOpen} onOpenChange={setIsDeletePostCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Post Comment Deletion</DialogTitle><DialogDescription>Delete comment by "{postCommentToDelete?.authorName}": "{postCommentToDelete?.text.substring(0,50)}..."? Cannot be undone.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setIsDeletePostCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeletePostComment}>Delete</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isDeletePostCommentDialogOpen} onOpenChange={setIsDeletePostCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Post Comment Deletion</DialogTitle><DialogDescription>Delete comment by "{postCommentToDelete?.authorName}": "{postCommentToDelete?.text.substring(0,50)}..."? Cannot be undone.</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeletePostCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeletePostComment}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
 
       {/* Delete Chapter Comment Confirmation */}
-      <Dialog open={isDeleteChapterCommentDialogOpen} onOpenChange={setIsDeleteChapterCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Chapter Comment Deletion</DialogTitle><DialogDescription>Delete chapter comment by "{chapterCommentToDelete?.userName}": "{chapterCommentToDelete?.text.substring(0,50)}..."? Cannot be undone (simulated).</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setIsDeleteChapterCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeleteChapterComment}>Delete</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isDeleteChapterCommentDialogOpen} onOpenChange={setIsDeleteChapterCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Chapter Comment Deletion</DialogTitle><DialogDescription>Delete chapter comment by "{chapterCommentToDelete?.userName}": "{chapterCommentToDelete?.text.substring(0,50)}..."? Cannot be undone (simulated).</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeleteChapterCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeleteChapterComment}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
     </div>
   );
 }
+
