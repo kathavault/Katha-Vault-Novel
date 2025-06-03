@@ -118,7 +118,7 @@ export function FeedItemCard({
         if (comment.id === targetParentCommentId) {
           return {
             ...comment,
-            replies: [newReply, ...comment.replies], // Add new reply to the beginning or end as preferred
+            replies: [newReply, ...comment.replies], 
           };
         }
         if (comment.replies && comment.replies.length > 0) {
@@ -133,12 +133,28 @@ export function FeedItemCard({
 
     setPostComments(prevComments => addReplyRecursively(prevComments));
     setReplyText("");
-    setReplyingToCommentId(null); // Close the specific reply input
+    setReplyingToCommentId(null); 
     toast({ title: "Reply Posted", description: "Your reply has been added (client-side)." });
   };
 
   const commentsToDisplay = showAllComments ? postComments : postComments.slice(0, 2);
   const totalTopLevelComments = postComments.length;
+
+  const handleShare = () => {
+    // Simulate copying to clipboard or opening a share dialog
+    // For now, just a toast
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(`${window.location.origin}/forum/${postId}`) // Example link
+            .then(() => {
+                toast({ title: "Link Copied!", description: "Post link copied to clipboard." });
+            })
+            .catch(() => {
+                toast({ title: "Share Action", description: "Share functionality in development. For now, link would be: /forum/" + postId, duration: 5000 });
+            });
+    } else {
+        toast({ title: "Share Action", description: "Share functionality in development. For now, link would be: /forum/" + postId, duration: 5000 });
+    }
+  };
 
   const CommentItem = ({ comment }: { comment: FeedItemComment }) => (
     <div className={`flex space-x-3 mt-4 ${comment.id.startsWith('reply-') ? 'ml-6 sm:ml-8' : ''}`}>
@@ -177,7 +193,7 @@ export function FeedItemCard({
           </form>
         )}
         {comment.replies?.map(reply => (
-          <CommentItem key={reply.id} comment={reply} /> // Recursive call for replies
+          <CommentItem key={reply.id} comment={reply} /> 
         ))}
       </div>
     </div>
@@ -241,7 +257,7 @@ export function FeedItemCard({
                 <Link href={`/forum/${postId}`}>Join Discussion</Link>
               </Button>
             ) : (
-               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={() => toast({title: "Share action", description: "Share functionality coming soon!"})}>
+               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handleShare}>
                  <Send className="h-4 w-4 mr-1" /> Share
                </Button>
             )}
@@ -262,12 +278,9 @@ export function FeedItemCard({
                 Show fewer comments
               </Button>
             )}
-            {/* Always show input for a new top-level comment if desired, or toggle it */}
           </div>
         )}
       </CardFooter>
     </Card>
   );
 }
-
-    

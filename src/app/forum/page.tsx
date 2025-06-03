@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, TrendingUp, MessageSquareText, Send, Edit } from 'lucide-react'; // Added Send for post button, Edit for title
+import { Users, TrendingUp, MessageSquareText, Send, Edit } from 'lucide-react'; 
 import { useToast } from "@/hooks/use-toast";
-import Link from 'next/link'; // Added Link for Create Post button on mobile
+import Link from 'next/link';
 
 // Enhanced sample comments data structure
 const sampleCommentsLevel2: FeedItemComment[] = [
@@ -174,17 +174,6 @@ export default function FeedPage() {
         </CardContent>
       </Card>
       
-      {/* Fallback Create Post Button for smaller screens, links to /posts/new (optional, can be removed if the above form is sufficient) */}
-      <div className="flex justify-end mb-6 lg:hidden">
-        <Button size="lg" asChild>
-          <Link href="/posts/new">
-            <Edit className="mr-2 h-5 w-5" />
-            Create Post (Legacy)
-          </Link>
-        </Button>
-      </div>
-
-
       <Tabs defaultValue="social-feed" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="social-feed">
