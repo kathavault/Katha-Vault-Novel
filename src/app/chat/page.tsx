@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette, MoreVertical } from 'lucide-react';
+import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette, MoreVertical, Smile, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { chatWithKathaVaultAI, type KathaVaultAIChatInput } from '@/ai/flows/katha-vault-chat-flow';
+
 
 // Placeholder data
 const aiChatUser = {
@@ -86,37 +87,73 @@ export default function ChatPage() {
   const [aiMessages, setAiMessages] = useState<Message[]>([]);
   const [selectedChatUser, setSelectedChatUser] = useState<typeof placeholderUserChats[0] | null>(null);
   const [userMessages, setUserMessages] = useState<Message[]>([]);
+  const [isAiResponding, setIsAiResponding] = useState(false);
 
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const initialTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    // Generate initial AI message on client-side after mount
     setAiMessages([
       {
         id: 'initial-ai-message-' + Date.now(),
-        text: 'Hello! How can I help you with your stories today?',
+        text: 'Hello! How can I help you with your stories today? 😊',
         sender: 'ai',
-        timestamp: initialTimestamp
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
       }
     ]);
   }, []);
 
-  const handleSendAiMessage = () => {
+  useEffect(() => {
+    // Scroll to bottom of chat when new messages are added
+    if (chatScrollAreaRef.current) {
+      const scrollViewport = chatScrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollViewport) {
+        scrollViewport.scrollTop = scrollViewport.scrollHeight;
+      }
+    }
+  }, [aiMessages, userMessages]);
+
+
+  const handleSendAiMessage = async () => {
     if (!currentMessage.trim()) return;
+    const userMessageText = currentMessage;
     const newMessage: Message = {
       id: 'user-msg-' + Date.now(),
-      text: currentMessage,
+      text: userMessageText,
       sender: 'user',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
-    const aiResponse: Message = {
-      id: 'ai-resp-' + Date.now(),
-      text: `I've received: "${currentMessage}". As an AI, I'm still learning! How can I assist you further?`,
-      sender: 'ai',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
-    };
-    setAiMessages(prev => [...prev, newMessage, aiResponse]);
+    setAiMessages(prev => [...prev, newMessage]);
     setCurrentMessage("");
+    setIsAiResponding(true);
+
+    try {
+      const input: KathaVaultAIChatInput = { userInput: userMessageText };
+      // const conversationHistory = aiMessages.map(m => ({ sender: m.sender, text: m.text })); // Example if passing history
+      // const result = await chatWithKathaVaultAI({ userInput: userMessageText, conversationHistory });
+      const result = await chatWithKathaVaultAI(input);
+      
+      const aiResponse: Message = {
+        id: 'ai-resp-' + Date.now(),
+        text: result.aiResponse,
+        sender: 'ai',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+      };
+      setAiMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      const errorResponse: Message = {
+        id: 'ai-err-' + Date.now(),
+        text: "Sorry, I couldn't process that. Please try again. 😟",
+        sender: 'ai',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+      };
+      setAiMessages(prev => [...prev, errorResponse]);
+      toast({ title: "AI Error", description: "There was an issue connecting to the AI.", variant: "destructive" });
+    } finally {
+      setIsAiResponding(false);
+    }
   };
 
   const handleSendUserMessage = () => {
@@ -161,6 +198,13 @@ export default function ChatPage() {
       reader.readAsDataURL(file);
     }
   };
+  
+  const handleEmojiButtonClick = () => {
+    toast({
+      title: "Emoji Picker",
+      description: "Emoji picker functionality will be added soon! 😉",
+    });
+  };
 
   const CurrentChatInterface = ({
     chatPartnerName,
@@ -169,6 +213,7 @@ export default function ChatPage() {
     messages,
     onSendMessage,
     isUserChat,
+    isResponding,
   }: {
     chatPartnerName: string;
     chatPartnerAvatar: string;
@@ -176,6 +221,7 @@ export default function ChatPage() {
     messages: Message[];
     onSendMessage: () => void;
     isUserChat: boolean;
+    isResponding?: boolean;
   }) => (
     <Card className="flex flex-col h-full shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4 flex-shrink-0">
@@ -215,29 +261,40 @@ export default function ChatPage() {
           </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow p-0 overflow-hidden">
+      <CardContent className="flex-grow p-0 overflow-hidden" ref={chatScrollAreaRef}>
         <ScrollArea className="h-full p-4 space-y-4">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[70%] p-3 rounded-lg shadow ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
-                <p className="text-sm font-body">{msg.text}</p>
+                <p className="text-sm font-body whitespace-pre-wrap">{msg.text}</p>
                 {msg.timestamp && <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>}
               </div>
             </div>
           ))}
+           {isResponding && !isUserChat && (
+            <div className="flex justify-start">
+              <div className="max-w-[70%] p-3 rounded-lg shadow bg-muted text-foreground">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            </div>
+          )}
         </ScrollArea>
       </CardContent>
       <div className="border-t p-4 flex items-center space-x-2 bg-background flex-shrink-0">
+        <Button variant="ghost" size="icon" onClick={handleEmojiButtonClick} disabled={isResponding}>
+          <Smile className="h-5 w-5" />
+        </Button>
         <Input
           type="text"
           placeholder="Type a message..."
           value={currentMessage}
           onChange={(e) => setCurrentMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && onSendMessage()}
+          onKeyPress={(e) => e.key === 'Enter' && !isResponding && onSendMessage()}
           className="flex-grow font-body"
+          disabled={isResponding}
         />
-        <Button onClick={onSendMessage} size="icon">
-          <Send className="h-5 w-5" />
+        <Button onClick={onSendMessage} size="icon" disabled={isResponding}>
+          {isResponding && !isUserChat ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </Button>
       </div>
     </Card>
@@ -276,12 +333,13 @@ export default function ChatPage() {
                                 const userToSelect = placeholderUserChats.find(u => u.name === friend.name);
                                 if (userToSelect) {
                                   setSelectedChatUser(userToSelect);
-                                  setUserMessages([]); // Clear previous user messages
+                                  setUserMessages([]); 
                                   setCurrentMessage('');
                                 } else {
-                                  // Handle case where friend is not in main chat list or switch to AI
                                   setSelectedChatUser(null); 
-                                  setAiMessages(prev => prev.length > 0 ? prev : [{ id: 'ai-init-'+ Date.now(), text: 'Hello!', sender: 'ai', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) }]);
+                                  if (aiMessages.length === 0) {
+                                    setAiMessages([{ id: 'ai-init-'+ Date.now(), text: 'Hello!', sender: 'ai', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) }]);
+                                  }
                                   setCurrentMessage('');
                                 }
                               }}
@@ -368,6 +426,7 @@ export default function ChatPage() {
               messages={aiMessages}
               onSendMessage={handleSendAiMessage}
               isUserChat={false}
+              isResponding={isAiResponding}
             />
           ) : (
             <CurrentChatInterface
