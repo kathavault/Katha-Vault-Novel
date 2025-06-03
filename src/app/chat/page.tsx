@@ -104,7 +104,14 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
-    setAiMessages([initialAiMessage]);
+    setAiMessages([
+        {
+            id: 'initial-ai-' + Date.now(), // Unique ID for initial message
+            text: 'Hello! How can I help you with your stories today? 😊',
+            sender: 'ai',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+        }
+    ]);
   }, []);
 
   useEffect(() => {
@@ -204,11 +211,11 @@ export default function ChatPage() {
     setIsEmojiPickerOpen(false);
   };
 
-  const handleDeleteMessage = (messageId: string, isAiChat: boolean) => {
-    if (isAiChat) {
-      setAiMessages(prev => prev.filter(msg => msg.id !== messageId));
-    } else {
+  const handleDeleteMessage = (messageId: string, isUserToUserChatContext: boolean) => {
+    if (isUserToUserChatContext) { // If true, it's a user-to-user chat context
       setUserMessages(prev => prev.filter(msg => msg.id !== messageId));
+    } else { // If false, it's the AI chat context
+      setAiMessages(prev => prev.filter(msg => msg.id !== messageId));
     }
     toast({ title: "Message Deleted", description: "The message has been removed from your view." });
   };
@@ -216,8 +223,9 @@ export default function ChatPage() {
   const handleClearAiChat = () => {
     setAiMessages([
       {
-        ...initialAiMessage,
-        id: 'initial-ai-message-' + Date.now(), // New ID to avoid issues if cleared multiple times
+        id: 'initial-ai-cleared-' + Date.now(),
+        text: 'Hello! How can I help you with your stories today? 😊',
+        sender: 'ai' as 'ai',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
       }
     ]);
@@ -236,9 +244,9 @@ export default function ChatPage() {
     chatPartnerFallback,
     messages,
     onSendMessage,
-    isUserChat,
+    isUserChat, // This prop indicates if the context is a user-to-user chat (true) or AI chat (false)
     isResponding,
-    onDeleteMessage,
+    onDeleteMessage, 
   }: {
     chatPartnerName: string;
     chatPartnerAvatar: string;
@@ -247,7 +255,7 @@ export default function ChatPage() {
     onSendMessage: () => void;
     isUserChat: boolean;
     isResponding?: boolean;
-    onDeleteMessage: (messageId: string, isUserChat: boolean) => void;
+    onDeleteMessage: (messageId: string, isUserToUserChatContext: boolean) => void;
   }) => (
     <Card className="flex flex-col h-full shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4 flex-shrink-0">
@@ -271,16 +279,16 @@ export default function ChatPage() {
             <DropdownMenuContent align="end">
               {isUserChat ? (
                 <>
-                  <DropdownMenuItem onClick={() => toast({ title: "View Profile", description: "This feature is coming soon!"})}>View Profile</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast({ title: "Block User", description: "This feature is coming soon!"})}>Block User</DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleClearUserChat}>Clear Chat</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast({ title: "Report User", description: "This feature is coming soon!"})}>Report User</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => toast({ title: "View Profile", description: "This feature is coming soon!"})}>View Profile</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => toast({ title: "Block User", description: "This feature is coming soon!"})}>Block User</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleClearUserChat}>Clear Chat</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => toast({ title: "Report User", description: "This feature is coming soon!"})}>Report User</DropdownMenuItem>
                 </>
               ) : (
                  <>
-                  <DropdownMenuItem onClick={handleNicknameChange}>Change AI Nickname</DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleAvatarChangeClick}>Change AI Avatar</DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleClearAiChat}>Clear Chat History</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleNicknameChange}>Change AI Nickname</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleAvatarChangeClick}>Change AI Avatar</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleClearAiChat}>Clear Chat History</DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
@@ -302,7 +310,10 @@ export default function ChatPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onDeleteMessage(msg.id, isUserChat)} className="text-red-500 hover:!text-red-500">
+                      <DropdownMenuItem 
+                        onSelect={() => onDeleteMessage(msg.id, isUserChat)} 
+                        className="text-red-500 hover:!text-red-500 focus:text-red-500 focus:bg-destructive/10"
+                      >
                         <Trash2 className="mr-2 h-4 w-4" /> Delete message
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -483,7 +494,7 @@ export default function ChatPage() {
               chatPartnerFallback={aiChatUser.avatarFallback}
               messages={aiMessages}
               onSendMessage={handleSendAiMessage}
-              isUserChat={false}
+              isUserChat={false} // AI chat context
               isResponding={isAiResponding}
               onDeleteMessage={handleDeleteMessage}
             />
@@ -494,7 +505,7 @@ export default function ChatPage() {
               chatPartnerFallback={selectedChatUser.avatarFallback}
               messages={userMessages}
               onSendMessage={handleSendUserMessage}
-              isUserChat={true}
+              isUserChat={true} // User-to-user chat context
               onDeleteMessage={handleDeleteMessage}
             />
           )}
