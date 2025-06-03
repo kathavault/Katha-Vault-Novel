@@ -422,8 +422,8 @@ export function FeedItemCard({
             </div>
           </div>
           {postType === 'forum' && title && (
-             <Link href={`/forum/post/${postId}`} legacyBehavior={false} passHref>
-                <a className="hover:text-primary transition-colors"><CardTitle className="font-headline text-xl mt-1">{title}</CardTitle></a>
+             <Link href={`/forum/post/${postId}`} className="hover:text-primary transition-colors">
+                <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
             </Link>
           )}
         </CardHeader>
@@ -522,3 +522,5 @@ export function FeedItemCard({
     </>
   );
 }
+
+    
