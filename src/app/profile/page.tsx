@@ -16,6 +16,9 @@ const initialUserProfile = {
   username: '@katha_explorer',
   avatarUrl: 'https://placehold.co/128x128.png',
   bio: 'Avid reader and aspiring writer. Exploring worlds one story at a time.',
+  email: 'katha.explorer@example.com',
+  emailVisible: true,
+  gender: 'Prefer not to say',
   postsCount: 12,
   followersCount: 156,
   followingCount: 78,
@@ -31,9 +34,12 @@ const userPosts = [
   { id: 'post2', text: 'Struggling with writer\'s block today. Any tips for getting the creative juices flowing? #writingcommunity', timestamp: '1d ago', likes: 8, comments: 5 },
 ];
 
+export type UserProfileData = typeof initialUserProfile;
+export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'bio' | 'email' | 'emailVisible' | 'gender'>;
+
 export default function ProfilePage() {
   const { toast } = useToast();
-  const [userProfile, setUserProfile] = useState(initialUserProfile);
+  const [userProfile, setUserProfile] = useState<UserProfileData>(initialUserProfile);
 
   const handleAvatarChange = (newAvatarUrl: string) => {
     setUserProfile(prevProfile => ({ ...prevProfile, avatarUrl: newAvatarUrl }));
@@ -43,15 +49,14 @@ export default function ProfilePage() {
     });
   };
 
-  const handleProfileSave = (updatedProfile: { name: string; bio: string }) => {
-    setUserProfile(prevProfile => ({ 
-      ...prevProfile, 
-      name: updatedProfile.name,
-      bio: updatedProfile.bio 
+  const handleProfileSave = (updatedProfile: EditableUserProfileData) => {
+    setUserProfile(prevProfile => ({
+      ...prevProfile,
+      ...updatedProfile,
     }));
     toast({
       title: "Profile Updated",
-      description: "Your name and bio have been updated (local changes).",
+      description: "Your profile details have been updated (local changes).",
     });
   };
 
@@ -62,6 +67,9 @@ export default function ProfilePage() {
         username={userProfile.username}
         avatarUrl={userProfile.avatarUrl}
         bio={userProfile.bio}
+        email={userProfile.email}
+        emailVisible={userProfile.emailVisible}
+        gender={userProfile.gender}
         onAvatarChange={handleAvatarChange}
         onProfileSave={handleProfileSave}
       />
