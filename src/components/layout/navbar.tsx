@@ -35,45 +35,6 @@ export function Navbar() {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  if (!mounted) {
-    return ( 
-      <nav className="bg-background border-b border-border shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16 md:h-20">
-             <div className="flex items-center space-x-3">
-               <button className="text-foreground lg:hidden"><Menu size={24} /></button>
-               <Link href="/" className="flex items-center">
-                <div className="h-10 w-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold">
-                  K
-                </div>
-              </Link>
-            </div>
-            <div className="flex-grow"></div>
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                aria-label="Loading theme preference" 
-                title="Loading theme preference"
-                className="text-foreground hover:text-primary transition-colors cursor-default"
-                disabled
-              >
-                <Moon size={22} /> {/* Placeholder icon */}
-              </Button>
-              <Button asChild size="sm" className="px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
-                <Link href="/signup">
-                  <UserPlus size={18} className="mr-1 sm:mr-2" />
-                  Sign Up
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
-    );
-  }
-
-
   return (
     <nav className="bg-background border-b border-border shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -178,15 +139,34 @@ export function Navbar() {
           <div className="flex-grow lg:hidden"></div>
 
           <div className="flex items-center space-x-3 sm:space-x-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={toggleTheme} 
-              aria-label={theme === 'dark' ? "Switch to light theme" : "Switch to dark theme"}
-              title={theme === 'dark' ? "Switch to light theme" : "Switch to dark theme"}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={!mounted ? undefined : toggleTheme}
+              aria-label={
+                !mounted
+                  ? "Loading theme preference"
+                  : theme === "dark"
+                  ? "Switch to light theme"
+                  : "Switch to dark theme"
+              }
+              title={
+                !mounted
+                  ? "Loading theme preference"
+                  : theme === "dark"
+                  ? "Switch to light theme"
+                  : "Switch to dark theme"
+              }
+              disabled={!mounted}
               className="text-foreground hover:text-primary transition-colors"
             >
-              {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
+              {!mounted ? (
+                <Moon size={22} />
+              ) : theme === "dark" ? (
+                <Sun size={22} />
+              ) : (
+                <Moon size={22} />
+              )}
             </Button>
             <Button asChild size="sm" className="hidden sm:inline-flex px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
               <Link href="/signup">
