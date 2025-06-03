@@ -6,6 +6,7 @@ import { StoryCard } from '@/components/story-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card components
 import { Bookmark, Search, FilterX, ListFilter } from 'lucide-react';
 
 // Expanded placeholder data
@@ -62,7 +63,6 @@ export default function LibraryPage() {
   const uniqueAvailableGenres = useMemo(() => {
     const genresFromStories = new Set<string>();
     initialLibraryStories.forEach(story => story.genres.forEach(genre => genresFromStories.add(genre)));
-    // Combine with ALL_GENRES and ensure uniqueness, then sort for consistent order
     return Array.from(new Set([...ALL_GENRES, ...Array.from(genresFromStories)])).sort();
   }, []);
 
@@ -78,44 +78,51 @@ export default function LibraryPage() {
       </header>
 
       {/* Search and Filter Section */}
-      <div className="space-y-6 p-4 md:p-6 bg-card rounded-lg shadow-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search stories by title or author..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 text-base"
-          />
-        </div>
+      <Card className="shadow-lg border-border">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline text-primary flex items-center">
+            <Search className="mr-3 h-6 w-6" /> Find Your Next Read
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6 pt-2"> {/* Adjusted pt for CardContent */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search stories by title or author..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 text-base"
+            />
+          </div>
 
-        <div>
-          <div className="flex items-center mb-3">
-            <ListFilter className="h-5 w-5 text-primary mr-2" />
-            <h3 className="text-lg font-semibold text-foreground">Filter by Genre</h3>
+          <div>
+            <div className="flex items-center mb-3">
+              <ListFilter className="h-5 w-5 text-primary mr-2" />
+              <h3 className="text-lg font-semibold text-foreground">Filter by Genre</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {uniqueAvailableGenres.map(genre => (
+                <Button
+                  key={genre}
+                  variant={selectedGenres.includes(genre) ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleGenreToggle(genre)}
+                  className="font-body transition-all duration-150 ease-in-out"
+                >
+                  {genre}
+                </Button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {uniqueAvailableGenres.map(genre => (
-              <Button
-                key={genre}
-                variant={selectedGenres.includes(genre) ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleGenreToggle(genre)}
-                className="font-body transition-all duration-150 ease-in-out"
-              >
-                {genre}
-              </Button>
-            ))}
-          </div>
-        </div>
-        
-        {(selectedGenres.length > 0 || searchTerm) && (
-           <Button variant="ghost" onClick={clearAllFilters} className="text-primary hover:text-primary/80 mt-3 p-0 h-auto text-sm">
-             <FilterX className="mr-2 h-4 w-4" /> Clear All Filters & Search
-           </Button>
-        )}
-      </div>
+          
+          {(selectedGenres.length > 0 || searchTerm) && (
+            <Button variant="ghost" onClick={clearAllFilters} className="text-primary hover:text-primary/80 mt-3 p-0 h-auto text-sm">
+              <FilterX className="mr-2 h-4 w-4" /> Clear All Filters & Search
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Stories Grid */}
       {filteredStories.length > 0 ? (
