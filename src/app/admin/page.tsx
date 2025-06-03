@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // DialogClose removed as it's part of DialogFooter now
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { NovelForm } from '@/components/novel-form';
 import { getNovelsFromStorage, saveNovelsToStorage, type Novel } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen } from 'lucide-react'; // Added BookOpen
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -44,19 +44,16 @@ export default function AdminPage() {
   const handleFormSubmit = (data: Novel) => {
     let updatedNovels;
     if (editingNovel) {
-      // Edit existing novel
-      updatedNovels = novels.map(n => (n.id === editingNovel.id ? { ...data, id: editingNovel.id, views: n.views, rating: n.rating, isTrending: n.isTrending } : n));
+      updatedNovels = novels.map(n => (n.id === editingNovel.id ? { ...data, id: editingNovel.id, views: n.views, rating: n.rating, chapters: n.chapters } : n));
     } else {
-      // Add new novel
-      const newNovelWithId = { ...data, id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, views: 0, rating: 0, isTrending: false };
-      updatedNovels = [...novels, newNovelWithId];
+      const newNovelWithDefaults = { ...data, id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, views: 0, rating: 0, chapters: data.chapters || [] }; // Ensure chapters is an array
+      updatedNovels = [...novels, newNovelWithDefaults];
     }
     setNovels(updatedNovels);
-    saveNovelsToStorage(updatedNovels); // Save potentially updated trending status too
+    saveNovelsToStorage(updatedNovels);
     setIsFormModalOpen(false);
     setEditingNovel(null);
-     // Refresh from storage to reflect any dynamic changes like trending status
-    setNovels(getNovelsFromStorage());
+    setNovels(getNovelsFromStorage()); // Refresh to reflect dynamic trending status
   };
 
   const promptDeleteNovel = (novel: Novel) => {
@@ -76,7 +73,6 @@ export default function AdminPage() {
       });
       setNovelToDelete(null);
       setIsDeleteDialogOpen(false);
-      // Refresh from storage
       setNovels(getNovelsFromStorage());
     }
   };
@@ -109,13 +105,14 @@ export default function AdminPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[250px]">Title</TableHead>
+                    <TableHead className="w-[200px]">Title</TableHead>
                     <TableHead>Author</TableHead>
                     <TableHead>Genres</TableHead>
+                    <TableHead className="text-center">No. of Chapters</TableHead>
                     <TableHead className="text-center">Views</TableHead>
                     <TableHead className="text-center">Rating</TableHead>
                     <TableHead className="text-center">Trending</TableHead>
-                    <TableHead className="text-right w-[200px]">Actions</TableHead>
+                    <TableHead className="text-right w-[250px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -124,13 +121,19 @@ export default function AdminPage() {
                       <TableCell className="font-medium">{novel.title}</TableCell>
                       <TableCell>{novel.author}</TableCell>
                       <TableCell>{novel.genres.join(", ")}</TableCell>
+                      <TableCell className="text-center">{novel.chapters.length}</TableCell>
                       <TableCell className="text-center">{novel.views?.toLocaleString() || 0}</TableCell>
                       <TableCell className="text-center">{novel.rating?.toFixed(1) || 'N/A'}</TableCell>
                       <TableCell className="text-center">{novel.isTrending ? 'Yes' : 'No'}</TableCell>
-                      <TableCell className="text-right space-x-2">
+                      <TableCell className="text-right space-x-1">
                         <Button variant="ghost" size="icon" asChild>
                            <Link href={`/story/${novel.id}`} target="_blank" rel="noopener noreferrer" title="View Novel">
                             <Eye className="h-4 w-4 text-blue-500" />
+                          </Link>
+                        </Button>
+                         <Button variant="ghost" size="icon" asChild title="Manage Chapters">
+                           <Link href={`/admin/novel/${novel.id}/chapters`}>
+                            <BookOpen className="h-4 w-4 text-green-500" />
                           </Link>
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleOpenEditForm(novel)} title="Edit Novel">
@@ -149,18 +152,17 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Novel Form Modal */}
       <Dialog open={isFormModalOpen} onOpenChange={(isOpen) => {
           setIsFormModalOpen(isOpen);
-          if (!isOpen) setEditingNovel(null); 
+          if (!isOpen) setEditingNovel(null);
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-headline text-2xl text-primary">
-              {editingNovel ? 'Edit Novel' : 'Add New Novel'}
+              {editingNovel ? 'Edit Novel Details' : 'Add New Novel'}
             </DialogTitle>
             <DialogDescription>
-              {editingNovel ? `Modify the details for "${editingNovel.title}".` : 'Fill in the details for the new novel.'}
+              {editingNovel ? `Modify the core details for "${editingNovel.title}". Manage chapters separately.` : 'Fill in the details for the new novel. Chapters can be added after creation.'}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -177,13 +179,12 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the novel "{novelToDelete?.title}"? This action cannot be undone.
+              Are you sure you want to delete the novel "{novelToDelete?.title}"? This action will also delete all its chapters and cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -195,3 +196,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

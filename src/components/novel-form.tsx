@@ -20,28 +20,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import type { Novel } from "@/lib/mock-data";
+import type { Novel } from "@/lib/mock-data"; // Chapter type is implicitly handled
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 
-
 const novelFormSchema = z.object({
-  id: z.string().optional(),
   title: z.string().min(2, "Title must be at least 2 characters.").max(100, "Title too long."),
   author: z.string().min(2, "Author name must be at least 2 characters."),
   genres: z.string().min(1, "Please enter at least one genre."),
   snippet: z.string().min(10, "Snippet must be at least 10 characters."),
-  coverImageUrl: z.string().optional().or(z.literal('')), // Will store URL or Data URI
+  coverImageUrl: z.string().optional().or(z.literal('')),
   aiHint: z.string().optional(),
-  chapters: z.coerce.number().int("Chapters must be a whole number.").min(1, "Must have at least 1 chapter.").optional(),
+  // Chapters array is managed separately, not directly in this form for novel core details.
 });
 
 type NovelFormValues = z.infer<typeof novelFormSchema>;
 
 interface NovelFormProps {
   initialData?: Novel | null;
-  onSubmitForm: (data: Novel) => void;
+  onSubmitForm: (data: Omit<Novel, 'chapters' | 'id' | 'views' | 'rating' | 'isTrending'> & { chapters?: Novel['chapters'] }) => void; // Adjusted for chapter management
   submitButtonText?: string;
   onCancel?: () => void;
 }
@@ -59,7 +57,6 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       snippet: "",
       coverImageUrl: "",
       aiHint: "",
-      chapters: 1,
     },
   });
 
@@ -72,18 +69,16 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         snippet: initialData.snippet || "",
         coverImageUrl: initialData.coverImageUrl || "",
         aiHint: initialData.aiHint || "",
-        chapters: initialData.chapters ?? 1,
       });
       setImagePreview(initialData.coverImageUrl || null);
     } else {
-      form.reset({ // Reset for new novel form
+      form.reset({
         title: "",
         author: "",
         genres: "",
         snippet: "",
         coverImageUrl: "",
         aiHint: "",
-        chapters: 1,
       });
       setImagePreview(null);
     }
@@ -95,7 +90,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       if (file.size > MAX_FILE_SIZE) {
         form.setError("coverImageUrl", { message: "Image too large (max 5MB)." });
         toast({ title: "Image Error", description: "Selected image is too large (max 5MB).", variant: "destructive" });
-        setImagePreview(initialData?.coverImageUrl || null); // Reset preview to initial or null
+        setImagePreview(initialData?.coverImageUrl || null);
         form.setValue("coverImageUrl", initialData?.coverImageUrl || "");
         return;
       }
@@ -112,7 +107,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         const dataUri = reader.result as string;
         setImagePreview(dataUri);
         form.setValue("coverImageUrl", dataUri, { shouldValidate: true });
-        form.clearErrors("coverImageUrl"); // Clear error if previously set
+        form.clearErrors("coverImageUrl");
       };
       reader.onerror = () => {
         toast({ title: "File Read Error", description: "Could not read the image file.", variant: "destructive"});
@@ -120,20 +115,16 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         form.setValue("coverImageUrl", initialData?.coverImageUrl || "");
       }
       reader.readAsDataURL(file);
-    } else { // No file selected, reset to initial or null
+    } else {
         setImagePreview(initialData?.coverImageUrl || null);
         form.setValue("coverImageUrl", initialData?.coverImageUrl || "");
     }
   };
 
-
   function processSubmit(data: NovelFormValues) {
-    // If imagePreview is different from data.coverImageUrl, it means a new image was processed
-    // but might have been cleared due to error or deselection. Rely on form's data.coverImageUrl.
     const finalCoverImageUrl = data.coverImageUrl || (imagePreview && imagePreview.startsWith('data:') ? imagePreview : (initialData?.coverImageUrl || ""));
 
-
-    if (finalCoverImageUrl && finalCoverImageUrl.startsWith('data:') && finalCoverImageUrl.length > 1024 * 1024 * 1.5) { // Approx 1.5MB for data URI
+    if (finalCoverImageUrl && finalCoverImageUrl.startsWith('data:') && finalCoverImageUrl.length > 1024 * 1024 * 1.5) {
        toast({
         title: "Warning: Large Image",
         description: "The uploaded image is large and might impact performance or storage. Consider optimizing it.",
@@ -142,27 +133,24 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       });
     }
 
-
-    const novelToSubmit: Novel = {
-      id: initialData?.id || `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    const novelDetailsToSubmit = {
       title: data.title,
       author: data.author,
       genres: data.genres.split(",").map(g => g.trim()).filter(g => g.length > 0),
       snippet: data.snippet,
       coverImageUrl: finalCoverImageUrl || undefined,
       aiHint: data.aiHint || undefined,
-      chapters: data.chapters,
-      views: initialData?.views || 0,
-      rating: initialData?.rating || 0,
-      isTrending: initialData?.isTrending || false, // Recalculated by getNovelsFromStorage
+      // Chapters are managed separately, pass existing if editing
+      chapters: initialData?.chapters 
     };
-    onSubmitForm(novelToSubmit);
+    
+    onSubmitForm(novelDetailsToSubmit);
     toast({
-      title: initialData ? "Novel Updated!" : "Novel Added!",
-      description: `"${novelToSubmit.title}" has been saved.`,
+      title: initialData ? "Novel Details Updated!" : "Novel Added!",
+      description: `"${data.title}" details have been saved. Manage chapters separately.`,
     });
-    if (!initialData) { 
-        form.reset(); // Reset form only if it was an "add new" operation
+    if (!initialData) {
+        form.reset();
         setImagePreview(null);
     }
   }
@@ -226,16 +214,11 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
               className="file:text-primary file:font-semibold file:bg-primary/10 hover:file:bg-primary/20"
             />
           </FormControl>
-          {/* 
-            The FormField for coverImageUrl is now primarily for validation state.
-            The actual value is set by handleImageChange.
-          */}
           <FormField
             control={form.control}
             name="coverImageUrl"
             render={({ field }) => (
               <>
-                {/* Hidden input to satisfy RHF for the field, actual value handled by file input and state */}
                 <input type="hidden" {...field} /> 
                 <FormMessage />
               </>
@@ -264,21 +247,14 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
             </FormItem>
           )}
         />
-        <FormField
-            control={form.control}
-            name="chapters"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Chapters</FormLabel>
-                <FormControl><Input type="number" placeholder="1" {...field} /></FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
+        
+        <p className="text-sm text-muted-foreground font-body">
+          Note: Number of chapters, views, and ratings are managed by user interaction or the dedicated chapter management section.
+        </p>
+
         <div className="flex justify-end space-x-3">
           {onCancel && <Button type="button" variant="outline" onClick={() => {
             onCancel();
-            // Reset form and preview when cancelling editing an existing novel or adding a new one
             form.reset(initialData ? {
                 title: initialData.title || "",
                 author: initialData.author || "",
@@ -286,9 +262,8 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
                 snippet: initialData.snippet || "",
                 coverImageUrl: initialData.coverImageUrl || "",
                 aiHint: initialData.aiHint || "",
-                chapters: initialData.chapters ?? 1,
               } : {
-                title: "", author: "", genres: "", snippet: "", coverImageUrl: "", aiHint: "", chapters: 1,
+                title: "", author: "", genres: "", snippet: "", coverImageUrl: "", aiHint: "",
               });
             setImagePreview(initialData?.coverImageUrl || null);
           }}>Cancel</Button>}
@@ -298,3 +273,5 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
     </Form>
   );
 }
+
+    

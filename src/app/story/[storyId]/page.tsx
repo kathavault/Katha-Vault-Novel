@@ -5,13 +5,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getNovelsFromStorage, type Novel } from '@/lib/mock-data';
+import { getNovelsFromStorage, type Novel, type Chapter } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
-import { Star, Share2, Facebook, Twitter, MessageCircle as WhatsAppIcon, Link2, BookOpen, ChevronLeft } from 'lucide-react'; // Using MessageCircle for WhatsApp
+import { Star, Share2, Facebook, Twitter, MessageCircle as WhatsAppIcon, Link2, BookOpen, ChevronLeft } from 'lucide-react';
 
 const StoryDetailPage = () => {
   const params = useParams();
@@ -49,7 +48,7 @@ const StoryDetailPage = () => {
         navigator.clipboard.writeText(url)
           .then(() => toast({ title: "Link Copied!", description: "Story link copied to clipboard." }))
           .catch(() => toast({ title: "Copy Failed", description: "Could not copy link.", variant: "destructive" }));
-        return; 
+        return;
     }
     if (shareUrl) {
         window.open(shareUrl, '_blank', 'noopener,noreferrer');
@@ -73,8 +72,7 @@ const StoryDetailPage = () => {
     );
   }
 
-  const totalChapters = novel.chapters || 1;
-  const chapterList = Array.from({ length: totalChapters }, (_, i) => i + 1);
+  const totalChaptersCount = novel.chapters.length;
 
   return (
     <div className="container mx-auto px-2 py-8 space-y-10">
@@ -147,27 +145,26 @@ const StoryDetailPage = () => {
           <Card>
             <CardHeader>
               <CardTitle className="font-headline text-2xl text-primary">Chapters</CardTitle>
-              <CardDescription>{totalChapters} {totalChapters === 1 ? 'chapter' : 'chapters'} available.</CardDescription>
+              <CardDescription>{totalChaptersCount} {totalChaptersCount === 1 ? 'chapter' : 'chapters'} available.</CardDescription>
             </CardHeader>
             <CardContent>
-              {chapterList.length > 0 ? (
+              {novel.chapters.length > 0 ? (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 -mr-2">
-                  {chapterList.map((chapterNum) => (
-                    <Link key={chapterNum} href={`/story/${storyId}/${chapterNum}`} passHref>
+                  {novel.chapters.map((chapter, index) => (
+                    <Link key={chapter.id} href={`/story/${storyId}/${index + 1}`} passHref>
                       <div className="flex items-center p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors cursor-pointer space-x-3">
-                        <div className="flex-shrink-0 h-[68px] w-[48px] relative rounded overflow-hidden">
+                        <div className="flex-shrink-0 h-[68px] w-[48px] relative rounded overflow-hidden aspect-[12/17]">
                            <Image
-                            src={novel.coverImageUrl || `https://placehold.co/48x68.png?text=C${chapterNum}`}
-                            alt={`Chapter ${chapterNum} thumbnail`}
-                            width={48}
-                            height={68}
+                            src={novel.coverImageUrl || `https://placehold.co/48x68.png?text=C${index + 1}`}
+                            alt={`${chapter.title} thumbnail`}
+                            layout="fill"
                             objectFit="cover"
                             data-ai-hint={novel.aiHint || "book chapter"}
                           />
                         </div>
                         <div className="flex-grow">
-                          <h3 className="font-semibold text-foreground">Chapter {chapterNum}</h3>
-                          <p className="text-xs text-muted-foreground">Read Chapter {chapterNum}</p>
+                          <h3 className="font-semibold text-foreground line-clamp-2">{chapter.title || `Chapter ${index + 1}`}</h3>
+                          <p className="text-xs text-muted-foreground">Read {chapter.title || `Chapter ${index + 1}`}</p>
                         </div>
                         <BookOpen className="h-5 w-5 text-primary flex-shrink-0" />
                       </div>
@@ -175,7 +172,7 @@ const StoryDetailPage = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground">No chapters available for this story yet.</p>
+                <p className="text-muted-foreground">No chapters available for this story yet. Add some in the Admin Panel!</p>
               )}
             </CardContent>
           </Card>
@@ -187,3 +184,4 @@ const StoryDetailPage = () => {
 
 export default StoryDetailPage;
 
+    
