@@ -17,8 +17,8 @@ interface ReadingProgressItemProps {
 export function ReadingProgressItem({ id, title, progress, coverImageUrl, aiHint = "book cover" }: ReadingProgressItemProps) {
   return (
     <Card className="flex flex-col sm:flex-row items-center overflow-hidden hover:shadow-lg transition-shadow duration-200">
-      <CardHeader className="p-0 w-full sm:w-1/4 flex-shrink-0">
-        <div className="relative w-full h-40 sm:h-full aspect-[3/4] sm:aspect-auto">
+      <CardHeader className="p-0 w-full sm:w-[100px] flex-shrink-0"> {/* Adjusted width for better ratio */}
+        <div className="relative w-full h-auto aspect-[12/17]"> {/* Enforce 12:17 aspect ratio */}
           <Image
             src={coverImageUrl}
             alt={title}
@@ -29,7 +29,7 @@ export function ReadingProgressItem({ id, title, progress, coverImageUrl, aiHint
           />
         </div>
       </CardHeader>
-      <CardContent className="p-4 space-y-3 flex-grow w-full sm:w-3/4">
+      <CardContent className="p-4 space-y-3 flex-grow w-full sm:w-auto">
         <Link href={`/story/${id}`} className="hover:text-primary transition-colors">
           <CardTitle className="font-headline text-lg md:text-xl text-primary-foreground hover:text-primary line-clamp-2">{title}</CardTitle>
         </Link>
