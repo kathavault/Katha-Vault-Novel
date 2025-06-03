@@ -150,7 +150,8 @@ function ChatPageContent() {
       setCurrentUser(getKathaExplorerUser());
       setAuthStatus('loggedIn');
     } else {
-      router.replace('/login?redirect=/chat');
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/chat';
+      router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
       setAuthStatus('loggedOut');
     }
   }, [router]);
@@ -158,11 +159,10 @@ function ChatPageContent() {
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
 
-    // Set initial random-like values for unreadCount and isOnline only on client-side after mount
     setDisplayedUserChats(
       initialPlaceholderUserChats.map(chat => ({
         ...chat,
-        unreadCount: Math.random() > 0.7 ? Math.floor(Math.random() * 5) + 1 : 0, // Some chats have unread messages
+        unreadCount: Math.random() > 0.7 ? Math.floor(Math.random() * 5) + 1 : 0,
         isOnline: Math.random() > 0.5,
       }))
     );
@@ -191,7 +191,6 @@ function ChatPageContent() {
     if (authStatus !== 'loggedIn') return;
 
     if (userIdToOpen) {
-      // Read current displayedUserChats.
       const currentChats = displayedUserChats;
       const userToChat = currentChats.find(u => u.id === userIdToOpen);
 
@@ -206,8 +205,6 @@ function ChatPageContent() {
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             }
         ]);
-        // Functional update to setDisplayedUserChats to avoid dependency loop
-        // Only update if the unread count actually needs to be cleared.
         if (userToChat.unreadCount !== 0) {
             setDisplayedUserChats(prevChats =>
                 prevChats.map(chat =>
@@ -220,12 +217,12 @@ function ChatPageContent() {
          setActiveMainTab('direct');
       }
     }
-  }, [userIdToOpen, authStatus]); // REMOVED displayedUserChats from dependencies
+  }, [userIdToOpen, authStatus]); 
 
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
-    // This effect manages initial messages based on selection
-    if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen) {
+
+    if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen && !selectedDiscussionGroup && !discussionIdToOpen) {
       setMessages([
           {
               id: 'initial-ai-' + Date.now(),
@@ -235,23 +232,14 @@ function ChatPageContent() {
           }
       ]);
     } else if (activeMainTab === 'direct' && selectedDirectChatUser && !userIdToOpen) {
-        // This case is largely handled by the userIdToOpen effect if a specific user is pre-selected.
-        // However, if a user is selected via sidebar click *without* a URL change (e.g. if router.replace was removed), this would kick in.
-        // For now, assuming userIdToOpen effect handles most direct user chat initial messages.
-        // To prevent setting messages twice if userIdToOpen effect also runs, we can add a check or ensure distinct conditions.
-        // If messages are already set by userIdToOpen effect, this might be redundant.
-        // Let's keep it but be mindful. If userIdToOpen is present, that effect takes precedence for setting initial message for THAT user.
-        if (messages.length === 0 || (messages[0] && !messages[0].id.startsWith('initial-user-chat-'))) {
-             setMessages([
-                {
-                    id: 'initial-user-chat-from-selection-' + Date.now(),
-                    text: `You are now chatting with ${selectedDirectChatUser.name}. Say hello!`,
-                    sender: 'ai',
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-                }
-            ]);
-        }
-
+        setMessages([
+           {
+               id: 'initial-user-chat-from-selection-' + Date.now(),
+               text: `You are now chatting with ${selectedDirectChatUser.name}. Say hello!`,
+               sender: 'ai',
+               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+           }
+       ]);
     } else if (activeMainTab === 'discussions' && selectedDiscussionGroup && !discussionIdToOpen) {
         setMessages([
             {
@@ -264,7 +252,7 @@ function ChatPageContent() {
     } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup && !discussionIdToOpen) {
         setMessages([]);
     }
-  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, userIdToOpen, discussionIdToOpen, authStatus, messages]);
+  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, userIdToOpen, discussionIdToOpen, authStatus]);
 
 
   useEffect(() => {
@@ -319,19 +307,16 @@ function ChatPageContent() {
         setIsAiResponding(false);
       }
     } else if (activeMainTab === 'direct' && selectedDirectChatUser) {
-      // Simulate receiving a message from the other user
-      // This is where you would increment unread count if the chat wasn't active
       const otherUserResponse: Message = {
         id: 'other-user-resp-' + Date.now(),
         text: `This is a simulated reply to: "${userMessageText}". Simulating as if I am ${selectedDirectChatUser.name}.`,
-        sender: 'ai', // Using 'ai' sender for simulation, but from selectedUser's perspective
+        sender: 'ai', 
         userName: selectedDirectChatUser.name,
         userId: selectedDirectChatUser.id,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
       setTimeout(() => setMessages(prev => [...prev, otherUserResponse]), 500);
     } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) {
-      // Simulate receiving a message in the discussion group
       const discussionReply: Message = {
         id: 'discussion-reply-' + Date.now(),
         text: `Someone in "${selectedDiscussionGroup.name}" might reply to: "${userMessageText}". (Simulated)`,
@@ -576,7 +561,6 @@ function ChatPageContent() {
     setCurrentMessage('');
     setActiveMainTab('direct');
     router.replace(`/chat?section=direct&userId=${chatUser.id}`, undefined);
-    // Clear unread count for this chat
     setDisplayedUserChats(prevChats => prevChats.map(chat =>
         chat.id === chatUser.id ? { ...chat, unreadCount: 0 } : chat
     ));
@@ -588,7 +572,6 @@ function ChatPageContent() {
     setCurrentMessage('');
     setActiveMainTab('direct');
     router.replace('/chat?section=direct', undefined);
-    // AI chat doesn't have an unread count in displayedUserChats
   };
 
   const handleDiscussionSelection = (discussion: JoinedDiscussion) => {
@@ -597,7 +580,6 @@ function ChatPageContent() {
     setCurrentMessage('');
     setActiveMainTab('discussions');
     router.replace(`/chat?section=discussions&discussionId=${discussion.id}`, undefined);
-    // Discussion groups don't have unread counts in displayedUserChats directly
   };
 
 
@@ -609,7 +591,7 @@ function ChatPageContent() {
       <CardContent className="p-0 flex-grow overflow-hidden">
         <ScrollArea className="h-full">
           <div
-            className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${chatContext === 'ai' ? 'bg-muted' : ''}`}
+            className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${chatContext === 'ai' && !selectedDirectChatUser ? 'bg-muted' : ''}`}
             onClick={handleAiChatSelection}
           >
             <Avatar>
@@ -717,12 +699,9 @@ function ChatPageContent() {
         const newTab = value as 'direct' | 'discussions';
         setActiveMainTab(newTab);
         if (newTab === 'direct') {
-            // If switching to direct, select AI chat by default if no user is selected
             if (!selectedDirectChatUser) handleAiChatSelection();
-            else handleDirectChatSelection(selectedDirectChatUser); // Reselect to clear potential discussion selection
+            else handleDirectChatSelection(selectedDirectChatUser); 
         } else if (newTab === 'discussions') {
-            // If switching to discussions, if a group is selected, ensure it's active
-            // Otherwise, don't select any specific discussion by default here.
             if (selectedDiscussionGroup) handleDiscussionSelection(selectedDiscussionGroup);
             else {
                 setSelectedDiscussionGroup(null);
