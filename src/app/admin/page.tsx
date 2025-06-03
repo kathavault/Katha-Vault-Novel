@@ -21,8 +21,9 @@ import {
   allMockUsers, type MockUser, CURRENT_USER_ID,
   getSocialFeedPostsFromStorage, type FeedItemCardProps, type FeedItemComment, SOCIAL_FEED_POSTS_STORAGE_KEY, USER_POSTS_STORAGE_KEY,
   getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment,
-  getKathaExplorerUser, // Import for checking admin's active status
-  isUserActive
+  getKathaExplorerUser, 
+  isUserActive,
+  KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL // Import special emails
 } from '@/lib/mock-data';
 import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -43,9 +44,8 @@ const ITEMS_PER_PAGE_INITIAL = 10;
 
 export default function AdminPage() {
   const { toast } = useToast();
-  const [adminUser, setAdminUser] = useState(getKathaExplorerUser()); // Load admin user data
+  const [adminUser, setAdminUser] = useState(getKathaExplorerUser()); 
   
-  // Novels state
   const [novels, setNovels] = useState<Novel[]>([]);
   const [novelSearchTerm, setNovelSearchTerm] = useState("");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -54,12 +54,10 @@ export default function AdminPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [showAllNovels, setShowAllNovels] = useState(false);
 
-  // Users state
   const [users, setUsers] = useState<MockUser[]>(allMockUsers);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [showAllUsers, setShowAllUsers] = useState(false);
 
-  // Post Comments state
   const [allSocialPosts, setAllSocialPosts] = useState<FeedItemCardProps[]>([]);
   const [flatPostComments, setFlatPostComments] = useState<FlatPostComment[]>([]);
   const [postCommentSearchTerm, setPostCommentSearchTerm] = useState("");
@@ -67,7 +65,6 @@ export default function AdminPage() {
   const [isDeletePostCommentDialogOpen, setIsDeletePostCommentDialogOpen] = useState(false);
   const [showAllPostComments, setShowAllPostComments] = useState(false);
 
-  // Chapter Comments state
   const [allChapterComments, setAllChapterComments] = useState<StoredChapterComment[]>([]);
   const [flatChapterComments, setFlatChapterComments] = useState<FlatChapterComment[]>([]);
   const [chapterCommentSearchTerm, setChapterCommentSearchTerm] = useState("");
@@ -76,11 +73,13 @@ export default function AdminPage() {
   const [showAllChapterComments, setShowAllChapterComments] = useState(false);
 
   useEffect(() => {
-    setAdminUser(getKathaExplorerUser()); // Refresh admin user data on mount
+    setAdminUser(getKathaExplorerUser()); 
     const loadedNovels = getNovelsFromStorage();
     setNovels(loadedNovels);
     loadPostComments();
     loadChapterComments(loadedNovels);
+    // Ensure the allMockUsers list is refreshed to reflect any changes to kathaExplorerUser
+    setUsers(allMockUsers.map(u => u.id === CURRENT_USER_ID ? getKathaExplorerUser() : u));
   }, []);
 
   const loadPostComments = () => {
@@ -136,8 +135,6 @@ export default function AdminPage() {
     setFlatChapterComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); 
   };
   
-
-  // Novels Management
   const filteredNovels = useMemo(() => {
     let results = novels;
     if (novelSearchTerm.trim()) {
@@ -160,7 +157,7 @@ export default function AdminPage() {
     if (editingNovel) {
       updatedNovels = novels.map(n => (n.id === editingNovel.id ? { 
         ...n, ...data, 
-        chapters: data.chapters || editingNovel.chapters || [], // Ensure chapters is always an array
+        chapters: data.chapters || editingNovel.chapters || [], 
         views: n.views || 0, 
         rating: n.rating || 0, 
         isTrending: n.isTrending || false 
@@ -192,38 +189,45 @@ export default function AdminPage() {
     }
   };
 
-  // Users Management
   const filteredUsers = useMemo(() => {
-    let results = users;
+    const currentAdminUser = getKathaExplorerUser(); // Get fresh admin data
+    let results = allMockUsers.map(u => u.id === currentAdminUser.id ? currentAdminUser : u); // Update current user in the list
+
     if (userSearchTerm.trim()) {
       const lowerSearchTerm = userSearchTerm.toLowerCase();
       results = results.filter(user => 
         user.name.toLowerCase().includes(lowerSearchTerm) ||
-        user.username.toLowerCase().includes(lowerSearchTerm)
+        (user.username && user.username.toLowerCase().includes(lowerSearchTerm)) ||
+        (user.email && user.email.toLowerCase().includes(lowerSearchTerm))
       );
     }
-    // Update user list to reflect latest status, especially for adminUser
-    return results.map(u => u.id === adminUser.id ? getKathaExplorerUser() : u);
-  }, [users, userSearchTerm, adminUser]);
+    return results;
+  }, [userSearchTerm, adminUser]); // adminUser dependency ensures re-filter if admin's own data changes
   const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, ITEMS_PER_PAGE_INITIAL);
 
 
   const handleToggleUserStatus = (userId: string) => {
-    if (userId === CURRENT_USER_ID) {
-      toast({ title: "Action Denied", description: "Admin cannot change own status directly here. Use profile settings.", variant: "destructive" }); return;
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+
+    if (targetUser.email === KRITIKA_EMAIL || targetUser.email === KATHAVAULT_OWNER_EMAIL) {
+        toast({ title: "Action Denied", description: "This special admin account cannot be deactivated.", variant: "destructive"});
+        return;
     }
+    if (userId === CURRENT_USER_ID) {
+      toast({ title: "Action Denied", description: "Admin cannot change own status directly here. Use profile settings for general active status, or this account cannot be deactivated if special.", variant: "destructive" }); return;
+    }
+
     const updatedUsers = users.map(user => 
         user.id === userId ? { ...user, isActive: !user.isActive } : user
     );
     setUsers(updatedUsers); 
-    // Note: This local 'users' state change doesn't persist for other users in mock-data.
-    // For `kathaExplorerUser` (admin), `isActive` is persisted via `saveKathaExplorerUser` elsewhere.
     // This is a UI simulation for other users in the admin panel.
-    const targetUser = updatedUsers.find(u => u.id === userId);
-    toast({ title: "User Status Updated", description: `${targetUser?.name} is now ${targetUser?.isActive ? "Active" : "Deactivated"}. (Change is for current session only for non-admin users)` });
+    // For `kathaExplorerUser` (admin), `isActive` is persisted via `saveKathaExplorerUser` elsewhere.
+    const changedUser = updatedUsers.find(u => u.id === userId);
+    toast({ title: "User Status Updated", description: `${changedUser?.name} is now ${changedUser?.isActive ? "Active" : "Deactivated"}. (Change is for current session only for non-admin users unless persisted elsewhere)` });
   };
 
-  // Post Comments Management
    const filteredPostComments = useMemo(() => {
     let results = flatPostComments;
     if (postCommentSearchTerm.trim()) {
@@ -293,8 +297,6 @@ export default function AdminPage() {
     setIsDeletePostCommentDialogOpen(false);
   };
 
-
-  // Chapter Comments Management
   const filteredChapterComments = useMemo(() => {
     let results = flatChapterComments;
     if (chapterCommentSearchTerm.trim()) {
@@ -488,10 +490,10 @@ export default function AdminPage() {
           <Card>
             <CardHeader>
                 <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserCog className="mr-3 h-6 w-6" /> User Management</CardTitle>
-                <CardDescription>Activate or deactivate user accounts. (Status changes for current session only for non-admin users)</CardDescription>
+                <CardDescription>Activate or deactivate user accounts. Special admin accounts cannot be deactivated.</CardDescription>
                 <div className="pt-2 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search users by name/username..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="pl-9" />
+                    <Input placeholder="Search users by name, username or email..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="pl-9" />
                 </div>
             </CardHeader>
             <CardContent className="flex-grow overflow-y-auto">
@@ -499,20 +501,27 @@ export default function AdminPage() {
                 <div className="overflow-x-auto">
                 <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right w-[140px]">Action</TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {displayedUsers.map((user) => (
+                    {displayedUsers.map((user) => {
+                        const isSpecialAdmin = user.email === KRITIKA_EMAIL || user.email === KATHAVAULT_OWNER_EMAIL;
+                        const cannotBeDeactivated = isSpecialAdmin || user.id === CURRENT_USER_ID;
+                        return (
                         <TableRow key={user.id}>
-                        <TableCell className="font-medium max-w-[150px] truncate" title={user.name}>{user.name} {user.id === CURRENT_USER_ID && "(Admin)"}</TableCell>
+                        <TableCell className="font-medium max-w-[200px] truncate" title={`${user.name} (${user.username || 'N/A'})`}>
+                            {user.name} {user.id === CURRENT_USER_ID && "(Current Admin)"}
+                            {isSpecialAdmin && user.id !== CURRENT_USER_ID && " (Special Admin)"}
+                        </TableCell>
                         <TableCell><Badge variant={user.isActive ? 'default' : 'destructive'}>{user.isActive ? 'Active' : 'Deactivated'}</Badge></TableCell>
                         <TableCell className="text-right">
-                            {user.id !== CURRENT_USER_ID ? (
+                            {!cannotBeDeactivated ? (
                             <Button variant={user.isActive ? "destructive" : "default"} size="sm" onClick={() => handleToggleUserStatus(user.id)}>
                                 {user.isActive ? <UserX className="mr-2 h-4 w-4" /> : <UserCheckIcon className="mr-2 h-4 w-4" />}
                                 {user.isActive ? 'Deactivate' : 'Activate'}
                             </Button>
-                            ) : <span className="text-xs text-muted-foreground">N/A</span>}
+                            ) : <Badge variant="outline" className="text-xs">Protected</Badge>}
                         </TableCell>
                         </TableRow>
-                    ))}
+                        );
+                    })}
                     </TableBody>
                 </Table>
                 </div>
