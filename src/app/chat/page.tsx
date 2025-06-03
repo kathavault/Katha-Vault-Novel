@@ -29,9 +29,9 @@ const aiChatUser = {
   nickname: "Katha AI (Default)",
 };
 
-// Use allMockUsers for placeholderUserChats, excluding current user
-const placeholderUserChats = allMockUsers
-  .filter(user => user.id !== CURRENT_USER_ID && user.id !== aiChatUser.id) // Exclude current user and AI if it has an ID in allMockUsers
+// Initial static data for server rendering and initial client render
+const initialPlaceholderUserChats = allMockUsers
+  .filter(user => user.id !== CURRENT_USER_ID && user.id !== aiChatUser.id)
   .map(user => ({
     id: user.id,
     name: user.name,
@@ -40,8 +40,8 @@ const placeholderUserChats = allMockUsers
     avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
     lastMessage: `Chat with ${user.name}`, // Placeholder
     timestamp: '10:30 AM', // Placeholder
-    unreadCount: Math.floor(Math.random() * 3), // Placeholder
-    isOnline: Math.random() > 0.5, // Placeholder
+    unreadCount: 0, // Static initial value
+    isOnline: false, // Static initial value
     dataAiHint: user.dataAiHint || 'person chat',
   }));
 
@@ -128,15 +128,29 @@ function ChatPageContent() {
   
   const [messages, setMessages] = useState<Message[]>([]); 
   
-  const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<typeof placeholderUserChats[0] | null>(null);
+  const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<typeof initialPlaceholderUserChats[0] | null>(null);
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const [joinedDiscussions, setJoinedDiscussions] = useState<JoinedDiscussion[]>([]);
   const [selectedDiscussionGroup, setSelectedDiscussionGroup] = useState<JoinedDiscussion | null>(null);
 
+  // State for user chats to be updated on client-side
+  const [displayedUserChats, setDisplayedUserChats] = useState(initialPlaceholderUserChats);
+
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Randomize unreadCount and isOnline on the client side after mount
+    setDisplayedUserChats(
+      initialPlaceholderUserChats.map(chat => ({
+        ...chat,
+        unreadCount: Math.floor(Math.random() * 3),
+        isOnline: Math.random() > 0.5,
+      }))
+    );
+  }, []); // Empty dependency array ensures this runs once on mount
 
   useEffect(() => {
     try {
@@ -157,7 +171,7 @@ function ChatPageContent() {
 
   useEffect(() => {
     if (userIdToOpen) {
-      const userToChat = placeholderUserChats.find(u => u.id === userIdToOpen);
+      const userToChat = displayedUserChats.find(u => u.id === userIdToOpen); // Use displayedUserChats
       if (userToChat) {
         setSelectedDirectChatUser(userToChat);
         setActiveMainTab('direct');
@@ -174,7 +188,7 @@ function ChatPageContent() {
          setActiveMainTab('direct');
       }
     }
-  }, [userIdToOpen]);
+  }, [userIdToOpen, displayedUserChats]); // Add displayedUserChats to dependencies
   
   useEffect(() => {
     if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen) { 
@@ -518,7 +532,7 @@ function ChatPageContent() {
               <p className="text-xs text-muted-foreground truncate">AI Assistant for stories...</p>
             </div>
           </div>
-          {placeholderUserChats.map(chat => (
+          {displayedUserChats.map(chat => ( // Use displayedUserChats here
             <div key={chat.id}
               className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedDirectChatUser?.id === chat.id ? 'bg-muted': ''}`}
               onClick={() => { setSelectedDirectChatUser(chat); setSelectedDiscussionGroup(null); setCurrentMessage(''); setActiveMainTab('direct'); router.replace(`/chat?section=direct&userId=${chat.id}`, undefined); }}
