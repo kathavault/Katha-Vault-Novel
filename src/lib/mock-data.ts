@@ -91,7 +91,7 @@ export interface StoredChapterComment {
   isCommentLikedByUser: boolean;
   replies: StoredChapterComment[];
   // For admin page display if needed, not part of core structure
-  novelTitleAdmin?: string; 
+  novelTitleAdmin?: string;
   chapterTitleAdmin?: string;
 }
 
@@ -385,5 +385,3 @@ export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
     }
     return []; // Return empty if not in browser or error
 };
-
-```
