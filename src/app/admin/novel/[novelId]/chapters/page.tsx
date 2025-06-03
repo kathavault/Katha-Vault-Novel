@@ -71,7 +71,7 @@ export default function ManageNovelChaptersPage() {
     }
 
     const updatedNovel = { ...novel, chapters: updatedChapters };
-    setNovel(updatedNovel); // Update local state for immediate UI reflection
+    setNovel(updatedNovel); 
 
     const allNovels = getNovelsFromStorage();
     const updatedAllNovels = allNovels.map(n => n.id === novel.id ? updatedNovel : n);
@@ -141,12 +141,12 @@ export default function ManageNovelChaptersPage() {
       </header>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <CardTitle className="font-headline text-2xl text-primary">Chapters List</CardTitle>
             <CardDescription>View, add, edit, or delete chapters for this novel.</CardDescription>
           </div>
-          <Button onClick={handleOpenAddChapterForm}>
+          <Button onClick={handleOpenAddChapterForm} className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-5 w-5" /> Add New Chapter
           </Button>
         </CardHeader>
@@ -190,7 +190,7 @@ export default function ManageNovelChaptersPage() {
           setIsChapterFormOpen(isOpen);
           if (!isOpen) setEditingChapter(null); 
       }}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-xl md:max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="font-headline text-2xl text-primary">
               {editingChapter ? 'Edit Chapter' : 'Add New Chapter'}

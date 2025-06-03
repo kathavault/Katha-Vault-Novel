@@ -110,6 +110,9 @@ export const SPECIAL_ACCOUNT_DETAILS: Record<string, { fixedName: string; fixedU
   }
 };
 
+export const KRITIKA_USER_ID = SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].idInAllUsers;
+export const KATHAVAULT_OWNER_USER_ID = SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].idInAllUsers;
+
 
 const KATHA_EXPLORER_FOLLOWING_IDS_KEY = 'kathaExplorerFollowingIds';
 const KATHA_VAULT_MANAGED_NOVELS_KEY = 'kathaVaultManagedNovels';
@@ -173,18 +176,16 @@ export const getKathaExplorerUser = (): MockUser => {
         };
       } catch (e) {
         console.error("Error parsing current user profile from localStorage", e);
-        // If parsing fails, reset to default and save it
         localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(defaultKathaExplorerUser));
         profileToReturn = { ...defaultKathaExplorerUser };
       }
     } else {
-      // No profile stored, use default and save it
       localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(defaultKathaExplorerUser));
       profileToReturn = { ...defaultKathaExplorerUser };
     }
   }
 
-  // Ensure special admin accounts are always active, but allow their names/usernames to be editable
+  // Ensure special admin accounts are always active. Name/username are editable.
   if (profileToReturn.email === KRITIKA_EMAIL || profileToReturn.email === KATHAVAULT_OWNER_EMAIL) {
     profileToReturn.isActive = true;
   }
@@ -194,8 +195,7 @@ export const getKathaExplorerUser = (): MockUser => {
 
 export const saveKathaExplorerUser = (userData: MockUser): void => {
   if (typeof window !== 'undefined') {
-    let dataToSave = { ...userData, id: CURRENT_USER_ID }; // Ensure ID is always CURRENT_USER_ID
-    // Ensure special admin accounts remain active if they are being saved
+    let dataToSave = { ...userData, id: CURRENT_USER_ID }; 
     if (dataToSave.email === KRITIKA_EMAIL || dataToSave.email === KATHAVAULT_OWNER_EMAIL) {
         dataToSave.isActive = true;
     }
@@ -205,53 +205,53 @@ export const saveKathaExplorerUser = (userData: MockUser): void => {
 
 
 export const updateCurrentLoggedInUser = (loggedInEmail: string): void => {
-  let currentUser = getKathaExplorerUser(); // Get potentially existing profile
+  let currentUser = getKathaExplorerUser();
   const lowerCaseLoggedInEmail = loggedInEmail.toLowerCase();
 
   let newName = currentUser.name;
   let newUsername = currentUser.username;
-  let newIsActive = true; // Users become active upon login by default unless it's a special account
+  let newIsActive = true; 
 
   const specialAccountInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseLoggedInEmail];
 
   if (specialAccountInfo) {
-    // If current name is default, update to special name. Otherwise, keep custom name.
-    if (currentUser.name === defaultKathaExplorerUser.name || currentUser.name === "Katha User") {
+    // If current name is default or generic, update to special name. Otherwise, keep custom name.
+    if ([defaultKathaExplorerUser.name, "Katha User"].includes(currentUser.name)) {
       newName = specialAccountInfo.fixedName;
     }
-    // If current username is default, update to special username. Otherwise, keep custom username.
-    if (currentUser.username === defaultKathaExplorerUser.username || currentUser.username === "katha_user" || currentUser.username === loggedInEmail.split('@')[0]) {
+    // If current username is default or generic, update to special username. Otherwise, keep custom username.
+    const genericUsernames = [defaultKathaExplorerUser.username, "katha_user", loggedInEmail.split('@')[0]];
+    if (genericUsernames.includes(currentUser.username)) {
       newUsername = specialAccountInfo.fixedUsername;
     }
-    newIsActive = true; // Special accounts are always active
+    newIsActive = true;
   } else {
     // If logging in with a regular email, but current profile name is a special admin name, reset it.
     const isCurrentlySpecialName = Object.values(SPECIAL_ACCOUNT_DETAILS).some(details => details.fixedName === currentUser.name);
     if (isCurrentlySpecialName) {
-       newName = "Katha User"; // Generic name for regular users
+       newName = "Katha User"; 
        newUsername = loggedInEmail.split('@')[0] || "katha_user";
     }
-    // For regular users, isActive will be true on login. Deactivation is handled elsewhere.
   }
 
   const updatedUser: MockUser = {
-    ...currentUser, // Preserve other fields like bio, avatar etc. if they exist
+    ...currentUser, 
     email: loggedInEmail,
     name: newName,
     username: newUsername,
     isActive: newIsActive,
   };
   saveKathaExplorerUser(updatedUser);
-  setLoggedInStatus(true); // Set login status
+  setLoggedInStatus(true); 
 };
 
 export const CURRENT_USER_NAME = () => getKathaExplorerUser().name;
 
 
 export const allMockUsers: MockUser[] = [
-  { ...defaultKathaExplorerUser }, // This will be the base for the logged-in user
-  { id: 'user_kritika_ceo', name: 'Kritika', username: 'Kritikasignh', avatarUrl: 'https://placehold.co/128x128.png?text=KR', avatarFallback: 'KR', dataAiHint: 'person ceo', bio: 'CEO of Katha Vault. Passionate about stories and innovation.', email: KRITIKA_EMAIL, emailVisible: true, gender: 'Female', isActive: true },
-  { id: 'user_katha_owner', name: 'Katha Vault Team', username: 'kathavault', avatarUrl: 'https://placehold.co/128x128.png?text=KV', avatarFallback: 'KV', dataAiHint: 'team logo', bio: 'The official account for Katha Vault.', email: KATHAVAULT_OWNER_EMAIL, emailVisible: true, gender: 'Prefer not to say', isActive: true },
+  { ...defaultKathaExplorerUser }, 
+  { id: KRITIKA_USER_ID, name: SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].fixedName, username: SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].fixedUsername, avatarUrl: 'https://placehold.co/128x128.png?text=KR', avatarFallback: 'KR', dataAiHint: 'person ceo', bio: 'CEO of Katha Vault. Passionate about stories and innovation.', email: KRITIKA_EMAIL, emailVisible: true, gender: 'Female', isActive: true },
+  { id: KATHAVAULT_OWNER_USER_ID, name: SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].fixedName, username: SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].fixedUsername, avatarUrl: 'https://placehold.co/128x128.png?text=KV', avatarFallback: 'KV', dataAiHint: 'team logo', bio: 'The official account for Katha Vault.', email: KATHAVAULT_OWNER_EMAIL, emailVisible: true, gender: 'Prefer not to say', isActive: true },
   { id: 'user_er', name: 'Elara Reads', username: 'elara_reads', avatarUrl: 'https://placehold.co/128x128.png?text=ER', avatarFallback: 'ER', dataAiHint: 'person reading', bio: 'Lover of all things fantasy and sci-fi. Always looking for the next great adventure.', email: 'elara@example.com', emailVisible: false, gender: 'Female', isActive: true },
   { id: 'user_mw', name: 'Marcus Writes', username: 'marcus_writes', avatarUrl: 'https://placehold.co/128x128.png?text=MW', avatarFallback: 'MW', dataAiHint: 'person writing', bio: 'Aspiring novelist, currently working on a historical fiction piece. Coffee enthusiast.', email: 'marcus@example.com', emailVisible: true, gender: 'Male', isActive: true },
   { id: 'user_sg', name: 'SciFi Guru', username: 'scifi_guru', avatarUrl: 'https://placehold.co/128x128.png?text=SG', avatarFallback: 'SG', dataAiHint: 'person space', bio: 'Exploring the final frontier, one book at a time. Beam me up!', email: 'scifi@example.com', emailVisible: true, gender: 'Prefer not to say', isActive: true },
@@ -260,7 +260,7 @@ export const allMockUsers: MockUser[] = [
   { id: 'user_aa', name: 'Adventure Alex', username: 'adventure_alex', avatarUrl: 'https://placehold.co/128x128.png?text=AA', avatarFallback: 'AA', dataAiHint: 'person adventure', bio: 'Seeking thrills in stories and in life!', email: 'alex@example.com', emailVisible: false, gender: 'Male', isActive: true },
   { id: 'user_rh', name: 'Romance Hannah', username: 'romance_hannah', avatarUrl: 'https://placehold.co/128x128.png?text=RH', avatarFallback: 'RH', dataAiHint: 'person romance', bio: 'Hopeless romantic, give me all the happy endings.', email: 'hannah@example.com', emailVisible: true, gender: 'Female', isActive: true },
   { id: 'user_th', name: 'Thriller Tom', username: 'thriller_tom', avatarUrl: 'https://placehold.co/128x128.png?text=TT', avatarFallback: 'TT', dataAiHint: 'person thriller', bio: 'Always on the edge of my seat. The more suspense, the better!', email: 'tom@example.com', emailVisible: false, gender: 'Male', isActive: true },
-].filter((user, index, self) => index === self.findIndex(u => u.id === user.id)); // Ensure unique IDs
+].filter((user, index, self) => index === self.findIndex(u => u.id === user.id)); 
 
 
 export const getInitialFollowingIds = (): string[] => {
@@ -303,17 +303,17 @@ export const getBlockedUserIds = (): string[] => {
         return JSON.parse(storedBlocked);
       } catch (e) {
         console.error("Error parsing blocked user IDs from localStorage", e);
-        const defaultBlocked = ['user_th']; // Default: Thriller Tom is blocked
+        const defaultBlocked = ['user_th']; 
         localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(defaultBlocked));
         return defaultBlocked;
       }
-    } else { // No stored data, set default
+    } else { 
       const defaultBlocked = ['user_th'];
       localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(defaultBlocked));
       return defaultBlocked;
     }
   }
-  return ['user_th']; // Default for SSR or if window is undefined
+  return ['user_th']; 
 };
 
 export const addBlockedUserId = (userId: string): void => {
@@ -367,36 +367,33 @@ export const getNovelsFromStorage = (): Novel[] => {
         novelsFromStorage = JSON.parse(storedNovels);
       } catch (e) {
         console.error("Error parsing novels from localStorage", e);
-        novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels)); // Deep copy
+        novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels)); 
         localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novelsFromStorage));
       }
     } else {
-      novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels)); // Deep copy
+      novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels)); 
       localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novelsFromStorage));
     }
   } else {
-    // For SSR or non-browser environments, return a deep copy of initial mocks
     novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels));
   }
 
-  // Ensure all novels have default values for potentially missing fields
   const processedNovels = novelsFromStorage.map(novel => ({
     ...novel,
-    status: novel.status || 'draft', // Default to draft if status is missing
-    views: novel.views ?? 0, // Default to 0 if views is missing
-    rating: novel.rating ?? 0, // Default to 0 if rating is missing
+    status: novel.status || 'draft', 
+    views: novel.views ?? 0, 
+    rating: novel.rating ?? 0, 
     homePageFeaturedGenre: novel.homePageFeaturedGenre === undefined ? null : novel.homePageFeaturedGenre,
     chapters: Array.isArray(novel.chapters) && novel.chapters.length > 0 ? novel.chapters.map(ch => ({
         id: ch.id || `ch-random-${Math.random().toString(36).substring(2, 9)}`,
         title: ch.title || 'Untitled Chapter',
         content: ch.content || 'No content available.'
-    })) : [{id: `fallback-ch-${novel.id}`, title: 'Chapter 1', content: defaultChapterContent(novel.title, 1, 'Chapter 1')}], // Ensure at least one chapter for structure
+    })) : [{id: `fallback-ch-${novel.id}`, title: 'Chapter 1', content: defaultChapterContent(novel.title, 1, 'Chapter 1')}], 
   }));
 
-  // Determine trending novels based on views of PUBLISHED novels
   const publishedNovels = processedNovels.filter(n => n.status === 'published');
   const sortedByViews = [...publishedNovels].sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
-  const TRENDING_COUNT = 3; // Number of novels to mark as trending
+  const TRENDING_COUNT = 3; 
 
   return processedNovels.map(novel => {
     const isTopTrending = novel.status === 'published' && sortedByViews.slice(0, TRENDING_COUNT).some(trendingNovel => trendingNovel.id === novel.id);
@@ -413,10 +410,9 @@ export const saveNovelsToStorage = (novels: Novel[]): void => {
   }
 };
 
-// Default configuration for home page sections
 const defaultHomeConfig: HomeLayoutConfig = {
-  selectedGenres: ['Sci-Fi', 'Fantasy', 'Romance'], // Default genres to show sections for
-  showMoreNovelsSection: true, // Default to show the "More Novels" section
+  selectedGenres: ['Sci-Fi', 'Fantasy', 'Romance'], 
+  showMoreNovelsSection: true, 
 };
 
 export const getHomeSectionsConfig = (): HomeLayoutConfig => {
@@ -425,26 +421,21 @@ export const getHomeSectionsConfig = (): HomeLayoutConfig => {
     if (storedConfig) {
       try {
         const parsed = JSON.parse(storedConfig);
-        // Basic validation to ensure the stored config has the expected shape
         if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.selectedGenres) && typeof parsed.showMoreNovelsSection === 'boolean') {
           return parsed as HomeLayoutConfig;
         }
-        // If malformed, log warning, set default, and return default
         console.warn("Home sections config in localStorage is malformed. Reverting to default.");
         localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(defaultHomeConfig));
         return defaultHomeConfig;
       } catch (e) {
         console.error("Error parsing home sections config from localStorage", e);
-        // On error, set default and return default
         localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(defaultHomeConfig));
         return defaultHomeConfig;
       }
     }
-    // No config stored, set default and return it
     localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(defaultHomeConfig));
     return defaultHomeConfig;
   }
-  // For SSR or non-browser, return default
   return defaultHomeConfig;
 };
 
@@ -461,25 +452,23 @@ export const getAllUniqueGenres = (novels: Novel[]): string[] => {
 };
 
 
-// Function to check if a user is active. Prioritizes logged-in user's status.
 export const isUserActive = (userId: string): boolean => {
-  if (typeof window === 'undefined') return true; // Assume active on server
+  if (typeof window === 'undefined') return true; 
 
   if (userId === CURRENT_USER_ID) {
     return getKathaExplorerUser().isActive;
   }
   const user = allMockUsers.find(u => u.id === userId);
-  return user ? user.isActive : false; // Default to false if user not found, though ideally all interacting users should be in allMockUsers
+  return user ? user.isActive : false; 
 };
 
 
-// -- Chapter Comments --
 const defaultStoredChapterComments: StoredChapterComment[] = [
   {
     id: 'chapcomment-1-1',
-    novelId: 'trend-1', // Belongs to "The Whispers of Chronos"
-    chapterId: 'chronos-ch-1', // Belongs to Chapter 1 of "The Whispers of Chronos"
-    authorId: 'user_er', // Elara Reads
+    novelId: 'trend-1', 
+    chapterId: 'chronos-ch-1', 
+    authorId: 'user_er', 
     authorName: 'Elara Reads',
     authorAvatarUrl: 'https://placehold.co/40x40.png?text=ER',
     authorInitials: 'ER',
@@ -492,23 +481,23 @@ const defaultStoredChapterComments: StoredChapterComment[] = [
         id: 'chapreply-1-1-1',
         novelId: 'trend-1',
         chapterId: 'chronos-ch-1',
-        authorId: 'user_mw', // Marcus Writes
+        authorId: 'user_mw', 
         authorName: 'Marcus Writes',
         authorAvatarUrl: 'https://placehold.co/40x40.png?text=MW',
         authorInitials: 'MW',
         text: 'Agreed, Elara! The pacing is excellent and the mystery is already building.',
         timestamp: '1 day ago',
         commentLikes: 7,
-        isCommentLikedByUser: true, // Example: Marcus liked his own reply or another user did
+        isCommentLikedByUser: true, 
         replies: [],
       },
     ],
   },
   {
     id: 'chapcomment-1-2',
-    novelId: 'trend-1', // Belongs to "The Whispers of Chronos"
-    chapterId: 'chronos-ch-2', // Belongs to Chapter 2 of "The Whispers of Chronos"
-    authorId: 'user_sg', // SciFi Guru
+    novelId: 'trend-1', 
+    chapterId: 'chronos-ch-2', 
+    authorId: 'user_sg', 
     authorName: 'SciFi Guru',
     authorAvatarUrl: 'https://placehold.co/40x40.png?text=SG',
     authorInitials: 'SG',
@@ -520,9 +509,9 @@ const defaultStoredChapterComments: StoredChapterComment[] = [
   },
   {
     id: 'chapcomment-2-1',
-    novelId: 'trend-2', // Belongs to "Beneath the Emerald Canopy"
-    chapterId: 'canopy-ch-1', // Belongs to Chapter 1 of "Beneath the Emerald Canopy"
-    authorId: 'user_ff', // Fantasy Fan
+    novelId: 'trend-2', 
+    chapterId: 'canopy-ch-1', 
+    authorId: 'user_ff', 
     authorName: 'Fantasy Fan',
     authorAvatarUrl: 'https://placehold.co/40x40.png?text=FF',
     authorInitials: 'FF',
@@ -542,14 +531,11 @@ export const getStoredChapterComments = (): StoredChapterComment[] => {
         return JSON.parse(storedComments);
       } catch (e) {
         console.error("Error parsing stored chapter comments from localStorage", e);
-        // Fallback to default if parsing fails
       }
     }
-    // If no comments stored or parsing failed, set default and return
     localStorage.setItem(KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY, JSON.stringify(defaultStoredChapterComments));
     return defaultStoredChapterComments;
   }
-  // For SSR or non-browser, return a deep copy of defaults
   return JSON.parse(JSON.stringify(defaultStoredChapterComments));
 };
 
@@ -559,7 +545,6 @@ export const saveStoredChapterComments = (comments: StoredChapterComment[]): voi
   }
 };
 
-// Helper for social feed posts
 export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
     if (typeof window !== 'undefined') {
         const storedPosts = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
@@ -568,11 +553,11 @@ export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
                 return JSON.parse(storedPosts) as FeedItemCardProps[];
             } catch (e) {
                 console.error("Error parsing social feed posts from localStorage", e);
-                // Optionally, set to default or empty array and save
             }
         }
-        // If no posts stored, return empty array (or initialize with defaults if desired)
-        // localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify([])); // Example: init empty
     }
-    return []; // Default empty if not in browser or no data
+    return []; 
 };
+
+
+    

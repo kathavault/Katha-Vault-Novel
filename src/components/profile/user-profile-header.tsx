@@ -13,10 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare, Settings, LogOut, MoreVertical, Shield } from 'lucide-react';
+import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare, Settings, LogOut, MoreVertical, CheckCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { EditableUserProfileData } from '@/app/profile/page';
-import { getKathaExplorerUser, isUserLoggedIn } from '@/lib/mock-data';
+import { getKathaExplorerUser, isUserLoggedIn, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID } from '@/lib/mock-data';
 
 interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
   userId: string;
@@ -32,7 +32,7 @@ interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
   onAvatarChange?: (newAvatarUrl: string) => void;
   onProfileSave?: (updatedProfile: EditableUserProfileData) => void;
   onFollowToggle?: () => void;
-  onLogout?: () => void; // Added for logout functionality
+  onLogout?: () => void; 
 }
 
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
@@ -51,7 +51,7 @@ export function UserProfileHeader({
   onAvatarChange,
   onProfileSave,
   onFollowToggle,
-  onLogout, // Added for logout
+  onLogout, 
 }: UserProfileHeaderProps) {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -66,6 +66,8 @@ export function UserProfileHeader({
   const [editableAvatarUrl, setEditableAvatarUrl] = useState(initialAvatarUrl);
   
   const [loggedIn, setLoggedIn] = useState(false);
+  const isSpecialAdmin = userId === KRITIKA_USER_ID || userId === KATHAVAULT_OWNER_USER_ID;
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -88,7 +90,7 @@ export function UserProfileHeader({
     if (!isViewingOwnProfile || !onAvatarChange) return;
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      if (file.size > 2 * 1024 * 1024) { 
         toast({ title: "Image Too Large", description: "Please select an image smaller than 2MB.", variant: "destructive" });
         return;
       }
@@ -140,7 +142,6 @@ export function UserProfileHeader({
     if (onLogout) {
         onLogout();
     } else {
-        // Fallback if onLogout is not provided (e.g., for non-own profile header)
         toast({ title: "Logout action not configured for this view."});
     }
   };
@@ -156,7 +157,7 @@ export function UserProfileHeader({
 
   return (
     <div className="p-4 md:p-6 rounded-lg bg-card shadow-md">
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
         <div className="flex flex-col items-center md:items-start gap-3 flex-shrink-0">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary">
             <AvatarImage src={currentAvatarUrl} alt={currentName} data-ai-hint="person portrait" />
@@ -178,7 +179,7 @@ export function UserProfileHeader({
           )}
         </div>
 
-        <div className="flex-grow space-y-3 w-full">
+        <div className="flex-grow space-y-3 w-full text-center md:text-left">
           {isViewingOwnProfile && isEditing ? (
             <div className="space-y-4">
               <div className="space-y-1">
@@ -225,8 +226,13 @@ export function UserProfileHeader({
             </div>
           ) : (
             <div className="space-y-1 md:space-y-2">
-              <div className="flex flex-col md:flex-row md:items-center md:gap-4">
-                <h1 className="text-2xl md:text-3xl font-headline text-foreground">{currentName}</h1>
+              <div className="flex flex-col md:flex-row md:items-center md:gap-2 justify-center md:justify-start">
+                <h1 className="text-2xl md:text-3xl font-headline text-foreground flex items-center justify-center md:justify-start">
+                    {currentName}
+                    {isSpecialAdmin && (
+                        <CheckCircle className="ml-2 h-5 w-5 md:h-6 md:w-6 text-blue-500 flex-shrink-0" title="Verified Admin" />
+                    )}
+                </h1>
                 <p className="text-md md:text-lg text-muted-foreground font-body">@{currentUsername}</p>
               </div>
               {!isEditing && isViewingOwnProfile && loggedIn && (
@@ -234,15 +240,15 @@ export function UserProfileHeader({
                     <Edit className="mr-2 h-4 w-4" /> Edit Profile
                 </Button>
               )}
-              <p className="font-body text-foreground/90 max-w-md whitespace-pre-wrap pt-1">{currentBio}</p>
+              <p className="font-body text-foreground/90 max-w-xl md:max-w-md whitespace-pre-wrap pt-1">{currentBio}</p>
               {currentEmailDisplay && (
-                <div className="flex items-center text-sm text-muted-foreground font-body pt-2 gap-1">
+                <div className="flex items-center justify-center md:justify-start text-sm text-muted-foreground font-body pt-2 gap-1">
                   <Mail className="h-4 w-4" />
                   <span>{currentEmailVisibleDisplay ? currentEmailDisplay : "Email hidden"}</span>
                 </div>
               )}
               {currentGenderDisplay && (
-                <div className="flex items-center text-sm text-muted-foreground font-body gap-1">
+                <div className="flex items-center justify-center md:justify-start text-sm text-muted-foreground font-body gap-1">
                   <UserSquare2 className="h-4 w-4" />
                   <span>Gender: {currentGenderDisplay}</span>
                 </div>
@@ -251,7 +257,7 @@ export function UserProfileHeader({
           )}
         </div>
         
-        <div className="md:ml-auto flex-shrink-0 self-start">
+        <div className="md:ml-auto flex-shrink-0 self-start pt-2 md:pt-0">
             {isViewingOwnProfile && !isEditing && loggedIn && (
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -280,13 +286,13 @@ export function UserProfileHeader({
 
 
         {!isViewingOwnProfile && onFollowToggle && loggedIn && (
-          <div className="flex flex-col sm:flex-row gap-2 self-start md:self-center mt-3 md:mt-0">
-            <Button onClick={onFollowToggle} variant={isFollowing ? "outline" : "default"} size="sm">
+          <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2 items-stretch md:items-start md:self-center mt-3 md:mt-0">
+            <Button onClick={onFollowToggle} variant={isFollowing ? "outline" : "default"} size="sm" className="w-full sm:w-auto">
               {isFollowing ? <UserMinus className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
               {isFollowing ? 'Unfollow' : 'Follow'}
             </Button>
             {isFollowing && (
-              <Button variant="default" size="sm" asChild>
+              <Button variant="default" size="sm" asChild className="w-full sm:w-auto">
                 <Link href={`/chat?userId=${userId}`}>
                   <MessageSquare className="mr-2 h-4 w-4" /> Message
                 </Link>
@@ -297,7 +303,7 @@ export function UserProfileHeader({
       </div>
 
       {isViewingOwnProfile && isEditing && loggedIn && (
-        <div className="flex gap-3 mt-6 justify-end">
+        <div className="flex gap-3 mt-6 justify-center md:justify-end">
           <Button variant="ghost" onClick={handleCancelEdit}>
             <XCircle className="mr-2 h-4 w-4" /> Cancel
           </Button>
@@ -309,3 +315,5 @@ export function UserProfileHeader({
     </div>
   );
 }
+
+    

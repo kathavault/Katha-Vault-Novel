@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation'; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -24,10 +24,10 @@ import {
   getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment,
   getKathaExplorerUser,
   isUserActive,
-  KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL,
-  isUserLoggedIn, isUserAdmin // Import new auth functions
+  KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID,
+  isUserLoggedIn, isUserAdmin 
 } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -46,9 +46,9 @@ const ITEMS_PER_PAGE_INITIAL = 10;
 
 export default function AdminPage() {
   const { toast } = useToast();
-  const router = useRouter(); // Initialize router
+  const router = useRouter(); 
   const [adminUser, setAdminUser] = useState<MockUser | null>(null);
-  const [isLoadingPage, setIsLoadingPage] = useState(true); // For initial auth check
+  const [isLoadingPage, setIsLoadingPage] = useState(true); 
 
   const [novels, setNovels] = useState<Novel[]>([]);
   const [novelSearchTerm, setNovelSearchTerm] = useState("");
@@ -77,7 +77,7 @@ export default function AdminPage() {
   const [showAllChapterComments, setShowAllChapterComments] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') { // Ensure router and localStorage are available
+    if (typeof window !== 'undefined') { 
       if (!isUserLoggedIn()) {
         router.replace('/login?redirect=/admin');
         return;
@@ -86,7 +86,7 @@ export default function AdminPage() {
         router.replace('/');
         return;
       }
-      // User is logged in and is an admin
+      
       const currentUser = getKathaExplorerUser();
       setAdminUser(currentUser);
 
@@ -105,7 +105,7 @@ export default function AdminPage() {
         }
       }
       setUsers(baseUsers.filter((user, index, self) => index === self.findIndex(u => u.id === user.id)));
-      setIsLoadingPage(false); // Content can now be loaded
+      setIsLoadingPage(false); 
     }
   }, [router, toast]);
 
@@ -218,9 +218,9 @@ export default function AdminPage() {
   };
 
   const filteredUsers = useMemo(() => {
-    let results = [...users]; // Use the state `users` which is set after adminUser
+    let results = [...users]; 
 
-    if (adminUser) { // Ensure adminUser is populated from state
+    if (adminUser) { 
         const currentAdminInListIdx = results.findIndex(u => u.id === adminUser.id);
         if (currentAdminInListIdx !== -1) {
             results[currentAdminInListIdx] = adminUser; 
@@ -230,7 +230,6 @@ export default function AdminPage() {
              }
         }
     }
-    // Ensure unique users by ID
     results = results.filter((user, index, self) => index === self.findIndex(u => u.id === user.id));
 
 
@@ -255,7 +254,7 @@ export default function AdminPage() {
         toast({ title: "Action Denied", description: "This special admin account cannot be deactivated.", variant: "destructive"});
         return;
     }
-    if (targetUser.id === adminUser?.id) { // Use adminUser from state
+    if (targetUser.id === adminUser?.id) { 
       toast({ title: "Action Denied", description: "Admin cannot change own status directly here.", variant: "destructive" }); return;
     }
 
@@ -269,8 +268,6 @@ export default function AdminPage() {
         const mockUserToUpdateInAll = allMockUsers.find(u => u.id === userIdToToggle);
         if (mockUserToUpdateInAll) {
             mockUserToUpdateInAll.isActive = changedUser.isActive; 
-            // This change to allMockUsers is for in-memory consistency for this session
-            // A proper backend would handle global user state.
             toast({ title: "User Status Updated", description: `${changedUser.name} is now ${changedUser.isActive ? "Active" : "Deactivated"}.` });
         }
     }
@@ -317,7 +314,7 @@ export default function AdminPage() {
     if(typeof window !== 'undefined') localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(updatedSocialPosts));
 
     const postAuthorId = allSocialPosts.find(p => p.id === postCommentToDelete.postId)?.authorId;
-    if (postAuthorId === CURRENT_USER_ID) { // Should be adminUser.id if admin deletes own post's comment
+    if (postAuthorId === adminUser?.id) { 
         const userPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
         if (userPostsRaw) {
             let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw);
@@ -382,7 +379,7 @@ export default function AdminPage() {
     const updatedStoredChapterComments = filterRecursively(currentAllChapterComments, chapterCommentToDelete.id);
 
     saveStoredChapterComments(updatedStoredChapterComments);
-    loadChapterComments(novels); // Reload with current novels
+    loadChapterComments(novels); 
     toast({ title: "Chapter Comment Deleted", description: `Comment by ${chapterCommentToDelete.authorName} removed.`, variant: "destructive" });
     setChapterCommentToDelete(null);
     setIsDeleteChapterCommentDialogOpen(false);
@@ -393,7 +390,7 @@ export default function AdminPage() {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Verifying access...</div>;
   }
 
-  if (!adminUser) { // Should not happen if isLoadingPage is false and checks pass
+  if (!adminUser) { 
     return <div className="flex justify-center items-center h-screen">Error: Admin user data not available.</div>;
   }
 
@@ -409,7 +406,7 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="novels" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
           <TabsTrigger value="novels"><BookText className="mr-2 h-5 w-5" />Manage Novels</TabsTrigger>
           <TabsTrigger value="comments"><MessageSquareText className="mr-2 h-5 w-5" />Manage Comments</TabsTrigger>
           <TabsTrigger value="users"><Users className="mr-2 h-5 w-5" />Manage Users</TabsTrigger>
@@ -442,7 +439,7 @@ export default function AdminPage() {
                     <TableBody>
                       {displayedNovels.map((novel) => (
                         <TableRow key={novel.id}>
-                          <TableCell className="font-medium max-w-[200px] truncate" title={novel.title}>{novel.title}</TableCell>
+                          <TableCell className="font-medium max-w-[150px] sm:max-w-[200px] truncate" title={novel.title}>{novel.title}</TableCell>
                           <TableCell><Badge variant={novel.status === 'published' ? 'default' : 'secondary'} className="capitalize">{novel.status}</Badge></TableCell>
                           <TableCell className="text-right space-x-1">
                             <Button variant="ghost" size="icon" asChild title="View Novel"><Link href={`/story/${novel.id}`} target="_blank" rel="noopener noreferrer"><Eye className="h-4 w-4 text-blue-500" /></Link></Button>
@@ -488,13 +485,13 @@ export default function AdminPage() {
                         </div>
                         {displayedPostComments.length === 0 ? <p className="text-muted-foreground text-center py-6">{postCommentSearchTerm ? "No post comments match search." : "No post comments."}</p> : (
                             <Table>
-                                <TableHeader><TableRow><TableHead>Author</TableHead><TableHead className="max-w-md">Comment</TableHead><TableHead>Post Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Author</TableHead><TableHead className="max-w-xs sm:max-w-md">Comment</TableHead><TableHead>Post Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                 {displayedPostComments.map((comment) => (
                                     <TableRow key={`${comment.postId}-${comment.id}`}>
                                     <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
-                                    <TableCell className="max-w-md text-sm whitespace-normal break-words" title={comment.text}>{comment.text}</TableCell>
-                                    <TableCell className="max-w-[150px] truncate" title={comment.postTitleOrContent}>{comment.postTitleOrContent}</TableCell>
+                                    <TableCell className="max-w-xs sm:max-w-md text-sm whitespace-normal break-words" title={comment.text}>{comment.text}</TableCell>
+                                    <TableCell className="max-w-[100px] sm:max-w-[150px] truncate" title={comment.postTitleOrContent}>{comment.postTitleOrContent}</TableCell>
                                     <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeletePostComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
                                     </TableRow>
                                 ))}
@@ -517,13 +514,13 @@ export default function AdminPage() {
                         </div>
                         {displayedChapterComments.length === 0 ? <p className="text-muted-foreground text-center py-6">{chapterCommentSearchTerm ? "No chapter comments match search." : "No chapter comments."}</p> : (
                             <Table>
-                                <TableHeader><TableRow><TableHead>User</TableHead><TableHead className="max-w-md">Comment</TableHead><TableHead>Context (Novel - Chapter)</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>User</TableHead><TableHead className="max-w-xs sm:max-w-md">Comment</TableHead><TableHead>Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                 {displayedChapterComments.map((comment) => (
                                     <TableRow key={comment.id}>
                                     <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
-                                    <TableCell className="max-w-md text-sm whitespace-normal break-words" title={comment.text}>{comment.text}</TableCell>
-                                    <TableCell className="max-w-[180px] truncate" title={`${comment.novelTitleAdmin} - ${comment.chapterTitleAdmin}`}>{`${comment.novelTitleAdmin?.substring(0,20)}... - ${comment.chapterTitleAdmin?.substring(0,20)}...`}</TableCell>
+                                    <TableCell className="max-w-xs sm:max-w-md text-sm whitespace-normal break-words" title={comment.text}>{comment.text}</TableCell>
+                                    <TableCell className="max-w-[120px] sm:max-w-[180px] truncate" title={`${comment.novelTitleAdmin} - ${comment.chapterTitleAdmin}`}>{`${comment.novelTitleAdmin?.substring(0,15)}... - ${comment.chapterTitleAdmin?.substring(0,15)}...`}</TableCell>
                                     <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeleteChapterComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
                                     </TableRow>
                                 ))}
@@ -559,13 +556,19 @@ export default function AdminPage() {
                 <Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right w-[140px]">Action</TableHead></TableRow></TableHeader>
                     <TableBody>
                     {displayedUsers.map((user) => {
-                        const isSpecialAdmin = user.email === KRITIKA_EMAIL || user.email === KATHAVAULT_OWNER_EMAIL;
-                        const cannotBeDeactivated = isSpecialAdmin || user.id === adminUser?.id;
+                        const isSpecialAdminAccount = user.id === KRITIKA_USER_ID || user.id === KATHAVAULT_OWNER_USER_ID;
+                        const cannotBeDeactivated = isSpecialAdminAccount || user.id === adminUser?.id;
                         return (
                         <TableRow key={user.id}>
-                        <TableCell className="font-medium max-w-[200px] truncate" title={`${user.name} (${user.username || 'N/A'})`}>
-                            {user.name} {user.id === adminUser?.id && "(Current Admin)"}
-                            {isSpecialAdmin && user.id !== adminUser?.id && " (Special Admin)"}
+                        <TableCell className="font-medium max-w-[150px] sm:max-w-[200px] truncate" title={`${user.name} (${user.username || 'N/A'})`}>
+                            <div className="flex items-center">
+                                {user.name}
+                                {isSpecialAdminAccount && (
+                                    <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 flex-shrink-0" title="Verified Admin"/>
+                                )}
+                            </div>
+                            {user.id === adminUser?.id && <span className="text-xs text-muted-foreground block">(Current Admin)</span>}
+                            {isSpecialAdminAccount && user.id !== adminUser?.id && <span className="text-xs text-muted-foreground block">(Special Admin)</span>}
                         </TableCell>
                         <TableCell><Badge variant={user.isActive ? 'default' : 'destructive'}>{user.isActive ? 'Active' : 'Deactivated'}</Badge></TableCell>
                         <TableCell className="text-right">
@@ -612,3 +615,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

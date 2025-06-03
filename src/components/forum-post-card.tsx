@@ -8,12 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck, UserCog, LogIn } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck, UserCog, LogIn, CheckCircle } from 'lucide-react';
 import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
-import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, getKathaExplorerUser, isUserActive, isUserLoggedIn, isUserAdmin as checkIsUserAdmin } from '@/lib/mock-data';
+import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, getKathaExplorerUser, isUserActive, isUserLoggedIn, isUserAdmin as checkIsUserAdmin, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID } from '@/lib/mock-data';
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -98,6 +98,8 @@ export function FeedItemCard({
   const [userIsAdmin, setUserIsAdmin] = useState(false);
   const [activeUser, setActiveUser] = useState(false);
 
+  const isPostAuthorSpecialAdmin = authorId === KRITIKA_USER_ID || authorId === KATHAVAULT_OWNER_USER_ID;
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
         const userLoggedIn = isUserLoggedIn();
@@ -115,7 +117,6 @@ export function FeedItemCard({
 
 
   const isAuthorViewingPost = authorId === currentUserId;
-  // const isCurrentUserAdmin = currentUserId === CURRENT_USER_ID; // This check is simplified by userIsAdmin state
 
   useEffect(() => {
     setPostComments(initialComments);
@@ -404,9 +405,11 @@ export function FeedItemCard({
   const CommentItem = ({ comment, depth = 0 }: { comment: FeedItemComment, depth?: number }) => {
     const isCommentByLoggedInUser = loggedIn && comment.authorId === currentUserId;
     const canLoggedInUserDeleteThisComment = loggedIn && activeUser && (isCommentByLoggedInUser || userIsAdmin); 
+    const isCommentAuthorSpecialAdmin = comment.authorId === KRITIKA_USER_ID || comment.authorId === KATHAVAULT_OWNER_USER_ID;
+
 
     return (
-      <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
+      <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-4 sm:ml-6' : ''}`}>
         <Link href={comment.authorId ? `/profile/${comment.authorId}` : '#'} className="flex-shrink-0">
           <Avatar className="h-8 w-8">
             <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
@@ -415,10 +418,13 @@ export function FeedItemCard({
         </Link>
         <div className="flex-1 space-y-1">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center">
               <Link href={comment.authorId ? `/profile/${comment.authorId}` : '#'} className="hover:underline">
                 <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
               </Link>
+              {isCommentAuthorSpecialAdmin && (
+                <CheckCircle className="ml-1 h-3.5 w-3.5 text-blue-500 flex-shrink-0" title="Verified Admin" />
+              )}
               <span className="text-xs text-muted-foreground ml-2">{comment.timestamp}</span>
             </div>
             {canLoggedInUserDeleteThisComment && (
@@ -485,9 +491,14 @@ export function FeedItemCard({
               </Avatar>
             </Link>
             <div className="flex-grow">
-              <Link href={`/profile/${authorId}`} className="hover:underline">
-                <p className="text-sm font-semibold text-foreground">{authorName}</p>
-              </Link>
+              <div className="flex items-center">
+                <Link href={`/profile/${authorId}`} className="hover:underline">
+                  <p className="text-sm font-semibold text-foreground">{authorName}</p>
+                </Link>
+                {isPostAuthorSpecialAdmin && (
+                  <CheckCircle className="ml-1 h-4 w-4 text-blue-500 flex-shrink-0" title="Verified Admin" />
+                )}
+              </div>
               <CardDescription className="font-body text-xs text-muted-foreground flex items-center">
                 {timestamp}
                 <PrivacyIcon />
@@ -545,7 +556,7 @@ export function FeedItemCard({
           )}
         </CardContent>
         <CardFooter className="flex flex-col items-start text-muted-foreground text-sm pt-2">
-          <div className="w-full flex justify-between items-center mb-3">
+          <div className="w-full flex flex-wrap justify-between items-center mb-3 gap-2">
               <div className="flex space-x-3">
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike} disabled={!loggedIn || !activeUser}>
                   <ThumbsUp className={`h-4 w-4 mr-1 ${isPostLiked ? 'fill-primary text-primary' : ''}`} /> {currentPostLikes}
@@ -657,3 +668,5 @@ export function FeedItemCard({
     </>
   );
 }
+
+    

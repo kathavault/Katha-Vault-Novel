@@ -14,7 +14,9 @@ import {
   CURRENT_USER_ID, 
   getKathaExplorerUser,
   isUserActive,
-  isUserLoggedIn // Import isUserLoggedIn
+  isUserLoggedIn, 
+  KRITIKA_USER_ID, 
+  KATHAVAULT_OWNER_USER_ID
 } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChevronLeft, ChevronRight, MessageSquare, ThumbsUp, Send, CornerDownRight, MoreVertical, Trash2, Loader2, LogIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, ThumbsUp, Send, CornerDownRight, MoreVertical, Trash2, Loader2, LogIn, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const ChapterReadingPage = () => {
@@ -51,7 +53,6 @@ const ChapterReadingPage = () => {
       const userIsLoggedIn = isUserLoggedIn();
       setLoggedIn(userIsLoggedIn);
       if (!userIsLoggedIn) {
-        // Store current path to redirect back after login
         const currentPath = `/story/${storyId}/${chapterNumParam}`;
         router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
         return;
@@ -66,14 +67,14 @@ const ChapterReadingPage = () => {
       if (foundNovel && !isNaN(currentChapterIndex) && currentChapterIndex >= 0 && currentChapterIndex < foundNovel.chapters.length) {
         const chapter = foundNovel.chapters[currentChapterIndex];
         setCurrentChapter(chapter);
-        if (loggedIn) loadChapterComments(storyId, chapter.id); // Load comments only if logged in
+        if (loggedIn) loadChapterComments(storyId, chapter.id); 
       } else {
         setCurrentChapter(null);
         setChapterComments([]);
       }
     }
     setIsLoading(false);
-  }, [storyId, currentChapterIndex, router, chapterNumParam, loggedIn]); // Add loggedIn to dependency array
+  }, [storyId, currentChapterIndex, router, chapterNumParam, loggedIn]); 
 
   const currentUserIsActive = currentUser ? isUserActive(currentUser.id) : false;
 
@@ -224,7 +225,7 @@ const ChapterReadingPage = () => {
     const deleteCommentRecursively = (comments: StoredChapterComment[]): StoredChapterComment[] => {
       return comments.filter(comment => {
         if (comment.id === targetCommentId) {
-          return !(comment.authorId === currentUser.id || currentUser.id === CURRENT_USER_ID); // CURRENT_USER_ID for admin
+          return !(comment.authorId === currentUser.id || currentUser.id === CURRENT_USER_ID); 
         }
         if (comment.replies && comment.replies.length > 0) {
           comment.replies = deleteCommentRecursively(comment.replies);
@@ -260,7 +261,7 @@ const ChapterReadingPage = () => {
   };
 
 
-  if (isLoading || !loggedIn) { // Show loading if still loading or if redirecting due to not logged in
+  if (isLoading || !loggedIn) { 
     return <div className="flex justify-center items-center min-h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading chapter or redirecting...</div>;
   }
 
@@ -281,10 +282,11 @@ const ChapterReadingPage = () => {
 
   const CommentItem = ({ comment, depth = 0 }: { comment: StoredChapterComment; depth?: number }) => {
     const isCommentByCurrentUser = currentUser && comment.authorId === currentUser.id;
-    const canCurrentUserDeleteThisComment = loggedIn && currentUserIsActive && currentUser && (isCommentByCurrentUser || currentUser.id === CURRENT_USER_ID);
+    const canCurrentUserDeleteThisComment = loggedIn && currentUserIsActive && currentUser && (isCommentByCurrentUser || currentUser.id === CURRENT_USER_ID); // CURRENT_USER_ID can be admin
+    const isCommentAuthorSpecialAdmin = comment.authorId === KRITIKA_USER_ID || comment.authorId === KATHAVAULT_OWNER_USER_ID;
 
     return (
-      <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
+      <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-4 sm:ml-6' : ''}`}>
         <Link href={currentUser && comment.authorId ? `/profile/${comment.authorId}`: '#'} className="flex-shrink-0">
           <Avatar className="h-8 w-8">
             <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
@@ -293,10 +295,13 @@ const ChapterReadingPage = () => {
         </Link>
         <div className="flex-1 space-y-1">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center flex-wrap">
               <Link href={currentUser && comment.authorId ? `/profile/${comment.authorId}`: '#'} className="hover:underline">
                 <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
               </Link>
+              {isCommentAuthorSpecialAdmin && (
+                  <CheckCircle className="ml-1 h-3.5 w-3.5 text-blue-500 flex-shrink-0" title="Verified Admin" />
+              )}
               <span className="text-xs text-muted-foreground ml-2">{comment.timestamp}</span>
             </div>
             {canCurrentUserDeleteThisComment && (
@@ -352,23 +357,23 @@ const ChapterReadingPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-2 py-8 space-y-8">
-      <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.push(`/story/${storyId}`)}>
+    <div className="container mx-auto px-2 sm:px-4 py-8 space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <Button variant="outline" onClick={() => router.push(`/story/${storyId}`)} className="w-full sm:w-auto">
           <ChevronLeft className="mr-2 h-4 w-4" /> Back to Story Details
         </Button>
-        <h1 className="text-3xl md:text-4xl font-headline text-primary text-center truncate max-w-xl">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-headline text-primary text-center truncate max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl flex-grow">
           {novel.title} - {currentChapter.title || `Chapter ${currentChapterNumberForDisplay}`}
         </h1>
-        <div className="w-[180px] sm:w-[200px] flex-shrink-0"> </div>
+        <div className="w-full sm:w-auto sm:min-w-[180px] flex-shrink-0 hidden sm:block"> </div> {/* Spacer for balance */}
       </div>
 
       <Card className="shadow-lg">
         <CardHeader>
             <CardTitle className="font-body text-2xl text-foreground">{currentChapter.title || `Chapter ${currentChapterNumberForDisplay}`}</CardTitle>
         </CardHeader>
-        <CardContent className="p-6 md:p-8">
-          <article className="prose prose-lg dark:prose-invert max-w-none font-body text-foreground/90 leading-relaxed whitespace-pre-line">
+        <CardContent className="p-4 sm:p-6 md:p-8">
+          <article className="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none font-body text-foreground/90 leading-relaxed whitespace-pre-line">
             {currentChapter.content || "No content available for this chapter."}
           </article>
         </CardContent>
@@ -381,14 +386,14 @@ const ChapterReadingPage = () => {
               <ChevronLeft className="mr-2 h-4 w-4" /> Previous Chapter
             </Link>
           </Button>
-        ) : <div className="w-[150px]" />}
+        ) : <div className="w-[150px] hidden sm:block" />} {/* Spacer for alignment */}
         {currentChapterIndex < totalChapters - 1 ? (
           <Button asChild>
             <Link href={`/story/${storyId}/${currentChapterIndex + 2}`}>
               Next Chapter <ChevronRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-        ) : <div className="w-[150px]" />}
+        ) : <div className="w-[150px] hidden sm:block" />} {/* Spacer for alignment */}
       </div>
 
       <Card className="mt-10">
@@ -408,7 +413,7 @@ const ChapterReadingPage = () => {
                 ))}
               </div>
               <form onSubmit={handlePostNewComment} className="w-full mt-6 pt-4 border-t border-border/50 flex items-start space-x-2">
-                <Avatar className="h-10 w-10 mt-1">
+                <Avatar className="h-10 w-10 mt-1 flex-shrink-0">
                   <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} data-ai-hint="person avatar" />
                   <AvatarFallback>{currentUser.avatarFallback}</AvatarFallback>
                 </Avatar>
@@ -445,3 +450,5 @@ const ChapterReadingPage = () => {
 };
 
 export default ChapterReadingPage;
+
+    
