@@ -4,14 +4,26 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getNovelsFromStorage, type Novel, type Chapter, getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment, CURRENT_USER_ID, CURRENT_USER_NAME, kathaExplorerUser, allMockUsers, isUserActive } from '@/lib/mock-data';
+import { 
+  getNovelsFromStorage, 
+  type Novel, 
+  type Chapter, 
+  getStoredChapterComments, 
+  saveStoredChapterComments, 
+  type StoredChapterComment, 
+  CURRENT_USER_ID, 
+  // CURRENT_USER_NAME, // Use getKathaExplorerUser().name instead
+  getKathaExplorerUser,
+  allMockUsers, 
+  isUserActive 
+} from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChevronLeft, ChevronRight, MessageSquare, ThumbsUp, Send, CornerDownRight, MoreVertical, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, ThumbsUp, Send, CornerDownRight, MoreVertical, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const ChapterReadingPage = () => {
@@ -31,10 +43,13 @@ const ChapterReadingPage = () => {
   const [newCommentText, setNewCommentText] = useState("");
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  
+  const [currentUser, setCurrentUser] = useState(getKathaExplorerUser());
 
-  const currentUserIsActive = isUserActive(CURRENT_USER_ID);
+  const currentUserIsActive = isUserActive(currentUser.id);
 
   useEffect(() => {
+    setCurrentUser(getKathaExplorerUser()); // Refresh current user data
     if (storyId) {
       const allNovels = getNovelsFromStorage();
       const foundNovel = allNovels.find(n => n.id === storyId);
@@ -59,17 +74,16 @@ const ChapterReadingPage = () => {
 
   const updateAndSaveComments = (updatedComments: StoredChapterComment[]) => {
     const allStoredComments = getStoredChapterComments();
-    // Remove old comments for this chapter
     const otherChaptersComments = allStoredComments.filter(c => !(c.novelId === storyId && c.chapterId === currentChapter?.id));
-    // Add updated comments for this chapter
     const newMasterList = [...otherChaptersComments, ...updatedComments];
     saveStoredChapterComments(newMasterList);
-    setChapterComments(updatedComments); // Update local state for UI
+    setChapterComments(updatedComments); 
   };
 
   const handlePostNewComment = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentUserIsActive) {
+    const freshCurrentUser = getKathaExplorerUser();
+    if (!isUserActive(freshCurrentUser.id)) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -79,10 +93,10 @@ const ChapterReadingPage = () => {
       id: `chapcomment-${Date.now()}`,
       novelId: storyId,
       chapterId: currentChapter.id,
-      authorId: CURRENT_USER_ID,
-      authorName: CURRENT_USER_NAME,
-      authorAvatarUrl: kathaExplorerUser.avatarUrl,
-      authorInitials: kathaExplorerUser.avatarFallback,
+      authorId: freshCurrentUser.id,
+      authorName: freshCurrentUser.name,
+      authorAvatarUrl: freshCurrentUser.avatarUrl,
+      authorInitials: freshCurrentUser.avatarFallback,
       text: newCommentText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       commentLikes: 0,
@@ -95,7 +109,7 @@ const ChapterReadingPage = () => {
   };
 
   const handleCommentLike = (targetCommentId: string) => {
-    if (!currentUserIsActive) {
+    if (!isUserActive(currentUser.id)) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -118,7 +132,7 @@ const ChapterReadingPage = () => {
   };
   
   const handleToggleReplyInput = (commentId: string) => {
-    if (!currentUserIsActive) {
+    if (!isUserActive(currentUser.id)) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -128,7 +142,8 @@ const ChapterReadingPage = () => {
 
   const handlePostReply = (e: FormEvent<HTMLFormElement>, parentCommentId: string) => {
     e.preventDefault();
-     if (!currentUserIsActive) {
+    const freshCurrentUser = getKathaExplorerUser();
+    if (!isUserActive(freshCurrentUser.id)) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -138,10 +153,10 @@ const ChapterReadingPage = () => {
       id: `chapreply-${Date.now()}`,
       novelId: storyId,
       chapterId: currentChapter.id,
-      authorId: CURRENT_USER_ID,
-      authorName: CURRENT_USER_NAME,
-      authorAvatarUrl: kathaExplorerUser.avatarUrl,
-      authorInitials: kathaExplorerUser.avatarFallback,
+      authorId: freshCurrentUser.id,
+      authorName: freshCurrentUser.name,
+      authorAvatarUrl: freshCurrentUser.avatarUrl,
+      authorInitials: freshCurrentUser.avatarFallback,
       text: replyText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       commentLikes: 0,
@@ -152,7 +167,7 @@ const ChapterReadingPage = () => {
     const addReplyRecursively = (comments: StoredChapterComment[]): StoredChapterComment[] => {
       return comments.map(comment => {
         if (comment.id === parentCommentId) {
-          return { ...comment, replies: [newReply, ...comment.replies] };
+          return { ...comment, replies: [newReply, ...(comment.replies || [])] }; // Ensure replies is an array
         }
         if (comment.replies && comment.replies.length > 0) {
           return { ...comment, replies: addReplyRecursively(comment.replies) };
@@ -167,21 +182,56 @@ const ChapterReadingPage = () => {
   };
 
   const handleDeleteComment = (targetCommentId: string) => {
+    const freshCurrentUser = getKathaExplorerUser();
+    // Check if current user is active and has permission to delete
+    // This check is also implicitly inside CommentItem for UI enabling/disabling delete
+    if (!isUserActive(freshCurrentUser.id)) {
+        toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
+        return;
+    }
+
     const deleteCommentRecursively = (comments: StoredChapterComment[]): StoredChapterComment[] => {
-      return comments.filter(comment => comment.id !== targetCommentId).map(comment => {
-        if (comment.replies && comment.replies.length > 0) {
-          return { ...comment, replies: deleteCommentRecursively(comment.replies) };
+      return comments.filter(comment => {
+        if (comment.id === targetCommentId) {
+          // Additional check: only allow deletion if current user is author OR admin
+          return !(comment.authorId === freshCurrentUser.id || freshCurrentUser.id === CURRENT_USER_ID);
         }
-        return comment;
+        if (comment.replies && comment.replies.length > 0) {
+          comment.replies = deleteCommentRecursively(comment.replies);
+        }
+        return true; // Keep the comment if it's not the target
+      }).map(comment => { // Ensure the mapping for replies is correct
+          if (comment.replies) {
+              comment.replies = deleteCommentRecursively(comment.replies);
+          }
+          return comment;
       });
     };
-    updateAndSaveComments(deleteCommentRecursively(chapterComments));
-    toast({ title: "Comment Deleted", description: "The comment has been removed." });
+
+    let commentToDelete: StoredChapterComment | undefined;
+    const findComment = (comments: StoredChapterComment[]): StoredChapterComment | undefined => {
+        for (const comment of comments) {
+            if (comment.id === targetCommentId) return comment;
+            if (comment.replies) {
+                const foundInReply = findComment(comment.replies);
+                if (foundInReply) return foundInReply;
+            }
+        }
+        return undefined;
+    };
+    commentToDelete = findComment(chapterComments);
+
+    if (commentToDelete && (commentToDelete.authorId === freshCurrentUser.id || freshCurrentUser.id === CURRENT_USER_ID)) {
+        updateAndSaveComments(deleteCommentRecursively(chapterComments).filter(c => c.id !== targetCommentId)); // Final filter for top-level
+        toast({ title: "Comment Deleted", description: "The comment has been removed." });
+    } else {
+        toast({ title: "Deletion Failed", description: "You do not have permission to delete this comment or it was not found.", variant: "destructive" });
+    }
   };
 
 
   if (isLoading) {
-    return <div className="flex justify-center items-center min-h-screen"><p>Loading chapter...</p></div>;
+    return <div className="flex justify-center items-center min-h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading chapter...</div>;
   }
 
   if (!novel || !currentChapter) {
@@ -200,8 +250,9 @@ const ChapterReadingPage = () => {
   const currentChapterNumberForDisplay = currentChapterIndex + 1;
 
   const CommentItem = ({ comment, depth = 0 }: { comment: StoredChapterComment; depth?: number }) => {
-    const isCommentByCurrentUser = comment.authorId === CURRENT_USER_ID;
-    const canCurrentUserDeleteThisComment = isCommentByCurrentUser || CURRENT_USER_ID === kathaExplorerUser.id; // Admin can delete
+    const freshCurrentUser = getKathaExplorerUser();
+    const isCommentByCurrentUser = comment.authorId === freshCurrentUser.id;
+    const canCurrentUserDeleteThisComment = isUserActive(freshCurrentUser.id) && (isCommentByCurrentUser || freshCurrentUser.id === CURRENT_USER_ID);
 
     return (
       <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
@@ -230,7 +281,6 @@ const ChapterReadingPage = () => {
                   <DropdownMenuItem
                     onSelect={() => handleDeleteComment(comment.id)}
                     className="text-destructive hover:!text-destructive focus:!text-destructive focus:!bg-destructive/10"
-                    disabled={!currentUserIsActive && !isCommentByCurrentUser} // Non-authors cannot delete if deactivated, admin still can
                   >
                     <Trash2 className="mr-2 h-4 w-4" /> Delete Comment
                   </DropdownMenuItem>
@@ -328,8 +378,8 @@ const ChapterReadingPage = () => {
           </div>
           <form onSubmit={handlePostNewComment} className="w-full mt-6 pt-4 border-t border-border/50 flex items-start space-x-2">
             <Avatar className="h-10 w-10 mt-1">
-              <AvatarImage src={kathaExplorerUser.avatarUrl} alt={CURRENT_USER_NAME} data-ai-hint="person avatar" />
-              <AvatarFallback>{kathaExplorerUser.avatarFallback}</AvatarFallback>
+              <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} data-ai-hint="person avatar" />
+              <AvatarFallback>{currentUser.avatarFallback}</AvatarFallback>
             </Avatar>
             <div className="flex-grow space-y-2">
               <Textarea

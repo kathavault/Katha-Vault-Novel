@@ -20,7 +20,9 @@ import {
   getNovelsFromStorage, saveNovelsToStorage, type Novel, 
   allMockUsers, type MockUser, CURRENT_USER_ID,
   getSocialFeedPostsFromStorage, type FeedItemCardProps, type FeedItemComment, SOCIAL_FEED_POSTS_STORAGE_KEY, USER_POSTS_STORAGE_KEY,
-  getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment
+  getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment,
+  getKathaExplorerUser, // Import for checking admin's active status
+  isUserActive
 } from '@/lib/mock-data';
 import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +43,7 @@ const ITEMS_PER_PAGE_INITIAL = 10;
 
 export default function AdminPage() {
   const { toast } = useToast();
+  const [adminUser, setAdminUser] = useState(getKathaExplorerUser()); // Load admin user data
   
   // Novels state
   const [novels, setNovels] = useState<Novel[]>([]);
@@ -73,6 +76,7 @@ export default function AdminPage() {
   const [showAllChapterComments, setShowAllChapterComments] = useState(false);
 
   useEffect(() => {
+    setAdminUser(getKathaExplorerUser()); // Refresh admin user data on mount
     const loadedNovels = getNovelsFromStorage();
     setNovels(loadedNovels);
     loadPostComments();
@@ -94,7 +98,7 @@ export default function AdminPage() {
       }
       extractComments(post.comments, post.id, post.title || post.mainText.substring(0, 50) + "...", post.postType);
     });
-    setFlatPostComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); // Sort by most recent
+    setFlatPostComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); 
   };
 
   const loadChapterComments = (currentNovels: Novel[]) => {
@@ -102,7 +106,7 @@ export default function AdminPage() {
     setAllChapterComments(chapterCommentsData);
     const flattened: FlatChapterComment[] = [];
     
-    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: Novel, chapter: globalThis.Chapter) => { // Use globalThis.Chapter
+    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: Novel, chapter: globalThis.Chapter) => {
         comments.forEach(comment => {
             flattened.push({
                 ...comment,
@@ -129,7 +133,7 @@ export default function AdminPage() {
             }
         }
     });
-    setFlatChapterComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); // Sort by most recent
+    setFlatChapterComments(flattened.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0)); 
   };
   
 
@@ -143,7 +147,7 @@ export default function AdminPage() {
         novel.author.toLowerCase().includes(lowerSearchTerm)
       );
     }
-    return results.sort((a, b) => (b.views || 0) - (a.views || 0)); // Example sort: by views
+    return results.sort((a, b) => (b.views || 0) - (a.views || 0)); 
   }, [novels, novelSearchTerm]);
   const displayedNovels = showAllNovels ? filteredNovels : filteredNovels.slice(0, ITEMS_PER_PAGE_INITIAL);
 
@@ -151,11 +155,15 @@ export default function AdminPage() {
   const handleOpenAddForm = () => { setEditingNovel(null); setIsFormModalOpen(true); };
   const handleOpenEditForm = (novel: Novel) => { setEditingNovel(novel); setIsFormModalOpen(true); };
 
-  const handleNovelFormSubmit = (data: Omit<Novel, 'chapters' | 'id' | 'views' | 'rating' | 'isTrending'> & { chapters?: Novel['chapters'] }) => {
+  const handleNovelFormSubmit = (data: Omit<Novel, 'id' | 'views' | 'rating' | 'isTrending'> & { chapters?: Novel['chapters'] }) => {
     let updatedNovels;
     if (editingNovel) {
       updatedNovels = novels.map(n => (n.id === editingNovel.id ? { 
-        ...n, ...data, chapters: editingNovel.chapters, 
+        ...n, ...data, 
+        chapters: data.chapters || editingNovel.chapters || [], // Ensure chapters is always an array
+        views: n.views || 0, 
+        rating: n.rating || 0, 
+        isTrending: n.isTrending || false 
       } : n));
     } else {
       const newNovelWithDefaults: Novel = { 
@@ -194,19 +202,25 @@ export default function AdminPage() {
         user.username.toLowerCase().includes(lowerSearchTerm)
       );
     }
-    return results;
-  }, [users, userSearchTerm]);
+    // Update user list to reflect latest status, especially for adminUser
+    return results.map(u => u.id === adminUser.id ? getKathaExplorerUser() : u);
+  }, [users, userSearchTerm, adminUser]);
   const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, ITEMS_PER_PAGE_INITIAL);
 
 
   const handleToggleUserStatus = (userId: string) => {
     if (userId === CURRENT_USER_ID) {
-      toast({ title: "Action Denied", description: "Admin cannot change own status.", variant: "destructive" }); return;
+      toast({ title: "Action Denied", description: "Admin cannot change own status directly here. Use profile settings.", variant: "destructive" }); return;
     }
-    const updatedUsers = users.map(user => user.id === userId ? { ...user, isActive: !user.isActive } : user);
+    const updatedUsers = users.map(user => 
+        user.id === userId ? { ...user, isActive: !user.isActive } : user
+    );
     setUsers(updatedUsers); 
+    // Note: This local 'users' state change doesn't persist for other users in mock-data.
+    // For `kathaExplorerUser` (admin), `isActive` is persisted via `saveKathaExplorerUser` elsewhere.
+    // This is a UI simulation for other users in the admin panel.
     const targetUser = updatedUsers.find(u => u.id === userId);
-    toast({ title: "User Status Updated", description: `${targetUser?.name} is now ${targetUser?.isActive ? "Active" : "Deactivated"}. (Change is for current session only)` });
+    toast({ title: "User Status Updated", description: `${targetUser?.name} is now ${targetUser?.isActive ? "Active" : "Deactivated"}. (Change is for current session only for non-admin users)` });
   };
 
   // Post Comments Management
@@ -254,7 +268,7 @@ export default function AdminPage() {
     if (postAuthorId === CURRENT_USER_ID) { 
         const userPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
         if (userPostsRaw) {
-            let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw); // Renamed to avoid conflict with users state
+            let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw); 
             userPostsData = userPostsData.map(post => {
                 if (post.id === postCommentToDelete.postId) {
                      const deleteCommentRecursively = (comments: FeedItemComment[], targetId: string): FeedItemComment[] => {
@@ -288,8 +302,8 @@ export default function AdminPage() {
       results = results.filter(comment => 
         comment.text.toLowerCase().includes(lowerSearchTerm) ||
         comment.authorName.toLowerCase().includes(lowerSearchTerm) ||
-        comment.novelTitleAdmin.toLowerCase().includes(lowerSearchTerm) ||
-        comment.chapterTitleAdmin.toLowerCase().includes(lowerSearchTerm)
+        (comment.novelTitleAdmin && comment.novelTitleAdmin.toLowerCase().includes(lowerSearchTerm)) ||
+        (comment.chapterTitleAdmin && comment.chapterTitleAdmin.toLowerCase().includes(lowerSearchTerm))
       );
     }
     return results;
@@ -304,16 +318,18 @@ export default function AdminPage() {
 
   const confirmDeleteChapterComment = () => {
     if (!chapterCommentToDelete) return;
-
-    const deleteCommentRecursively = (comments: StoredChapterComment[], targetId: string): StoredChapterComment[] => {
+  
+    function filterRecursively(comments: StoredChapterComment[], targetId: string): StoredChapterComment[] {
       return comments
-        .filter(c => c.id !== targetId)
-        .map(c => ({
-          ...c,
-          replies: c.replies ? deleteCommentRecursively(c.replies, targetId) : [],
+        .filter(comment => comment.id !== targetId)
+        .map(comment => ({
+          ...comment,
+          replies: comment.replies ? filterRecursively(comment.replies, targetId) : [],
         }));
-    };
-    const updatedStoredChapterComments = deleteCommentRecursively(allChapterComments, chapterCommentToDelete.id);
+    }
+  
+    const currentAllChapterComments = getStoredChapterComments();
+    const updatedStoredChapterComments = filterRecursively(currentAllChapterComments, chapterCommentToDelete.id);
     
     saveStoredChapterComments(updatedStoredChapterComments);
     loadChapterComments(novels); 
@@ -329,7 +345,7 @@ export default function AdminPage() {
         <ShieldCheck className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Admin Panel</h1>
         <p className="text-xl text-foreground font-body font-semibold">
-          Manage site content and users.
+          Manage site content and users. Welcome, {adminUser.name}!
         </p>
       </header>
 
@@ -413,12 +429,12 @@ export default function AdminPage() {
                         </div>
                         {displayedPostComments.length === 0 ? <p className="text-muted-foreground text-center py-6">{postCommentSearchTerm ? "No post comments match search." : "No post comments."}</p> : (
                             <Table>
-                                <TableHeader><TableRow><TableHead>Author</TableHead><TableHead>Comment</TableHead><TableHead>Post Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Author</TableHead><TableHead className="max-w-md">Comment</TableHead><TableHead>Post Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                 {displayedPostComments.map((comment) => (
                                     <TableRow key={`${comment.postId}-${comment.id}`}>
                                     <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
-                                    <TableCell className="max-w-[200px] text-sm whitespace-normal" title={comment.text}>{comment.text}</TableCell>
+                                    <TableCell className="max-w-md text-sm whitespace-normal break-words" title={comment.text}>{comment.text}</TableCell>
                                     <TableCell className="max-w-[150px] truncate" title={comment.postTitleOrContent}>{comment.postTitleOrContent}</TableCell>
                                     <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeletePostComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
                                     </TableRow>
@@ -442,13 +458,13 @@ export default function AdminPage() {
                         </div>
                         {displayedChapterComments.length === 0 ? <p className="text-muted-foreground text-center py-6">{chapterCommentSearchTerm ? "No chapter comments match search." : "No chapter comments."}</p> : (
                             <Table>
-                                <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Comment</TableHead><TableHead>Context (Novel - Chapter)</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>User</TableHead><TableHead className="max-w-md">Comment</TableHead><TableHead>Context (Novel - Chapter)</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                 {displayedChapterComments.map((comment) => (
                                     <TableRow key={comment.id}>
                                     <TableCell className="max-w-[100px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
-                                    <TableCell className="max-w-[200px] text-sm whitespace-normal" title={comment.text}>{comment.text}</TableCell>
-                                    <TableCell className="max-w-[180px] truncate" title={`${comment.novelTitleAdmin} - ${comment.chapterTitleAdmin}`}>{`${comment.novelTitleAdmin.substring(0,20)}... - ${comment.chapterTitleAdmin.substring(0,20)}...`}</TableCell>
+                                    <TableCell className="max-w-md text-sm whitespace-normal break-words" title={comment.text}>{comment.text}</TableCell>
+                                    <TableCell className="max-w-[180px] truncate" title={`${comment.novelTitleAdmin} - ${comment.chapterTitleAdmin}`}>{`${comment.novelTitleAdmin?.substring(0,20)}... - ${comment.chapterTitleAdmin?.substring(0,20)}...`}</TableCell>
                                     <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeleteChapterComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
                                     </TableRow>
                                 ))}
@@ -472,7 +488,7 @@ export default function AdminPage() {
           <Card>
             <CardHeader>
                 <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserCog className="mr-3 h-6 w-6" /> User Management</CardTitle>
-                <CardDescription>Activate or deactivate user accounts. (Status changes for current session only)</CardDescription>
+                <CardDescription>Activate or deactivate user accounts. (Status changes for current session only for non-admin users)</CardDescription>
                 <div className="pt-2 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search users by name/username..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} className="pl-9" />
@@ -530,6 +546,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-
-    

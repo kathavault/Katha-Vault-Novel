@@ -10,7 +10,15 @@ import { UserListModal, type ModalUser as ProfileModalUser } from '@/components/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit2, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { allMockUsers, CURRENT_USER_ID, CURRENT_USER_NAME, getInitialFollowingIds, updateFollowingIds, MockUser } from '@/lib/mock-data';
+import { 
+  allMockUsers, 
+  CURRENT_USER_ID, 
+  // CURRENT_USER_NAME, // Derived from getKathaExplorerUser
+  getInitialFollowingIds, 
+  updateFollowingIds, 
+  type MockUser,
+  getKathaExplorerUser
+} from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 
 const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts'; // For fetching posts
@@ -33,7 +41,8 @@ export default function UserProfilePage() {
   const params = useParams();
   const { toast } = useToast();
   const viewedUserId = typeof params.userId === 'string' ? params.userId : '';
-
+  
+  const [loggedInUser, setLoggedInUser] = useState(getKathaExplorerUser());
   const [viewedUser, setViewedUser] = useState<MockUser | null>(null);
   const [userPosts, setUserPosts] = useState<FeedItemCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,8 +55,10 @@ export default function UserProfilePage() {
 
 
   useEffect(() => {
+    setLoggedInUser(getKathaExplorerUser()); // Refresh logged-in user data
+
     if (viewedUserId === CURRENT_USER_ID) {
-      router.replace('/profile'); // Redirect to own profile page
+      router.replace('/profile'); 
       return;
     }
 
@@ -57,7 +68,6 @@ export default function UserProfilePage() {
       const currentFollowingIds = getInitialFollowingIds();
       setIsFollowing(currentFollowingIds.includes(viewedUserId));
 
-      // Simulate fetching posts for this user
       try {
         const allPostsRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
         if (allPostsRaw) {
@@ -65,7 +75,7 @@ export default function UserProfilePage() {
           const postsByThisUser = allPosts.filter(p => 
             p.authorId === viewedUserId && 
             (p.privacy === 'public' || 
-             (p.privacy === 'custom' && p.customAudienceUserIds?.includes(CURRENT_USER_ID)))
+             (p.privacy === 'custom' && p.customAudienceUserIds?.includes(loggedInUser.id))) // Check against loggedInUser.id
           );
           setUserPosts(postsByThisUser);
         }
@@ -74,18 +84,18 @@ export default function UserProfilePage() {
         setUserPosts([]);
       }
 
-      // Simulate followers/following lists for the viewed user (can be more sophisticated)
-      // For simplicity, let's show a few random users as followers/following for demo
-      setFollowersList(mapMockUsersToProfileModalUsers(allMockUsers.filter(u => u.id !== viewedUserId).slice(0, Math.floor(Math.random() * 5) +1 )));
-      setFollowingList(mapMockUsersToProfileModalUsers(allMockUsers.filter(u => u.id !== viewedUserId).slice(2, Math.floor(Math.random() * 4) + 2)));
-
+      // Simulate followers/following lists for the viewed user
+      const simulatedFollowers = allMockUsers.filter(u => u.id !== viewedUserId && Math.random() > 0.5).slice(0, Math.floor(Math.random() * 5) + 1);
+      setFollowersList(mapMockUsersToProfileModalUsers(simulatedFollowers));
+      
+      const simulatedFollowing = allMockUsers.filter(u => u.id !== viewedUserId && Math.random() > 0.3).slice(0, Math.floor(Math.random() * 4) + 2);
+      setFollowingList(mapMockUsersToProfileModalUsers(simulatedFollowing));
 
     } else {
-      // Handle user not found
       toast({ title: "User Not Found", description: "This profile could not be loaded.", variant: "destructive" });
     }
     setIsLoading(false);
-  }, [viewedUserId, router, toast]);
+  }, [viewedUserId, router, toast, loggedInUser.id]); // Add loggedInUser.id dependency
 
   const handleFollowToggle = () => {
     if (!viewedUser) return;
@@ -112,9 +122,13 @@ export default function UserProfilePage() {
     setModalOpenFor(type);
   };
 
-  const handleModalActionClick = (userId: string) => {
-    // For public profiles, this is "View Profile"
-    router.push(`/profile/${userId}`);
+  const handleModalActionClick = (userIdToListAction: string) => {
+    if (modalOpenFor === 'followers') {
+      router.push(`/profile/${userIdToListAction}`);
+    } else if (modalOpenFor === 'following') {
+       // If the list shows users the *viewedUser* is following, action is to view their profile
+      router.push(`/profile/${userIdToListAction}`);
+    }
     setModalOpenFor(null);
   };
 
@@ -149,15 +163,15 @@ export default function UserProfilePage() {
         onFollowToggle={handleFollowToggle}
       />
       <UserStats
-        postsCount={userPosts.length} // This should be posts by viewedUser
-        followersCount={followersList.length} // Simulated
-        followingCount={followingList.length} // Simulated
+        postsCount={userPosts.length} 
+        followersCount={followersList.length} 
+        followingCount={followingList.length} 
         onViewFollowers={() => openUserListModal('followers')}
         onViewFollowing={() => openUserListModal('following')}
       />
 
       <Tabs defaultValue="user-posts" className="w-full">
-        <TabsList className="grid w-full grid-cols-1"> {/* Only one tab for public view */}
+        <TabsList className="grid w-full grid-cols-1"> 
            <TabsTrigger value="user-posts"> 
             <Edit2 className="mr-2 h-4 w-4" /> Posts by {viewedUser.name}
           </TabsTrigger>
@@ -169,13 +183,11 @@ export default function UserProfilePage() {
                 <FeedItemCard 
                   key={post.id} 
                   {...post} 
-                  // Deleting/updating comments on other's posts is complex and usually restricted
-                  // For simplicity, we might disable direct comment modification here or make it view-only interaction
                   onDeletePost={() => toast({ title: "Action Not Allowed", description: "You cannot delete another user's post."})}
                   onUpdateComments={() => { /* Placeholder, or disallow */ }}
                   isFullView={true} 
-                  currentUserName={CURRENT_USER_NAME} // Logged in user
-                  currentUserId={CURRENT_USER_ID}   // Logged in user
+                  currentUserName={loggedInUser.name} // Logged in user's name
+                  currentUserId={loggedInUser.id}   // Logged in user's ID
                 />
               )) 
             ) : (
@@ -195,7 +207,7 @@ export default function UserProfilePage() {
           actionButtonLabel="View Profile"
           onActionButtonClick={handleModalActionClick}
           emptyStateMessage={`${viewedUser.name} is not ${modalOpenFor === 'followers' ? 'followed by anyone' : 'following anyone'} yet (simulated).`}
-          currentUserId={CURRENT_USER_ID} // Pass current user ID to prevent actions on self if listed
+          currentUserId={loggedInUser.id} 
         />
       )}
     </div>

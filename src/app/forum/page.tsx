@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus } from 'lucide-react'; 
 import { useToast } from "@/hooks/use-toast";
-import { allMockUsers, kathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID, isUserActive } from '@/lib/mock-data'; 
+import { allMockUsers, getKathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID, isUserActive } from '@/lib/mock-data'; 
 
 const sampleCommentsLevel2: FeedItemComment[] = [
   { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', authorId: 'user_dt', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
@@ -43,6 +43,7 @@ const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 
 export default function FeedPage() {
   const { toast } = useToast();
+  const [currentUser, setCurrentUser] = useState(getKathaExplorerUser()); // Load current user data
   const [newPostContent, setNewPostContent] = useState("");
   const [includeDiscussion, setIncludeDiscussion] = useState(false);
   const [discussionGroupName, setDiscussionGroupName] = useState("");
@@ -55,9 +56,14 @@ export default function FeedPage() {
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
 
   // Get current user status for disabling actions
-  const currentUserIsActive = isUserActive(CURRENT_USER_ID); 
+  const currentUserIsActive = isUserActive(currentUser.id); 
 
   const kathaExplorerFollowingIds = getInitialFollowingIds(); 
+
+  useEffect(() => {
+    setCurrentUser(getKathaExplorerUser()); // Refresh user data on mount or if it changes elsewhere
+  }, []);
+
 
   useEffect(() => {
     setIsLoadingFeed(true);
@@ -89,7 +95,8 @@ export default function FeedPage() {
 
   const handleCreatePost = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!currentUserIsActive) {
+    const freshCurrentUser = getKathaExplorerUser(); // Get latest user data
+    if (!isUserActive(freshCurrentUser.id)) { // Check with fresh data
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated. You cannot create posts.", variant: "destructive"});
       return;
     }
@@ -110,10 +117,10 @@ export default function FeedPage() {
       id: `social-${Date.now()}`,
       postType: 'social',
       mainText: newPostContent,
-      authorName: kathaExplorerUser.name,
-      authorInitials: kathaExplorerUser.avatarFallback, 
-      authorAvatarUrl: kathaExplorerUser.avatarUrl, 
-      authorId: kathaExplorerUser.id,
+      authorName: freshCurrentUser.name,
+      authorInitials: freshCurrentUser.avatarFallback, 
+      authorAvatarUrl: freshCurrentUser.avatarUrl, 
+      authorId: freshCurrentUser.id,
       timestamp: 'Just now',
       likesCount: 0,
       comments: [],
@@ -126,7 +133,7 @@ export default function FeedPage() {
     const updatedSocialFeed = [newPost, ...socialFeedPosts];
     setSocialFeedPosts(updatedSocialFeed);
 
-    if (newPost.authorId === kathaExplorerUser.id) {
+    if (newPost.authorId === freshCurrentUser.id) {
       try {
         const existingUserPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
         const existingUserPosts: FeedItemCardProps[] = existingUserPostsRaw ? JSON.parse(existingUserPostsRaw) : [];
@@ -187,10 +194,10 @@ export default function FeedPage() {
 
   const filteredSocialFeedPosts = socialFeedPosts.filter(post => {
     if (post.privacy === 'public') return true;
-    if (post.authorId === kathaExplorerUser.id) return true; 
+    if (post.authorId === currentUser.id) return true; 
     if (post.privacy === 'private') return false; 
     if (post.privacy === 'custom') {
-      return post.customAudienceUserIds?.includes(kathaExplorerUser.id) ?? false;
+      return post.customAudienceUserIds?.includes(currentUser.id) ?? false;
     }
     return true; 
   });
@@ -226,7 +233,7 @@ export default function FeedPage() {
             <CardContent>
               <form onSubmit={handleCreatePost} className="space-y-4">
                 <Textarea
-                  placeholder={currentUserIsActive ? `What's on your mind, ${kathaExplorerUser.name}?` : "Your account is deactivated. You cannot create posts."}
+                  placeholder={currentUserIsActive ? `What's on your mind, ${currentUser.name}?` : "Your account is deactivated. You cannot create posts."}
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   className="min-h-[100px] font-body text-base"
@@ -328,8 +335,8 @@ export default function FeedPage() {
                 onDeletePost={handleDeletePost}
                 onUpdateComments={handleUpdatePostComments}
                 isFullView={true}
-                currentUserName={kathaExplorerUser.name}
-                currentUserId={kathaExplorerUser.id}
+                currentUserName={currentUser.name}
+                currentUserId={currentUser.id}
               />
             ))
           ) : ( 
@@ -344,10 +351,9 @@ export default function FeedPage() {
                 key={post.id} 
                 {...post} 
                 isFullView={true}
-                onDeletePost={() => { /* Admin can delete from here too if currentUserId is admin */
-                  if (isUserActive(CURRENT_USER_ID) && CURRENT_USER_ID === kathaExplorerUser.id) { // Check if admin
+                onDeletePost={() => { 
+                  if (isUserActive(currentUser.id) && currentUser.id === CURRENT_USER_ID) { 
                     setTrendingPosts(prev => prev.filter(p => p.id !== post.id));
-                    // Also remove from socialFeedPosts and localStorage if it exists there
                     const updatedSocialFeed = socialFeedPosts.filter(sp => sp.id !== post.id);
                     setSocialFeedPosts(updatedSocialFeed);
                      try {
@@ -368,8 +374,8 @@ export default function FeedPage() {
                 onUpdateComments={(postId, comments) => {
                   setTrendingPosts(prev => prev.map(p => p.id === postId ? {...p, comments} : p));
                 }}
-                currentUserName={kathaExplorerUser.name}
-                currentUserId={kathaExplorerUser.id}
+                currentUserName={currentUser.name}
+                currentUserId={currentUser.id}
               />
             ))}
             {trendingPosts.length === 0 && (
@@ -382,7 +388,7 @@ export default function FeedPage() {
         <CustomAudienceModal
             isOpen={isCustomAudienceModalOpen}
             onOpenChange={setIsCustomAudienceModalOpen}
-            allUsers={allMockUsers.filter(u => u.id !== kathaExplorerUser.id)} 
+            allUsers={allMockUsers.filter(u => u.id !== currentUser.id)} 
             followingUserIds={kathaExplorerFollowingIds}
             initialSelectedUserIds={customAudienceUserIds}
             onConfirm={(selectedIds) => {
@@ -395,4 +401,3 @@ export default function FeedPage() {
     </div>
   );
 }
-

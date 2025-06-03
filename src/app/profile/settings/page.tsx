@@ -10,46 +10,53 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from "@/hooks/use-toast";
-import { kathaExplorerUser, allMockUsers, getBlockedUserIds, removeBlockedUserId, type MockUser } from '@/lib/mock-data';
-import { ChevronLeft, Mail, KeyRound, UserX, ShieldAlert, SettingsIcon } from 'lucide-react';
+import { 
+  getKathaExplorerUser, 
+  saveKathaExplorerUser,
+  allMockUsers, 
+  getBlockedUserIds, 
+  removeBlockedUserId, 
+  type MockUser 
+} from '@/lib/mock-data';
+import { ChevronLeft, Mail, KeyRound, UserX, ShieldAlert, SettingsIcon, Loader2 } from 'lucide-react';
 
 export default function AccountSettingsPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  // Email state
-  const [currentEmail, setCurrentEmail] = useState(kathaExplorerUser.email || "");
+  const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
   const [newEmail, setNewEmail] = useState("");
-
-  // Password state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-
-  // Blocked users state
-  const [blockedUsers, setBlockedUsers] = useState<MockUser[]>([]);
+  const [blockedUsersList, setBlockedUsersList] = useState<MockUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const user = getKathaExplorerUser();
+    setCurrentUser(user);
+    setNewEmail(user.email || ""); // Pre-fill newEmail with current for easier update UX
     loadBlockedUsers();
+    setIsLoading(false);
   }, []);
 
   const loadBlockedUsers = () => {
     const blockedIds = getBlockedUserIds();
     const users = allMockUsers.filter(user => blockedIds.includes(user.id));
-    setBlockedUsers(users);
+    setBlockedUsersList(users);
   };
 
   const handleUpdateEmail = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!currentUser) return;
     if (!newEmail.trim() || !/\S+@\S+\.\S+/.test(newEmail)) {
       toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
       return;
     }
-    // Simulate update
-    kathaExplorerUser.email = newEmail; // This updates the mock in memory
-    setCurrentEmail(newEmail);
-    setNewEmail("");
-    toast({ title: "Email Updated", description: `Your email has been changed to ${newEmail} (simulation).` });
+    const updatedUser = { ...currentUser, email: newEmail };
+    saveKathaExplorerUser(updatedUser);
+    setCurrentUser(updatedUser); // Update local state to reflect change immediately
+    toast({ title: "Email Updated", description: `Your email has been changed to ${newEmail}.` });
   };
 
   const handleChangePassword = (e: FormEvent<HTMLFormElement>) => {
@@ -66,19 +73,23 @@ export default function AccountSettingsPage() {
        toast({ title: "Password Too Short", description: "New password must be at least 6 characters.", variant: "destructive" });
       return;
     }
-    // Simulate update
+    // Simulate update for password
     setCurrentPassword("");
     setNewPassword("");
     setConfirmNewPassword("");
-    toast({ title: "Password Changed", description: "Your password has been updated (simulation)." });
+    toast({ title: "Password Changed (Simulated)", description: "Your password has been updated (this is a simulation, no actual change occurred)." });
   };
 
   const handleUnblockUser = (userId: string) => {
     removeBlockedUserId(userId);
-    loadBlockedUsers(); // Refresh the list
+    loadBlockedUsers(); 
     const user = allMockUsers.find(u => u.id === userId);
     toast({ title: "User Unblocked", description: `${user?.name || 'User'} has been unblocked.` });
   };
+
+  if (isLoading || !currentUser) {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading settings...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -99,7 +110,7 @@ export default function AccountSettingsPage() {
           <CardTitle className="font-headline text-2xl text-primary flex items-center">
             <Mail className="mr-3 h-6 w-6" /> Email Address
           </CardTitle>
-          <CardDescription>Your current email is: {currentEmail}</CardDescription>
+          <CardDescription>Your current email is: {currentUser.email}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleUpdateEmail} className="space-y-4">
@@ -123,12 +134,12 @@ export default function AccountSettingsPage() {
           <CardTitle className="font-headline text-2xl text-primary flex items-center">
             <KeyRound className="mr-3 h-6 w-6" /> Change Password
           </CardTitle>
-          <CardDescription>Update your account password.</CardDescription>
+          <CardDescription>Update your account password. (Simulated)</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div>
-              <Label htmlFor="currentPassword">Current Password</Label>
+              <Label htmlFor="currentPassword">Current Password (Simulated)</Label>
               <Input
                 id="currentPassword"
                 type="password"
@@ -167,14 +178,14 @@ export default function AccountSettingsPage() {
           <CardTitle className="font-headline text-2xl text-primary flex items-center">
             <ShieldAlert className="mr-3 h-6 w-6" /> Blocked Users
           </CardTitle>
-          <CardDescription>Manage users you have blocked.</CardDescription>
+          <CardDescription>Manage users you have blocked. Unblocking them will allow you to see their content and interact again.</CardDescription>
         </CardHeader>
         <CardContent>
-          {blockedUsers.length === 0 ? (
+          {blockedUsersList.length === 0 ? (
             <p className="text-muted-foreground">You haven't blocked any users.</p>
           ) : (
             <div className="space-y-3">
-              {blockedUsers.map(user => (
+              {blockedUsersList.map(user => (
                 <div key={user.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-10 w-10">

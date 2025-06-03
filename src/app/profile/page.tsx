@@ -8,14 +8,23 @@ import { ReadingProgressItem } from '@/components/profile/reading-progress-item'
 import { FeedItemCard, type FeedItemCardProps, type FeedItemComment } from '@/components/forum-post-card'; 
 import { UserListModal, type ModalUser as ProfileModalUser } from '@/components/profile/user-list-modal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpenText, Edit2 } from 'lucide-react';
+import { BookOpenText, Edit2, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { kathaExplorerUser, allMockUsers, getInitialFollowingIds, getKathaExplorerFollowersList, CURRENT_USER_ID, CURRENT_USER_NAME, updateFollowingIds, MockUser } from '@/lib/mock-data';
+import { 
+  allMockUsers, 
+  getInitialFollowingIds, 
+  getKathaExplorerFollowersList, 
+  CURRENT_USER_ID, 
+  // CURRENT_USER_NAME, // No longer directly used, fetched from getKathaExplorerUser
+  updateFollowingIds, 
+  type MockUser,
+  getKathaExplorerUser,
+  saveKathaExplorerUser
+} from '@/lib/mock-data';
 
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts'; 
 
-// Convert MockUser to ProfileModalUser for the modal
 const mapMockUsersToProfileModalUsers = (mockUsers: MockUser[]): ProfileModalUser[] => {
   return mockUsers.map(u => ({
     id: u.id,
@@ -27,40 +36,41 @@ const mapMockUsersToProfileModalUsers = (mockUsers: MockUser[]): ProfileModalUse
   }));
 };
 
-export type UserProfileData = typeof kathaExplorerUser & { postsCount: number, followersCount: number, followingCount: number };
+export type UserProfileData = MockUser & { postsCount: number, followersCount: number, followingCount: number };
 export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'username' | 'bio' | 'email' | 'emailVisible' | 'gender'>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  // For current user, profile data is mostly static from kathaExplorerUser, but counts can change.
-  const [currentUserProfileData, setCurrentUserProfileData] = useState<UserProfileData>({
-    ...kathaExplorerUser,
-    postsCount: 0,
-    followersCount: 0,
-    followingCount: 0,
-  });
+  const [currentUserProfileData, setCurrentUserProfileData] = useState<UserProfileData | null>(null);
   const [myProfilePosts, setMyProfilePosts] = useState<FeedItemCardProps[]>([]);
   
-  const [followers, setFollowers] = useState<ProfileModalUser[]>(mapMockUsersToProfileModalUsers(getKathaExplorerFollowersList()));
-  const [following, setFollowing] = useState<ProfileModalUser[]>(mapMockUsersToProfileModalUsers(allMockUsers.filter(u => getInitialFollowingIds().includes(u.id) && u.id !== CURRENT_USER_ID)));
-
+  const [followers, setFollowers] = useState<ProfileModalUser[]>([]);
+  const [following, setFollowing] = useState<ProfileModalUser[]>([]);
 
   const [modalOpenFor, setModalOpenFor] = useState<'followers' | 'following' | null>(null);
   const [modalUsers, setModalUsers] = useState<ProfileModalUser[]>([]);
   const [modalTitle, setModalTitle] = useState("");
   const [modalActionButtonLabel, setModalActionButtonLabel] = useState("");
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+  const loadUserProfile = () => {
+    const user = getKathaExplorerUser();
+    // Counts will be updated after posts and follow lists are loaded
+    setCurrentUserProfileData({
+        ...user,
+        postsCount: myProfilePosts.length, 
+        followersCount: followers.length, 
+        followingCount: following.length 
+    });
+    setIsLoadingProfile(false);
+  };
+  
   const loadUserPosts = () => {
     try {
       const storedPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
-      if (storedPostsRaw) {
-        const storedPosts: FeedItemCardProps[] = JSON.parse(storedPostsRaw);
-        setMyProfilePosts(storedPosts);
-        setCurrentUserProfileData(prev => ({ ...prev, postsCount: storedPosts.length }));
-      } else {
-         setMyProfilePosts([]);
-        setCurrentUserProfileData(prev => ({ ...prev, postsCount: 0 }));
-      }
+      const storedPosts: FeedItemCardProps[] = storedPostsRaw ? JSON.parse(storedPostsRaw) : [];
+      setMyProfilePosts(storedPosts);
+      setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: storedPosts.length }) : null);
     } catch (error) {
       console.error("Error loading posts from localStorage:", error);
       toast({
@@ -69,44 +79,63 @@ export default function ProfilePage() {
         variant: "destructive",
       });
        setMyProfilePosts([]);
-       setCurrentUserProfileData(prev => ({ ...prev, postsCount: 0 }));
+       setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: 0 }) : null);
     }
   };
 
-  const refreshFollowCounts = () => {
+  const refreshFollowCountsAndLists = () => {
      const currentFollowingIds = getInitialFollowingIds();
-     setFollowing(mapMockUsersToProfileModalUsers(allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== CURRENT_USER_ID)));
-     // Followers are simulated, so we might just use the initial mock or a fixed number for current user
-     setFollowers(mapMockUsersToProfileModalUsers(getKathaExplorerFollowersList(5))); // Example: show 5 simulated followers
+     const actualFollowingUsers = allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== CURRENT_USER_ID);
+     setFollowing(mapMockUsersToProfileModalUsers(actualFollowingUsers));
+     
+     // Simulate followers - can be more dynamic if we store followers per user
+     const simulatedFollowers = getKathaExplorerFollowersList(5); 
+     setFollowers(mapMockUsersToProfileModalUsers(simulatedFollowers));
 
-     setCurrentUserProfileData(prev => ({
+     setCurrentUserProfileData(prev => prev ? ({
         ...prev,
-        followersCount: followers.length,
-        followingCount: currentFollowingIds.filter(id => id !== CURRENT_USER_ID).length,
-      }));
+        followersCount: simulatedFollowers.length,
+        followingCount: actualFollowingUsers.length,
+      }) : null);
   };
 
   useEffect(() => {
+    loadUserProfile();
     loadUserPosts();
-    refreshFollowCounts();
+    refreshFollowCountsAndLists();
   }, []); 
+
+  useEffect(() => { // Update profile data counts when posts or follow lists change
+    if(currentUserProfileData){
+        setCurrentUserProfileData(prev => prev ? ({
+            ...prev,
+            postsCount: myProfilePosts.length,
+            followersCount: followers.length,
+            followingCount: following.length,
+        }): null);
+    }
+  }, [myProfilePosts, followers, following]);
 
 
   const handleAvatarChange = (newAvatarUrl: string) => {
-    setCurrentUserProfileData(prevProfile => ({ ...prevProfile, avatarUrl: newAvatarUrl }));
-    // In a real app, update kathaExplorerUser or backend
-    toast({ title: "Avatar Updated", description: "Your avatar has been changed (local simulation)." });
+    const currentUser = getKathaExplorerUser();
+    const updatedUser = { ...currentUser, avatarUrl: newAvatarUrl };
+    saveKathaExplorerUser(updatedUser);
+    setCurrentUserProfileData(prev => prev ? ({ ...prev, avatarUrl: newAvatarUrl }) : null);
+    toast({ title: "Avatar Updated", description: "Your avatar has been changed." });
   };
 
-  const handleProfileSave = (updatedProfile: EditableUserProfileData) => {
-    setCurrentUserProfileData(prevProfile => ({
-      ...prevProfile,
-      ...updatedProfile,
-    }));
-    // In a real app, update kathaExplorerUser or backend
+  const handleProfileSave = (updatedProfileData: EditableUserProfileData) => {
+    const currentUser = getKathaExplorerUser();
+    const updatedUser = {
+      ...currentUser,
+      ...updatedProfileData,
+    };
+    saveKathaExplorerUser(updatedUser);
+    setCurrentUserProfileData(prev => prev ? ({ ...prev, ...updatedProfileData }) : null);
     toast({
       title: "Profile Updated",
-      description: "Your profile details have been updated (local simulation).",
+      description: "Your profile details have been updated.",
     });
   };
 
@@ -125,14 +154,15 @@ export default function ProfilePage() {
 
   const handleModalActionClick = (userId: string) => {
     if (modalOpenFor === 'followers') {
-      // Just navigate to profile or show toast for "View Profile"
-      toast({ title: "View Profile", description: `Would navigate to ${userId}'s profile.` });
+      // Navigate to profile or show toast
+      toast({ title: "View Profile Action", description: `Navigating to profile of user ${userId} (or would in a real app).` });
+      // router.push(`/profile/${userId}`); // If you want actual navigation
     } else if (modalOpenFor === 'following') {
       const currentFollowingIds = getInitialFollowingIds();
       const updatedFollowingIds = currentFollowingIds.filter(id => id !== userId);
       updateFollowingIds(updatedFollowingIds);
-      refreshFollowCounts(); // Re-fetch and update counts
-      toast({ title: "User Unfollowed", description: "You are no longer following this user (local simulation)." });
+      refreshFollowCountsAndLists(); 
+      toast({ title: "User Unfollowed", description: "You are no longer following this user." });
     }
     setModalOpenFor(null); 
   };
@@ -141,7 +171,7 @@ export default function ProfilePage() {
     const updatedPosts = myProfilePosts.filter(post => post.id !== postId);
     setMyProfilePosts(updatedPosts);
     localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
-    setCurrentUserProfileData(prev => ({ ...prev, postsCount: updatedPosts.length }));
+    setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: updatedPosts.length }) : null);
     
     try {
         const socialFeedRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
@@ -179,6 +209,10 @@ const readingProgress = [
   { id: 'story1', title: 'The Last Nebula', progress: 75, coverImageUrl: 'https://placehold.co/360x510.png', aiHint: 'nebula space' },
   { id: 'story2', title: 'Echoes in the Silence', progress: 30, coverImageUrl: 'https://placehold.co/360x510.png', aiHint: 'snowy village' },
 ];
+
+  if (isLoadingProfile || !currentUserProfileData) {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading profile...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -223,7 +257,7 @@ const readingProgress = [
                   onDeletePost={handleDeleteMyPost}
                   onUpdateComments={handleUpdateMyPostComments}
                   isFullView={true} 
-                  currentUserName={CURRENT_USER_NAME}
+                  currentUserName={currentUserProfileData.name} // Use persisted name
                   currentUserId={CURRENT_USER_ID}
                 />
               )) 
