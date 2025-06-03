@@ -7,9 +7,20 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from 'next/navigation';
+import { SharePostModal, type FriendForModal } from '@/components/share-post-modal';
+
+// For client-side simulation, directly import friends list data
+// In a real app, this would come from a shared state/context or API
+const placeholderUserChatsForFriendsList = [
+  { id: 'user1', name: 'Elara Reads', username: '@elara', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ER' },
+  { id: 'user2', name: 'Marcus Writes', username: '@marcus_w', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'MW' },
+  { id: 'user3', name: 'SciFiFanatic', username: '@scifi_guru', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'SF' },
+];
+
 
 export interface FeedItemComment {
   id: string;
@@ -55,12 +66,15 @@ export function FeedItemCard({
   comments: initialComments
 }: FeedItemCardProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [isPostLiked, setIsPostLiked] = useState(false);
   const [currentPostLikes, setCurrentPostLikes] = useState(initialLikesCount);
   const [postComments, setPostComments] = useState<FeedItemComment[]>(initialComments);
   const [showAllComments, setShowAllComments] = useState(false);
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const handlePostLike = () => {
     setIsPostLiked(prev => !prev);
@@ -103,9 +117,9 @@ export function FeedItemCard({
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: 'CurrentUser', // Placeholder - replace with actual user
+      authorName: 'CurrentUser', 
       authorInitials: 'CU',
-      authorAvatarUrl: 'https://placehold.co/32x32.png?text=CU', // Placeholder
+      authorAvatarUrl: 'https://placehold.co/32x32.png?text=CU', 
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -140,21 +154,19 @@ export function FeedItemCard({
   const commentsToDisplay = showAllComments ? postComments : postComments.slice(0, 2);
   const totalTopLevelComments = postComments.length;
 
-  const handleShare = () => {
-    // Simulate copying to clipboard or opening a share dialog
-    // For now, just a toast
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(`${window.location.origin}/forum/${postId}`) // Example link
-            .then(() => {
-                toast({ title: "Link Copied!", description: "Post link copied to clipboard." });
-            })
-            .catch(() => {
-                toast({ title: "Share Action", description: "Share functionality in development. For now, link would be: /forum/" + postId, duration: 5000 });
-            });
-    } else {
-        toast({ title: "Share Action", description: "Share functionality in development. For now, link would be: /forum/" + postId, duration: 5000 });
-    }
+  const handleOpenShareModal = () => {
+    setIsShareModalOpen(true);
   };
+
+  const handleJoinDiscussion = () => {
+    toast({
+        title: "Joining Discussion...",
+        description: `Taking you to the chat area for "${title || 'this post'}". Imagine this is the dedicated discussion group!`,
+        duration: 4000,
+    });
+    router.push('/chat');
+  };
+
 
   const CommentItem = ({ comment }: { comment: FeedItemComment }) => (
     <div className={`flex space-x-3 mt-4 ${comment.id.startsWith('reply-') ? 'ml-6 sm:ml-8' : ''}`}>
@@ -200,87 +212,99 @@ export function FeedItemCard({
   );
 
   return (
-    <Card className="hover:shadow-lg transition-shadow duration-200 bg-card border-border">
-      <CardHeader className="pb-3">
-        <div className="flex items-start space-x-3 mb-2">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={authorAvatarUrl} alt={authorName} data-ai-hint="person avatar" />
-            <AvatarFallback>{authorInitials}</AvatarFallback>
-          </Avatar>
-          <div className="flex-grow">
-            <p className="text-sm font-semibold text-foreground">{authorName}</p>
-            <CardDescription className="font-body text-xs text-muted-foreground">{timestamp}</CardDescription>
-          </div>
-        </div>
-        {postType === 'forum' && title && (
-          <Link href={`/forum/${postId}`} className="hover:text-primary transition-colors">
-            <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
-          </Link>
-        )}
-      </CardHeader>
-      <CardContent className="pt-0 pb-3">
-        <p className={`font-body text-foreground/90 ${postType === 'forum' ? 'line-clamp-4' : 'whitespace-pre-wrap'}`}>
-          {mainText}
-        </p>
-        {postType === 'social' && imageUrl && (
-          <div className="mt-3 rounded-lg overflow-hidden border border-border">
-            <div className="relative aspect-video w-full">
-              <Image
-                src={imageUrl}
-                alt={title || "Post image"}
-                layout="fill"
-                objectFit="cover"
-                data-ai-hint={aiHint}
-                className="rounded-lg"
-              />
+    <>
+      <Card className="hover:shadow-lg transition-shadow duration-200 bg-card border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-start space-x-3 mb-2">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={authorAvatarUrl} alt={authorName} data-ai-hint="person avatar" />
+              <AvatarFallback>{authorInitials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-grow">
+              <p className="text-sm font-semibold text-foreground">{authorName}</p>
+              <CardDescription className="font-body text-xs text-muted-foreground">{timestamp}</CardDescription>
             </div>
           </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex flex-col items-start text-muted-foreground text-sm pt-2">
-        <div className="w-full flex justify-between items-center mb-3">
-            <div className="flex space-x-3">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike}>
-                <ThumbsUp className={`h-4 w-4 mr-1 ${isPostLiked ? 'fill-primary text-primary' : ''}`} /> {currentPostLikes}
-              </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={() => setShowAllComments(prev => !prev)}>
-                <MessageSquare className="h-4 w-4 mr-1" /> {totalTopLevelComments}
-              </Button>
-              {postType === 'forum' && viewsCount !== undefined && (
-                <span className="flex items-center p-1">
-                  <Eye className="h-4 w-4 mr-1" /> {viewsCount}
-                </span>
+          {postType === 'forum' && title && (
+             // For forum posts, the title itself is the main link, or we navigate via "Join Discussion"
+            <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
+          )}
+        </CardHeader>
+        <CardContent className="pt-0 pb-3">
+          <p className={`font-body text-foreground/90 ${postType === 'forum' ? 'line-clamp-4' : 'whitespace-pre-wrap'}`}>
+            {mainText}
+          </p>
+          {postType === 'social' && imageUrl && (
+            <div className="mt-3 rounded-lg overflow-hidden border border-border">
+              <div className="relative aspect-video w-full">
+                <Image
+                  src={imageUrl}
+                  alt={title || "Post image"}
+                  layout="fill"
+                  objectFit="cover"
+                  data-ai-hint={aiHint}
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+        <CardFooter className="flex flex-col items-start text-muted-foreground text-sm pt-2">
+          <div className="w-full flex justify-between items-center mb-3">
+              <div className="flex space-x-3">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike}>
+                  <ThumbsUp className={`h-4 w-4 mr-1 ${isPostLiked ? 'fill-primary text-primary' : ''}`} /> {currentPostLikes}
+                </Button>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={() => setShowAllComments(prev => !prev)}>
+                  <MessageSquare className="h-4 w-4 mr-1" /> {totalTopLevelComments}
+                </Button>
+                {postType === 'forum' && viewsCount !== undefined && (
+                  <span className="flex items-center p-1">
+                    <Eye className="h-4 w-4 mr-1" /> {viewsCount}
+                  </span>
+                )}
+              </div>
+               {postType === 'forum' ? (
+                 <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" onClick={handleJoinDiscussion}>Join Discussion</Button>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8" onClick={handleOpenShareModal}>
+                        <Share2 className="h-4 w-4" />
+                    </Button>
+                 </div>
+              ) : ( // social post
+                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8" onClick={handleOpenShareModal}>
+                   <Share2 className="h-4 w-4" />
+                 </Button>
+              )}
+          </div>
+          
+          {postComments.length > 0 && (
+            <div className="w-full pt-3 mt-2 border-t border-border/50">
+              {commentsToDisplay.map(comment => (
+                <CommentItem key={comment.id} comment={comment} />
+              ))}
+              {!showAllComments && totalTopLevelComments > 2 && (
+                <Button variant="link" size="sm" className="text-primary hover:text-primary/80 mt-3 p-0 h-auto" onClick={() => setShowAllComments(true)}>
+                  View all {totalTopLevelComments} comments
+                </Button>
+              )}
+               {showAllComments && totalTopLevelComments > 2 && (
+                <Button variant="link" size="sm" className="text-muted-foreground hover:text-primary/80 mt-3 p-0 h-auto" onClick={() => setShowAllComments(false)}>
+                  Show fewer comments
+                </Button>
               )}
             </div>
-             {postType === 'forum' ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/forum/${postId}`}>Join Discussion</Link>
-              </Button>
-            ) : (
-               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handleShare}>
-                 <Send className="h-4 w-4 mr-1" /> Share
-               </Button>
-            )}
-        </div>
-        
-        {postComments.length > 0 && (
-          <div className="w-full pt-3 mt-2 border-t border-border/50">
-            {commentsToDisplay.map(comment => (
-              <CommentItem key={comment.id} comment={comment} />
-            ))}
-            {!showAllComments && totalTopLevelComments > 2 && (
-              <Button variant="link" size="sm" className="text-primary hover:text-primary/80 mt-3 p-0 h-auto" onClick={() => setShowAllComments(true)}>
-                View all {totalTopLevelComments} comments
-              </Button>
-            )}
-             {showAllComments && totalTopLevelComments > 2 && (
-              <Button variant="link" size="sm" className="text-muted-foreground hover:text-primary/80 mt-3 p-0 h-auto" onClick={() => setShowAllComments(false)}>
-                Show fewer comments
-              </Button>
-            )}
-          </div>
-        )}
-      </CardFooter>
-    </Card>
+          )}
+        </CardFooter>
+      </Card>
+      {isShareModalOpen && (
+        <SharePostModal
+          isOpen={isShareModalOpen}
+          onOpenChange={setIsShareModalOpen}
+          postTitle={title || mainText.substring(0, 50) + "..."}
+          postId={postId}
+          // friendsList={placeholderUserChatsForFriendsList} // Passing imported data
+        />
+      )}
+    </>
   );
 }
