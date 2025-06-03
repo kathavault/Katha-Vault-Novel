@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Eye, BookOpen, Star } from 'lucide-react';
+import type { Chapter } from '@/lib/mock-data'; // Import Chapter type
 
 interface StoryCardProps {
   id: string;
@@ -15,7 +16,7 @@ interface StoryCardProps {
   coverImageUrl?: string;
   aiHint?: string;
   views?: number;
-  chapters?: number;
+  chapters: Chapter[]; // Changed from number to Chapter[]
   rating?: number;
   isTrending?: boolean;
 }
@@ -29,7 +30,7 @@ export function StoryCard({
   coverImageUrl,
   aiHint = "book story",
   views,
-  chapters,
+  chapters, // This is now Chapter[]
   rating,
   isTrending
 }: StoryCardProps) {
@@ -48,7 +49,6 @@ export function StoryCard({
       <CardHeader className="p-4">
 
           <Link href={`/story/${id}`} passHref className="block">
-            {/* Changed: Removed h-48, added aspect-[12/17] */}
             <div className="relative w-full aspect-[12/17] mb-4 rounded-lg overflow-hidden cursor-pointer">
               <Image
                 src={coverImageUrl || placeholderUrl}
@@ -57,7 +57,7 @@ export function StoryCard({
                 objectFit="cover"
                 data-ai-hint={aiHint}
                 className="rounded-lg"
-                sizes="(max-width: 640px) 90vw, (max-width: 768px) 45vw, (max-width: 1024px) 30vw, 25vw" // Adjusted sizes for potentially taller cards
+                sizes="(max-width: 640px) 90vw, (max-width: 768px) 45vw, (max-width: 1024px) 30vw, 25vw"
               />
             </div>
           </Link>
@@ -96,10 +96,10 @@ export function StoryCard({
             )}
           </div>
         )}
-        {chapters !== undefined && (
+        {chapters && ( // Check if chapters array exists
           <div className="text-xs text-muted-foreground pt-1">
             <span className="flex items-center">
-              <BookOpen className="h-4 w-4 mr-1 text-primary/80" /> {chapters} {chapters === 1 ? 'chapter' : 'chapters'}
+              <BookOpen className="h-4 w-4 mr-1 text-primary/80" /> {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'}
             </span>
           </div>
         )}
