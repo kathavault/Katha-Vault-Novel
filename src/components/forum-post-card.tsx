@@ -229,7 +229,7 @@ export function FeedItemCard({
       const discussionExists = joinedDiscussions.some(d => d.postId === postId);
       if (!discussionExists) {
         joinedDiscussions.push({
-          id: postId,
+          id: postId, // Use postId as the unique ID for the discussion group itself
           name: groupNameDisplay,
           postId: postId,
         });
@@ -278,7 +278,7 @@ export function FeedItemCard({
   }
 
   const PrivacyIcon = () => {
-    if (!isAuthorViewingPost) return null;
+    if (!isAuthorViewingPost) return null; // Only show privacy indicator to the author
     if (privacy === 'public') return <Globe className="h-3.5 w-3.5 text-blue-500 ml-1.5" title="Public Post"/>;
     if (privacy === 'private') return <Lock className="h-3.5 w-3.5 text-orange-500 ml-1.5" title="Private Post"/>;
     if (privacy === 'custom') return <UserCog className="h-3.5 w-3.5 text-teal-500 ml-1.5" title={`Custom Audience (${customAudienceUserIds?.length || 0})`}/>;
@@ -287,7 +287,7 @@ export function FeedItemCard({
 
   const CommentItem = ({ comment, depth = 0 }: { comment: FeedItemComment, depth?: number }) => {
     const isCommentByCurrentUser = comment.authorId === currentUserId;
-    const canCurrentUserDeleteThisComment = isCommentByCurrentUser || isAuthorViewingPost;
+    const canCurrentUserDeleteThisComment = isCommentByCurrentUser || isAuthorViewingPost; // Post author can delete any comment
 
     return (
       <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
@@ -435,7 +435,7 @@ export function FeedItemCard({
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike}>
                   <ThumbsUp className={`h-4 w-4 mr-1 ${isPostLiked ? 'fill-primary text-primary' : ''}`} /> {currentPostLikes}
                 </Button>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={() => setShowAllComments(prev => !prev)}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={() => {if (isFullView) setShowAllComments(prev => !prev)}}>
                   <MessageSquare className="h-4 w-4 mr-1" /> {totalTopLevelComments}
                 </Button>
                 {postType === 'forum' && viewsCount !== undefined && (

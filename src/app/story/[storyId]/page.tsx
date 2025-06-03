@@ -159,7 +159,8 @@ const StoryDetailPage = () => {
                            <Image
                             src={novel.coverImageUrl || `https://placehold.co/48x64.png?text=C${chapterNum}`}
                             alt={`Chapter ${chapterNum} thumbnail`}
-                            layout="fill"
+                            width={48}
+                            height={64}
                             objectFit="cover"
                             data-ai-hint={novel.aiHint || "book chapter"}
                           />
