@@ -91,7 +91,23 @@ const kathaVaultAIChatFlow = ai.defineFlow(
     outputSchema: KathaVaultAIChatOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const {output} = await prompt(input);
+      if (output) {
+        return output;
+      }
+      // Fallback if output is unexpectedly null or undefined, though definePrompt should handle schema validation.
+      return { aiResponse: "I'm having a little trouble understanding that. Could you try rephrasing? 🤔" };
+    } catch (error) {
+      console.error("Error calling AI model in kathaVaultAIChatFlow:", error);
+      // Check if the error is a Genkit-specific error or a generic one
+      const errorMessage = (error instanceof Error && error.message) ? error.message : "Unknown error";
+      
+      if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("service unavailable") || errorMessage.toLowerCase().includes("overloaded")) {
+        return { aiResponse: "I'm a bit overwhelmed right now! 😅 Please try again in a few moments." };
+      }
+      return { aiResponse: "Oops! Something went wrong and I couldn't process your request. Please try again later. 🛠️" };
+    }
   }
 );
+
