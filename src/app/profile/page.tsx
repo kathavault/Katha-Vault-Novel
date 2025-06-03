@@ -43,6 +43,18 @@ export default function ProfilePage() {
     });
   };
 
+  const handleProfileSave = (updatedProfile: { name: string; bio: string }) => {
+    setUserProfile(prevProfile => ({ 
+      ...prevProfile, 
+      name: updatedProfile.name,
+      bio: updatedProfile.bio 
+    }));
+    toast({
+      title: "Profile Updated",
+      description: "Your name and bio have been updated (local changes).",
+    });
+  };
+
   return (
     <div className="space-y-8">
       <UserProfileHeader
@@ -51,6 +63,7 @@ export default function ProfilePage() {
         avatarUrl={userProfile.avatarUrl}
         bio={userProfile.bio}
         onAvatarChange={handleAvatarChange}
+        onProfileSave={handleProfileSave}
       />
       <UserStats
         postsCount={userProfile.postsCount}
