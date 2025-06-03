@@ -128,7 +128,6 @@ export default function FeedPage() {
       timestamp: 'Just now',
       likesCount: 0,
       comments: [],
-      // imageUrl and aiHint can be added if image uploads are supported later
     };
 
     setSocialFeedPosts(prevPosts => [newPost, ...prevPosts]);
@@ -148,31 +147,6 @@ export default function FeedPage() {
           Discover what's happening, share your thoughts, and connect.
         </p>
       </header>
-
-      {/* Create Post Section */}
-      <Card className="w-full shadow-xl">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl text-primary flex items-center">
-            <Edit className="mr-3 h-6 w-6" /> Create Post
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreatePost} className="space-y-4">
-            <Textarea
-              placeholder="What's on your mind, Katha Explorer?"
-              value={newPostContent}
-              onChange={(e) => setNewPostContent(e.target.value)}
-              className="min-h-[100px] font-body text-base"
-              rows={4}
-            />
-            <div className="flex justify-end">
-              <Button type="submit" size="lg">
-                <Send className="mr-2 h-5 w-5" /> Post
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
       
       <Tabs defaultValue="social-feed" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -184,15 +158,39 @@ export default function FeedPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="social-feed">
-          <div className="space-y-6">
-            {socialFeedPosts.map(post => (
-              <FeedItemCard key={post.id} {...post} />
-            ))}
-             {socialFeedPosts.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">The social feed is quiet for now. Create a post or follow others to see updates!</p>
-            )}
-          </div>
+        <TabsContent value="social-feed" className="space-y-6">
+          {/* Create Post Section - MOVED INSIDE social-feed TabsContent */}
+          <Card className="w-full shadow-xl">
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl text-primary flex items-center">
+                <Edit className="mr-3 h-6 w-6" /> Create Post
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreatePost} className="space-y-4">
+                <Textarea
+                  placeholder="What's on your mind, Katha Explorer?"
+                  value={newPostContent}
+                  onChange={(e) => setNewPostContent(e.target.value)}
+                  className="min-h-[100px] font-body text-base"
+                  rows={4}
+                />
+                <div className="flex justify-end">
+                  <Button type="submit" size="lg">
+                    <Send className="mr-2 h-5 w-5" /> Post
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Social Feed Posts */}
+          {socialFeedPosts.map(post => (
+            <FeedItemCard key={post.id} {...post} />
+          ))}
+          {socialFeedPosts.length === 0 && ( // Condition to check if only the create post form is present (no actual posts)
+            <p className="text-center text-muted-foreground py-8">The social feed is quiet for now. Create a post or follow others to see updates!</p>
+          )}
         </TabsContent>
 
         <TabsContent value="trending-posts">
