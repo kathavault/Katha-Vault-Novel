@@ -5,7 +5,9 @@ import { useState, useEffect } from 'react';
 import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
-import { UserPostItem } from '@/components/profile/user-post-item';
+// UserPostItem is no longer used here, FeedItemCard will be used instead.
+// import { UserPostItem } from '@/components/profile/user-post-item'; 
+import { FeedItemCard, type FeedItemCardProps } from '@/components/forum-post-card'; // Import FeedItemCard
 import { UserListModal, type ModalUser } from '@/components/profile/user-list-modal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpenText, Edit2 } from 'lucide-react';
@@ -14,15 +16,15 @@ import { useToast } from "@/hooks/use-toast";
 // Placeholder data
 const initialUserProfile = {
   name: 'Katha Explorer',
-  username: 'katha_explorer', // Made username part of the editable profile
+  username: 'katha_explorer',
   avatarUrl: 'https://placehold.co/128x128.png',
   bio: 'Avid reader and aspiring writer. Exploring worlds one story at a time.',
   email: 'katha.explorer@example.com',
   emailVisible: true,
   gender: 'Prefer not to say',
-  postsCount: 12,
-  followersCount: 3, // Updated to match placeholder data
-  followingCount: 2, // Updated to match placeholder data
+  postsCount: 0, // Will be updated dynamically
+  followersCount: 3,
+  followingCount: 2,
 };
 
 const readingProgress = [
@@ -30,10 +32,8 @@ const readingProgress = [
   { id: 'story2', title: 'Echoes in the Silence', progress: 30, coverImageUrl: 'https://placehold.co/600x400.png', aiHint: 'snowy village' },
 ];
 
-const userPosts = [
-  { id: 'post1', text: 'Just finished "The Midnight Library" - what an amazing concept! Highly recommend it. #bookrecommendation', timestamp: '2h ago', likes: 15, comments: 3 },
-  { id: 'post2', text: 'Struggling with writer\'s block today. Any tips for getting the creative juices flowing? #writingcommunity', timestamp: '1d ago', likes: 8, comments: 5 },
-];
+// Static userPosts is removed, will fetch from localStorage
+// const userPosts = [ ... ]; 
 
 const initialFollowers: ModalUser[] = [
   { id: 'follower1', name: 'Elara Reads', username: 'elara_reads', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ER', dataAiHint: 'person reading' },
@@ -46,6 +46,7 @@ const initialFollowing: ModalUser[] = [
   { id: 'following2', name: 'Mystery Lover', username: 'mystery_lover', avatarUrl: 'https://placehold.co/40x40.png', avatarFallback: 'ML', dataAiHint: 'person detective' },
 ];
 
+const CURRENT_USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 
 export type UserProfileData = typeof initialUserProfile;
 export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'username' | 'bio' | 'email' | 'emailVisible' | 'gender'>;
@@ -53,6 +54,7 @@ export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'username' 
 export default function ProfilePage() {
   const { toast } = useToast();
   const [userProfile, setUserProfile] = useState<UserProfileData>(initialUserProfile);
+  const [myProfilePosts, setMyProfilePosts] = useState<FeedItemCardProps[]>([]);
   
   const [followers, setFollowers] = useState<ModalUser[]>(initialFollowers);
   const [following, setFollowing] = useState<ModalUser[]>(initialFollowing);
@@ -63,7 +65,29 @@ export default function ProfilePage() {
   const [modalActionButtonLabel, setModalActionButtonLabel] = useState("");
 
   useEffect(() => {
-    // Update counts in profile if follower/following lists change
+    // Load user's posts from localStorage
+    try {
+      const storedPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
+      if (storedPostsRaw) {
+        const storedPosts: FeedItemCardProps[] = JSON.parse(storedPostsRaw);
+        setMyProfilePosts(storedPosts);
+        setUserProfile(prev => ({ ...prev, postsCount: storedPosts.length }));
+      } else {
+        setUserProfile(prev => ({ ...prev, postsCount: 0 }));
+      }
+    } catch (error) {
+      console.error("Error loading posts from localStorage:", error);
+      toast({
+        title: "Load Error",
+        description: "Could not load your posts for the profile page.",
+        variant: "destructive",
+      });
+       setUserProfile(prev => ({ ...prev, postsCount: 0 }));
+    }
+  }, [toast]);
+
+
+  useEffect(() => {
     setUserProfile(prev => ({
       ...prev,
       followersCount: followers.length,
@@ -73,7 +97,6 @@ export default function ProfilePage() {
 
   const handleAvatarChange = (newAvatarUrl: string) => {
     setUserProfile(prevProfile => ({ ...prevProfile, avatarUrl: newAvatarUrl }));
-    // No toast here, UserProfileHeader will handle its own toast for avatar if needed during edit.
   };
 
   const handleProfileSave = (updatedProfile: EditableUserProfileData) => {
@@ -108,6 +131,7 @@ export default function ProfilePage() {
       setFollowing(prev => prev.filter(user => user.id !== userId));
       toast({ title: "User Unfollowed", description: "This change is local to your session."});
     }
+    // Note: This does not update postsCount as postsCount refers to user's own created posts.
   };
 
   return (
@@ -153,10 +177,10 @@ export default function ProfilePage() {
         <TabsContent value="my-posts" className="mt-6">
           <div className="space-y-6">
             <h2 className="text-2xl font-headline text-primary">My Posts</h2>
-            {userPosts.length > 0 ? (
-              userPosts.map(post => <UserPostItem key={post.id} {...post} />)
+            {myProfilePosts.length > 0 ? (
+              myProfilePosts.map(post => <FeedItemCard key={post.id} {...post} />) // Use FeedItemCard
             ) : (
-              <p className="text-muted-foreground font-body">You haven't made any posts yet.</p>
+              <p className="text-muted-foreground font-body">You haven't made any posts yet. Create one in the Community Feed!</p>
             )}
           </div>
         </TabsContent>
@@ -176,3 +200,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
