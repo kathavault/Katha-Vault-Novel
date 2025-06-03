@@ -39,7 +39,7 @@ export interface FeedItemCardProps {
   authorName: string;
   authorAvatarUrl?: string;
   authorInitials: string;
-  authorId: string; 
+  authorId: string;
   timestamp: string;
   likesCount: number;
   viewsCount?: number;
@@ -49,12 +49,12 @@ export interface FeedItemCardProps {
   includeDiscussionGroup?: boolean;
   discussionGroupName?: string;
   privacy: 'public' | 'private' | 'custom';
-  customAudienceUserIds?: string[]; 
+  customAudienceUserIds?: string[];
   onDeletePost?: (postId: string) => void;
   onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
   isFullView?: boolean;
-  currentUserName: string; 
-  currentUserId: string; 
+  currentUserName: string;
+  currentUserId: string;
 }
 
 export function FeedItemCard({
@@ -73,7 +73,7 @@ export function FeedItemCard({
   aiHint = "feed image",
   comments: initialComments,
   includeDiscussionGroup = false,
-  discussionGroupName,
+  discussionGroupName: initialDiscussionGroupName,
   privacy,
   customAudienceUserIds,
   onDeletePost,
@@ -91,6 +91,9 @@ export function FeedItemCard({
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [currentDiscussionGroupName, setCurrentDiscussionGroupName] = useState(initialDiscussionGroupName);
+  const [isDiscussionGroupIncluded, setIsDiscussionGroupIncluded] = useState(includeDiscussionGroup);
+
 
   const isAuthorViewingPost = authorId === currentUserId;
 
@@ -101,6 +104,14 @@ export function FeedItemCard({
   useEffect(() => {
     setCurrentPostLikes(initialLikesCount);
   } , [initialLikesCount]);
+
+  useEffect(() => {
+    setCurrentDiscussionGroupName(initialDiscussionGroupName);
+  }, [initialDiscussionGroupName]);
+
+  useEffect(() => {
+    setIsDiscussionGroupIncluded(includeDiscussionGroup);
+  }, [includeDiscussionGroup]);
 
 
   const handlePostLike = () => {
@@ -153,7 +164,7 @@ export function FeedItemCard({
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: currentUser.name, 
+      authorName: currentUser.name,
       authorInitials: currentUser.avatarFallback,
       authorAvatarUrl: currentUser.avatarUrl,
       authorId: currentUserId,
@@ -210,15 +221,15 @@ export function FeedItemCard({
   const handleOpenShareModal = () => setIsShareModalOpen(true);
 
   const handleJoinDiscussion = () => {
-    const groupNameDisplay = discussionGroupName || title || `Discussion for post ${postId}`;
+    const groupNameDisplay = currentDiscussionGroupName || title || `Discussion for post ${postId}`;
     try {
       const storedDiscussionsRaw = localStorage.getItem(JOINED_DISCUSSIONS_STORAGE_KEY);
       let joinedDiscussions: { id: string; name: string; postId: string }[] = storedDiscussionsRaw ? JSON.parse(storedDiscussionsRaw) : [];
-      
+
       const discussionExists = joinedDiscussions.some(d => d.postId === postId);
       if (!discussionExists) {
         joinedDiscussions.push({
-          id: postId, 
+          id: postId,
           name: groupNameDisplay,
           postId: postId,
         });
@@ -247,15 +258,15 @@ export function FeedItemCard({
   };
 
   const handleDeleteDiscussionGroup = () => {
-    const groupNameDisplay = discussionGroupName || title || `Discussion for post ${postId}`;
-    // Here, you would also update the post object in localStorage to remove includeDiscussionGroup
+    const groupNameDisplay = currentDiscussionGroupName || title || `Discussion for post ${postId}`;
+    // Visually remove the "Join Discussion" button and its "Delete Group" counterpart
+    setIsDiscussionGroupIncluded(false);
+     // In a real app, this would also update the post object in localStorage or backend
+    // to remove includeDiscussionGroup and discussionGroupName
     toast({
         title: "Discussion Group Deleted (Simulated)",
-        description: `The discussion group '${groupNameDisplay}' for this post would be removed. This change is local.`,
-        variant: "destructive"
+        description: `The discussion group '${groupNameDisplay}' for this post would be removed. This change is visual for this session.`,
     });
-    // To make this persist visually for the session, onUpdatePostData would be needed
-    // e.g., onUpdatePostData(postId, { ...currentPostData, includeDiscussionGroup: false, discussionGroupName: undefined });
   };
 
   const handleInternalDeletePost = () => {
@@ -344,7 +355,7 @@ export function FeedItemCard({
       </div>
     );
   };
-  
+
   const friendsForShareModal = allMockUsers.filter(u => u.id !== currentUserId && getInitialFollowingIds().includes(u.id));
 
 
@@ -394,8 +405,8 @@ export function FeedItemCard({
             </div>
           </div>
           {postType === 'forum' && title && (
-             <Link href={`/forum/post/${postId}`} legacyBehavior={false}>
-                <a className="hover:text-primary transition-colors"><CardTitle className="font-headline text-xl mt-1">{title}</CardTitle></a>
+             <Link href={`/forum/post/${postId}`} className="hover:text-primary transition-colors">
+                <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
             </Link>
           )}
         </CardHeader>
@@ -434,13 +445,13 @@ export function FeedItemCard({
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                { includeDiscussionGroup && isFullView && (
+                { isDiscussionGroupIncluded && isFullView && (
                     <Button variant="outline" size="sm" onClick={handleJoinDiscussion}>
                         <Users className="mr-2 h-4 w-4" />
-                        Join {discussionGroupName ? `"${discussionGroupName}"` : "Discussion"}
+                        Join {currentDiscussionGroupName ? `"${currentDiscussionGroupName}"` : "Discussion"}
                     </Button>
                 )}
-                { isAuthorViewingPost && includeDiscussionGroup && isFullView && (
+                { isAuthorViewingPost && isDiscussionGroupIncluded && isFullView && (
                      <Button variant="outline" size="sm" onClick={handleDeleteDiscussionGroup} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Group
