@@ -32,6 +32,7 @@ export interface Novel {
   chapters: Chapter[];
   rating?: number;
   isTrending?: boolean;
+  homePageFeaturedGenre?: string | null; // New field
 }
 
 export interface HomeLayoutConfig {
@@ -90,8 +91,8 @@ export interface StoredChapterComment {
   isCommentLikedByUser: boolean;
   replies: StoredChapterComment[];
   // For admin page display if needed, not part of core structure
-  novelTitle?: string; 
-  chapterTitle?: string;
+  novelTitleAdmin?: string; 
+  chapterTitleAdmin?: string;
 }
 
 
@@ -103,7 +104,7 @@ const KATHA_VAULT_MANAGED_NOVELS_KEY = 'kathaVaultManagedNovels';
 export const KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY = 'kathaVaultHomeSectionsConfig';
 export const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 export const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
-export const KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY = 'kathaVaultStoredChapterComments'; // Renamed key
+export const KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY = 'kathaVaultStoredChapterComments';
 
 
 export const kathaExplorerUser: MockUser = {
@@ -178,11 +179,12 @@ The narrative builds, adding new layers of intrigue and excitement...
 `;
 
 export const initialMockNovels: Novel[] = [
-  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Eleanor Vance', genres: ['Time Travel', 'Sci-Fi'], status: 'published', snippet: "A time-traveling journey through the eras in search of a missing chronomancer.", coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'time machine', views: 26000, chapters: Array.from({ length: 3 }, (_, i) => ({ id: `chronos-ch-${i+1}`, title: `Chapter ${i+1}: Epoch's Echo`, content: defaultChapterContent("The Whispers of Chronos", i+1, `Chapter ${i+1}: Epoch's Echo`) })), rating: 4.8 },
-  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Marcus Stone', genres: ['Fantasy', 'Adventure'], status: 'published', snippet: 'Fantasy exploration into ancient rainforest magic.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'jungle temple', views: 18000, chapters: Array.from({ length: 2 }, (_, i) => ({ id: `canopy-ch-${i+1}`, title: `Chapter ${i+1}: Root and Ritual`, content: defaultChapterContent("Beneath the Emerald Canopy", i+1, `Chapter ${i+1}: Root and Ritual`) })), rating: 4.6 },
-  { id: 'novel-1', title: 'The Alchemist of Moonhaven', author: 'Seraphina Gold', genres: ['Steampunk', 'Mystery'], status: 'published', snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk city moon', views: 12000, chapters: Array.from({ length: 1 }, (_, i) => ({ id: `moonhaven-ch-${i+1}`, title: `Chapter ${i+1}: Lunar Brews`, content: defaultChapterContent("The Alchemist of Moonhaven", i+1, `Chapter ${i+1}: Lunar Brews`) })), rating: 4.2 },
-  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Weave', genres: ['Short Story', 'Urban Fantasy'], status: 'published', snippet: 'A short story about a magical tailor who can alter time.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'magic tailor', views: 9600, chapters: [{id: 'stitch-ch-1', title: 'The Golden Thread', content: defaultChapterContent("A Stitch in Time", 1, 'The Golden Thread')}], rating: 4.3 },
-  { id: 'draft-1', title: 'The Crimson Comet (Draft)', author: 'Jax Orion', genres: ['Sci-Fi', 'Mystery'], status: 'draft', snippet: 'A rogue comet appears, and with it, a series of strange disappearances. (This is a DRAFT novel)', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'comet space mystery', views: 100, chapters: [{id: 'comet-draft-ch-1', title: 'First Sighting', content: defaultChapterContent("The Crimson Comet (Draft)", 1, 'First Sighting')}], rating: 0 },
+  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Eleanor Vance', genres: ['Time Travel', 'Sci-Fi'], status: 'published', snippet: "A time-traveling journey through the eras in search of a missing chronomancer.", coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'time machine', views: 26000, chapters: Array.from({ length: 3 }, (_, i) => ({ id: `chronos-ch-${i+1}`, title: `Chapter ${i+1}: Epoch's Echo`, content: defaultChapterContent("The Whispers of Chronos", i+1, `Chapter ${i+1}: Epoch's Echo`) })), rating: 4.8, homePageFeaturedGenre: 'Sci-Fi' },
+  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Marcus Stone', genres: ['Fantasy', 'Adventure'], status: 'published', snippet: 'Fantasy exploration into ancient rainforest magic.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'jungle temple', views: 18000, chapters: Array.from({ length: 2 }, (_, i) => ({ id: `canopy-ch-${i+1}`, title: `Chapter ${i+1}: Root and Ritual`, content: defaultChapterContent("Beneath the Emerald Canopy", i+1, `Chapter ${i+1}: Root and Ritual`) })), rating: 4.6, homePageFeaturedGenre: 'Fantasy' },
+  { id: 'novel-1', title: 'The Alchemist of Moonhaven', author: 'Seraphina Gold', genres: ['Steampunk', 'Mystery'], status: 'published', snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk city moon', views: 12000, chapters: Array.from({ length: 1 }, (_, i) => ({ id: `moonhaven-ch-${i+1}`, title: `Chapter ${i+1}: Lunar Brews`, content: defaultChapterContent("The Alchemist of Moonhaven", i+1, `Chapter ${i+1}: Lunar Brews`) })), rating: 4.2, homePageFeaturedGenre: null },
+  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Weave', genres: ['Short Story', 'Urban Fantasy'], status: 'published', snippet: 'A short story about a magical tailor who can alter time.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'magic tailor', views: 9600, chapters: [{id: 'stitch-ch-1', title: 'The Golden Thread', content: defaultChapterContent("A Stitch in Time", 1, 'The Golden Thread')}], rating: 4.3, homePageFeaturedGenre: null },
+  { id: 'draft-1', title: 'The Crimson Comet (Draft)', author: 'Jax Orion', genres: ['Sci-Fi', 'Mystery'], status: 'draft', snippet: 'A rogue comet appears, and with it, a series of strange disappearances. (This is a DRAFT novel)', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'comet space mystery', views: 100, chapters: [{id: 'comet-draft-ch-1', title: 'First Sighting', content: defaultChapterContent("The Crimson Comet (Draft)", 1, 'First Sighting')}], rating: 0, homePageFeaturedGenre: null },
+  { id: 'romance-1', title: 'Hearts Entwined by Starlight', author: 'Luna Lovegood', genres: ['Romance', 'Contemporary'], status: 'published', snippet: 'Two astronomers find love while searching for a new constellation.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'couple stars', views: 15000, chapters: Array.from({ length: 20 }, (_, i) => ({ id: `romance1-ch-${i+1}`, title: `Chapter ${i+1}: Celestial Meeting`, content: defaultChapterContent("Hearts Entwined by Starlight", i+1, `Chapter ${i+1}: Celestial Meeting`) })), rating: 4.7, homePageFeaturedGenre: 'Romance' },
 ];
 
 export const getNovelsFromStorage = (): Novel[] => {
@@ -210,6 +212,7 @@ export const getNovelsFromStorage = (): Novel[] => {
     status: novel.status || 'draft',
     views: novel.views ?? 0,
     rating: novel.rating ?? 0,
+    homePageFeaturedGenre: novel.homePageFeaturedGenre === undefined ? null : novel.homePageFeaturedGenre, // Ensure it's null if not present
     chapters: Array.isArray(novel.chapters) && novel.chapters.length > 0 ? novel.chapters.map(ch => ({
         id: ch.id || `ch-random-${Math.random().toString(36).substring(2, 9)}`,
         title: ch.title || 'Untitled Chapter',
@@ -382,3 +385,5 @@ export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
     }
     return []; // Return empty if not in browser or error
 };
+
+```

@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { StoryCard } from '@/components/story-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, Grid, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowRight, TrendingUp, Grid, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getNovelsFromStorage, getHomeSectionsConfig, type Novel, type HomeLayoutConfig } from '@/lib/mock-data';
 
@@ -25,15 +25,72 @@ const SectionHeader = ({ title, icon, seeAllLink }: { title: string; icon: React
 export default function HomePage() {
   const [allNovels, setAllNovels] = useState<Novel[]>([]);
   const [homeConfig, setHomeConfig] = useState<HomeLayoutConfig>({ selectedGenres: [], showMoreNovelsSection: true });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setAllNovels(getNovelsFromStorage());
-    setHomeConfig(getHomeSectionsConfig());
+    const loadData = () => {
+      setAllNovels(getNovelsFromStorage());
+      setHomeConfig(getHomeSectionsConfig());
+      setIsLoading(false);
+    };
+    loadData();
   }, []);
 
-  const publishedNovels = useMemo(() => allNovels.filter(novel => novel.status === 'published'), [allNovels]);
+  const publishedNovels = useMemo(() => {
+    if (isLoading) return [];
+    return allNovels.filter(novel => novel.status === 'published');
+  }, [allNovels, isLoading]);
+  
+  const displayedNovelIdsInSections = useMemo(() => new Set<string>(), []);
 
-  const trendingNovels = useMemo(() => publishedNovels.filter(novel => novel.isTrending).slice(0, 5), [publishedNovels]);
+  const trendingNovels = useMemo(() => {
+    if (isLoading) return [];
+    const trending = publishedNovels
+      .filter(novel => novel.isTrending)
+      .sort((a,b) => (b.views || 0) - (a.views || 0)) // Ensure highest views are first if multiple trending
+      .slice(0, 5);
+    trending.forEach(novel => displayedNovelIdsInSections.add(novel.id));
+    return trending;
+  }, [publishedNovels, displayedNovelIdsInSections, isLoading]);
+
+
+  const genreSections = useMemo(() => {
+    if (isLoading || !homeConfig.selectedGenres) return [];
+    
+    const sections = homeConfig.selectedGenres.map(genre => {
+      const storiesForGenre = publishedNovels.filter(
+        novel => novel.homePageFeaturedGenre === genre && !displayedNovelIdsInSections.has(novel.id)
+      ).slice(0, 5);
+      storiesForGenre.forEach(novel => displayedNovelIdsInSections.add(novel.id));
+      return {
+        title: `${genre} Stories`,
+        icon: <Sparkles className="h-7 w-7 text-primary" />,
+        stories: storiesForGenre,
+        seeAllLink: `/library?genre=${encodeURIComponent(genre)}` 
+      };
+    });
+    return sections.filter(section => section.stories.length > 0); // Only return sections with stories
+  }, [homeConfig.selectedGenres, publishedNovels, displayedNovelIdsInSections, isLoading]);
+
+
+  const moreStories = useMemo(() => {
+    if (isLoading || !homeConfig.showMoreNovelsSection) return [];
+    return publishedNovels.filter(novel => !displayedNovelIdsInSections.has(novel.id)).slice(0, 10);
+  }, [publishedNovels, displayedNovelIdsInSections, homeConfig.showMoreNovelsSection, isLoading]);
+
+  useEffect(() => {
+    // Clear displayedNovelIds when data/config changes to re-evaluate
+    displayedNovelIdsInSections.clear();
+    // Repopulate with trending novels first as they are always displayed if present
+    if (!isLoading) {
+      publishedNovels
+        .filter(novel => novel.isTrending)
+        .sort((a,b) => (b.views || 0) - (a.views || 0))
+        .slice(0, 5)
+        .forEach(novel => displayedNovelIdsInSections.add(novel.id));
+    }
+  }, [allNovels, homeConfig, publishedNovels, displayedNovelIdsInSections, isLoading]);
+
 
   const renderSection = (
     title: string,
@@ -43,7 +100,7 @@ export default function HomePage() {
     layout: "grid" | "horizontal" = "horizontal",
     gridCols: string = "md:grid-cols-2 lg:grid-cols-3"
   ) => (
-    <section className="mb-12"> {/* Added margin-bottom for spacing between sections */}
+    <section className="mb-12"> 
       <SectionHeader title={title} icon={icon} seeAllLink={seeAllLink} />
       {stories.length > 0 ? (
         layout === "horizontal" ? (
@@ -77,24 +134,9 @@ export default function HomePage() {
     </section>
   );
 
-  const displayedNovelIds = new Set<string>();
-  trendingNovels.forEach(n => displayedNovelIds.add(n.id));
-
-  const genreSections = homeConfig.selectedGenres.map(genre => {
-    const storiesForGenre = publishedNovels.filter(
-      novel => novel.genres.includes(genre) && !displayedNovelIds.has(novel.id)
-    ).slice(0, 5);
-    storiesForGenre.forEach(n => displayedNovelIds.add(n.id));
-    return {
-      title: `${genre} Stories`,
-      icon: <Sparkles className="h-7 w-7 text-primary" />,
-      stories: storiesForGenre,
-      seeAllLink: `/library?genre=${encodeURIComponent(genre)}`
-    };
-  });
-
-  const moreStories = publishedNovels.filter(novel => !displayedNovelIds.has(novel.id)).slice(0, 10);
-
+  if (isLoading) {
+    return <div className="flex justify-center items-center min-h-[calc(100vh-200px)]"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading home page...</div>;
+  }
 
   return (
     <div className="space-y-16">
@@ -114,17 +156,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 1. Trending Section (Always at the top) */}
-      {renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingNovels, "/library?filter=trending", "horizontal")}
+      {trendingNovels.length > 0 && renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingNovels, "/library?filter=trending", "horizontal")}
       
-      {/* 2. Admin-configured Genre Sections */}
       {genreSections.map(section => 
-        section.stories.length > 0 && renderSection(section.title, section.icon, section.stories, section.seeAllLink, "horizontal")
+         renderSection(section.title, section.icon, section.stories, section.seeAllLink, "horizontal")
       )}
       
-      {/* 3. "More Stories to Explore" Section (If enabled and at the bottom) */}
       {homeConfig.showMoreNovelsSection && moreStories.length > 0 && renderSection("More Stories to Explore", <Grid className="h-7 w-7 text-primary" />, moreStories, "/library", "horizontal")}
+    
+      {!trendingNovels.length && genreSections.length === 0 && !(homeConfig.showMoreNovelsSection && moreStories.length > 0) && (
+         <div className="text-center py-12">
+            <p className="text-lg text-muted-foreground font-body">
+                The home page is looking a bit empty! Add some published novels and configure sections in the Admin Panel.
+            </p>
+         </div>
+      )}
     </div>
   );
 }
-

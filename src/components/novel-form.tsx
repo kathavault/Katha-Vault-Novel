@@ -20,10 +20,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge"; // Added Badge import
 import { useToast } from "@/hooks/use-toast";
-import type { Novel } from "@/lib/mock-data";
-import { getHomeSectionsConfig } from "@/lib/mock-data"; // Import for home config
+import type { Novel, HomeLayoutConfig } from "@/lib/mock-data";
+import { getHomeSectionsConfig } from "@/lib/mock-data";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
@@ -36,6 +35,7 @@ const novelFormSchema = z.object({
   status: z.enum(["draft", "published"], { required_error: "Please select a status."}),
   coverImageUrl: z.string().optional().or(z.literal('')),
   aiHint: z.string().optional(),
+  homePageFeaturedGenre: z.string().nullable().optional(),
 });
 
 type NovelFormValues = z.infer<typeof novelFormSchema>;
@@ -50,7 +50,7 @@ interface NovelFormProps {
 export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submit Novel", onCancel }: NovelFormProps) {
   const { toast } = useToast();
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.coverImageUrl || null);
-  const [featuredHomeGenres, setFeaturedHomeGenres] = useState<string[]>([]);
+  const [homePageConfig, setHomePageConfig] = useState<HomeLayoutConfig>({ selectedGenres: [], showMoreNovelsSection: true });
 
   const form = useForm<NovelFormValues>({
     resolver: zodResolver(novelFormSchema),
@@ -62,12 +62,12 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       status: "draft",
       coverImageUrl: "",
       aiHint: "",
+      homePageFeaturedGenre: null,
     },
   });
 
   useEffect(() => {
-    const homeConfig = getHomeSectionsConfig();
-    setFeaturedHomeGenres(homeConfig.selectedGenres);
+    setHomePageConfig(getHomeSectionsConfig());
 
     if (initialData) {
       form.reset({
@@ -78,6 +78,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         status: initialData.status || "draft",
         coverImageUrl: initialData.coverImageUrl || "",
         aiHint: initialData.aiHint || "",
+        homePageFeaturedGenre: initialData.homePageFeaturedGenre === undefined ? null : initialData.homePageFeaturedGenre,
       });
       setImagePreview(initialData.coverImageUrl || null);
     } else {
@@ -89,6 +90,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         status: "draft",
         coverImageUrl: "",
         aiHint: "",
+        homePageFeaturedGenre: null,
       });
       setImagePreview(null);
     }
@@ -151,6 +153,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       status: data.status,
       coverImageUrl: finalCoverImageUrl || undefined,
       aiHint: data.aiHint || undefined,
+      homePageFeaturedGenre: data.homePageFeaturedGenre || null,
       chapters: initialData?.chapters 
     };
     
@@ -159,7 +162,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       title: initialData ? "Novel Details Updated!" : "Novel Added!",
       description: `"${data.title}" details have been saved. Manage chapters separately.`,
     });
-    if (!initialData) { // Only reset if it's a new novel form
+    if (!initialData) { 
         form.reset();
         setImagePreview(null);
     }
@@ -195,27 +198,47 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
           name="genres"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Genres</FormLabel>
+              <FormLabel>General Genres</FormLabel>
               <FormControl><Input placeholder="Sci-Fi, Fantasy, Romance" {...field} /></FormControl>
-              <FormDescription>Comma-separated list of genres for this novel.</FormDescription>
+              <FormDescription>Comma-separated list of genres for general classification and library filtering.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
         
-        {featuredHomeGenres.length > 0 && (
-          <div className="space-y-2 rounded-md border border-dashed border-border p-3 bg-muted/30">
-            <p className="text-sm font-medium text-muted-foreground">Featured Home Page Genres (for reference):</p>
-            <div className="flex flex-wrap gap-2">
-              {featuredHomeGenres.map(genre => (
-                <Badge key={genre} variant="secondary" className="cursor-default">{genre}</Badge>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              To include this novel in one of these featured sections on the Home Page, ensure its "Genres" (above) contains the respective genre name and the novel is "Published".
-            </p>
-          </div>
-        )}
+        <FormField
+          control={form.control}
+          name="homePageFeaturedGenre"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Feature in Home Page Section</FormLabel>
+              <Select 
+                onValueChange={(value) => field.onChange(value === "null" ? null : value)} 
+                value={field.value === null ? "null" : field.value || undefined}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a home page section to feature in..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="null">None</SelectItem>
+                  {homePageConfig.selectedGenres.map(genre => (
+                    <SelectItem key={genre} value={genre}>
+                      {genre} Section
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose if this novel should be specifically featured in one of the admin-configured Home Page sections.
+                This is separate from its general genres.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
 
         <FormField
           control={form.control}
@@ -265,7 +288,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
           </FormControl>
           <FormField
             control={form.control}
-            name="coverImageUrl" // Hidden field to store the Data URI or URL
+            name="coverImageUrl" 
             render={({ field }) => (
               <>
                 <input type="hidden" {...field} /> 
@@ -304,7 +327,6 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         <div className="flex justify-end space-x-3">
           {onCancel && <Button type="button" variant="outline" onClick={() => {
             onCancel();
-            // Reset form to initial data or empty if no initial data, including image preview
             form.reset(initialData ? {
                 title: initialData.title || "",
                 author: initialData.author || "",
@@ -313,8 +335,9 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
                 status: initialData.status || "draft",
                 coverImageUrl: initialData.coverImageUrl || "",
                 aiHint: initialData.aiHint || "",
+                homePageFeaturedGenre: initialData.homePageFeaturedGenre === undefined ? null : initialData.homePageFeaturedGenre,
               } : {
-                title: "", author: "", genres: "", snippet: "", status: "draft", coverImageUrl: "", aiHint: "",
+                title: "", author: "", genres: "", snippet: "", status: "draft", coverImageUrl: "", aiHint: "", homePageFeaturedGenre: null,
               });
             setImagePreview(initialData?.coverImageUrl || null);
           }}>Cancel</Button>}
@@ -326,3 +349,4 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
 }
 
     
+```
