@@ -4,6 +4,7 @@
 import type React from 'react';
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +12,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare, Settings, LogOut, MoreVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import type { EditableUserProfileData } from '@/app/profile/page'; // Keep for own profile editing
+import type { EditableUserProfileData } from '@/app/profile/page';
 
 interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
-  userId: string; // ID of the profile being viewed
+  userId: string;
   name: string;
   username: string;
   avatarUrl: string;
@@ -25,10 +27,10 @@ interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
   emailVisible?: boolean;
   gender?: string;
   isViewingOwnProfile: boolean;
-  isFollowing?: boolean; // Only relevant if !isViewingOwnProfile
-  onAvatarChange?: (newAvatarUrl: string) => void; // Only for own profile
-  onProfileSave?: (updatedProfile: EditableUserProfileData) => void; // Only for own profile
-  onFollowToggle?: () => void; // Only for other profiles
+  isFollowing?: boolean;
+  onAvatarChange?: (newAvatarUrl: string) => void;
+  onProfileSave?: (updatedProfile: EditableUserProfileData) => void;
+  onFollowToggle?: () => void;
 }
 
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
@@ -50,9 +52,9 @@ export function UserProfileHeader({
 }: UserProfileHeaderProps) {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
-  // Editable state for own profile
   const [editableName, setEditableName] = useState(initialName);
   const [editableUsername, setEditableUsername] = useState(initialUsername);
   const [editableBio, setEditableBio] = useState(initialBio);
@@ -124,6 +126,11 @@ export function UserProfileHeader({
     setIsEditing(false);
   };
 
+  const handleLogout = () => {
+    toast({ title: "Logged Out", description: "You have been successfully logged out (simulation)." });
+    router.push('/login');
+  };
+
   const currentName = isViewingOwnProfile && isEditing ? editableName : initialName;
   const currentUsername = isViewingOwnProfile && isEditing ? editableUsername : initialUsername;
   const currentAvatarUrl = isViewingOwnProfile && isEditing ? editableAvatarUrl : initialAvatarUrl;
@@ -131,7 +138,6 @@ export function UserProfileHeader({
   const currentEmail = isViewingOwnProfile && isEditing ? editableEmail : initialEmail;
   const currentEmailVisible = isViewingOwnProfile && isEditing ? editableEmailVisible : initialEmailVisible;
   const currentGender = isViewingOwnProfile && isEditing ? editableGender : initialGender;
-
 
   return (
     <div className="p-4 md:p-6 rounded-lg bg-card shadow-md">
@@ -159,7 +165,6 @@ export function UserProfileHeader({
 
         <div className="flex-grow space-y-3 w-full">
           {isViewingOwnProfile && isEditing ? (
-            // EDITING MODE (Own Profile)
             <div className="space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="profileName" className="font-semibold">Name</Label>
@@ -196,7 +201,6 @@ export function UserProfileHeader({
               </div>
             </div>
           ) : (
-            // VIEW MODE (Own or Other's Profile)
             <div className="space-y-1 md:space-y-2">
               <div className="flex flex-col md:flex-row md:items-center md:gap-4">
                 <h1 className="text-2xl md:text-3xl font-headline text-foreground">{currentName}</h1>
@@ -224,11 +228,33 @@ export function UserProfileHeader({
           )}
         </div>
         
-        {isViewingOwnProfile && !isEditing && (
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="hidden md:inline-flex self-start">
-                <Edit className="mr-2 h-4 w-4" /> Edit Profile
-            </Button>
-        )}
+        <div className="md:ml-auto flex-shrink-0 self-start">
+            {isViewingOwnProfile && !isEditing && (
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9">
+                            <MoreVertical className="h-5 w-5" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onSelect={() => setIsEditing(true)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => router.push('/profile/settings')}>
+                            <Settings className="mr-2 h-4 w-4" />
+                            Account Settings
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Logout
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
+        </div>
+
 
         {!isViewingOwnProfile && onFollowToggle && (
           <div className="flex flex-col sm:flex-row gap-2 self-start md:self-center mt-3 md:mt-0">

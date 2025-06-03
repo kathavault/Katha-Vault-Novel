@@ -43,15 +43,38 @@ export default function HomePage() {
   
   const displayedNovelIdsInSections = useMemo(() => new Set<string>(), []);
 
+  // Recalculate displayedNovelIds whenever relevant data changes
+  useEffect(() => {
+    displayedNovelIdsInSections.clear();
+    if (!isLoading) {
+      // Populate with trending novels first
+      publishedNovels
+        .filter(novel => novel.isTrending)
+        .sort((a,b) => (b.views || 0) - (a.views || 0))
+        .slice(0, 5)
+        .forEach(novel => displayedNovelIdsInSections.add(novel.id));
+
+      // Then populate with admin-configured genre sections
+      if (homeConfig.selectedGenres) {
+        homeConfig.selectedGenres.forEach(genre => {
+          publishedNovels
+            .filter(novel => novel.homePageFeaturedGenre === genre && !displayedNovelIdsInSections.has(novel.id))
+            .slice(0, 5) // Limit per section
+            .forEach(novel => displayedNovelIdsInSections.add(novel.id));
+        });
+      }
+    }
+  }, [isLoading, publishedNovels, homeConfig.selectedGenres, displayedNovelIdsInSections]);
+
+
   const trendingNovels = useMemo(() => {
     if (isLoading) return [];
-    const trending = publishedNovels
+    // No need to add to displayedNovelIdsInSections here, as it's done in the useEffect
+    return publishedNovels
       .filter(novel => novel.isTrending)
-      .sort((a,b) => (b.views || 0) - (a.views || 0)) // Ensure highest views are first if multiple trending
+      .sort((a,b) => (b.views || 0) - (a.views || 0))
       .slice(0, 5);
-    trending.forEach(novel => displayedNovelIdsInSections.add(novel.id));
-    return trending;
-  }, [publishedNovels, displayedNovelIdsInSections, isLoading]);
+  }, [publishedNovels, isLoading]);
 
 
   const genreSections = useMemo(() => {
@@ -59,9 +82,15 @@ export default function HomePage() {
     
     const sections = homeConfig.selectedGenres.map(genre => {
       const storiesForGenre = publishedNovels.filter(
-        novel => novel.homePageFeaturedGenre === genre && !displayedNovelIdsInSections.has(novel.id)
-      ).slice(0, 5);
-      storiesForGenre.forEach(novel => displayedNovelIdsInSections.add(novel.id));
+        // Ensure we only pick stories specifically assigned to this genre for home page
+        // AND not already shown in trending (handled by displayedNovelIdsInSections from useEffect)
+        novel => novel.homePageFeaturedGenre === genre && !displayedNovelIdsInSections.has(novel.id) 
+      ).slice(0, 5); // Limit to 5 stories per genre section AFTER trending is considered
+      
+      // Add these to displayedNovelIds to prevent them from appearing in "More Stories"
+      // This was previously done inside, but better to do it after filtering based on the effect
+      // For clarity, this is now handled by the primary useEffect for displayedNovelIdsInSections
+      
       return {
         title: `${genre} Stories`,
         icon: <Sparkles className="h-7 w-7 text-primary" />,
@@ -69,27 +98,15 @@ export default function HomePage() {
         seeAllLink: `/library?genre=${encodeURIComponent(genre)}` 
       };
     });
-    return sections.filter(section => section.stories.length > 0); // Only return sections with stories
-  }, [homeConfig.selectedGenres, publishedNovels, displayedNovelIdsInSections, isLoading]);
+    return sections.filter(section => section.stories.length > 0);
+  }, [isLoading, homeConfig.selectedGenres, publishedNovels, displayedNovelIdsInSections]);
 
 
   const moreStories = useMemo(() => {
     if (isLoading || !homeConfig.showMoreNovelsSection) return [];
+    // Stories not in trending AND not in any specifically configured genre section
     return publishedNovels.filter(novel => !displayedNovelIdsInSections.has(novel.id)).slice(0, 10);
-  }, [publishedNovels, displayedNovelIdsInSections, homeConfig.showMoreNovelsSection, isLoading]);
-
-  useEffect(() => {
-    // Clear displayedNovelIds when data/config changes to re-evaluate
-    displayedNovelIdsInSections.clear();
-    // Repopulate with trending novels first as they are always displayed if present
-    if (!isLoading) {
-      publishedNovels
-        .filter(novel => novel.isTrending)
-        .sort((a,b) => (b.views || 0) - (a.views || 0))
-        .slice(0, 5)
-        .forEach(novel => displayedNovelIdsInSections.add(novel.id));
-    }
-  }, [allNovels, homeConfig, publishedNovels, displayedNovelIdsInSections, isLoading]);
+  }, [isLoading, homeConfig.showMoreNovelsSection, publishedNovels, displayedNovelIdsInSections]);
 
 
   const renderSection = (

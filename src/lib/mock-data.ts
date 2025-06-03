@@ -32,7 +32,7 @@ export interface Novel {
   chapters: Chapter[];
   rating?: number;
   isTrending?: boolean;
-  homePageFeaturedGenre?: string | null; // New field
+  homePageFeaturedGenre?: string | null;
 }
 
 export interface HomeLayoutConfig {
@@ -40,7 +40,6 @@ export interface HomeLayoutConfig {
   showMoreNovelsSection: boolean;
 }
 
-// For Forum/Post Comments (from FeedItemCardProps)
 export interface FeedItemComment {
   id: string;
   authorName: string;
@@ -75,8 +74,6 @@ export interface FeedItemCardProps {
   customAudienceUserIds?: string[];
 }
 
-
-// New StoredChapterComment interface
 export interface StoredChapterComment {
   id: string;
   novelId: string;
@@ -90,11 +87,9 @@ export interface StoredChapterComment {
   commentLikes: number;
   isCommentLikedByUser: boolean;
   replies: StoredChapterComment[];
-  // For admin page display if needed, not part of core structure
   novelTitleAdmin?: string;
   chapterTitleAdmin?: string;
 }
-
 
 export const CURRENT_USER_ID = 'user_ke';
 export const CURRENT_USER_NAME = 'Katha Explorer';
@@ -105,6 +100,7 @@ export const KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY = 'kathaVaultHomeSectionsConfi
 export const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 export const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 export const KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY = 'kathaVaultStoredChapterComments';
+export const KATHA_VAULT_BLOCKED_USER_IDS_KEY = 'kathaVaultBlockedUserIds';
 
 
 export const kathaExplorerUser: MockUser = {
@@ -164,6 +160,49 @@ export const getKathaExplorerFollowersList = (count: number = 3): MockUser[] => 
   return allMockUsers.filter(user => user.id !== CURRENT_USER_ID && !followingIds.includes(user.id)).slice(0, count);
 };
 
+// Blocked Users Management
+export const getBlockedUserIds = (): string[] => {
+  if (typeof window !== 'undefined') {
+    const storedBlocked = localStorage.getItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY);
+    if (storedBlocked) {
+      try {
+        return JSON.parse(storedBlocked);
+      } catch (e) {
+        console.error("Error parsing blocked user IDs from localStorage", e);
+        // Default to a sample blocked user if parsing fails or none exist
+        const defaultBlocked = ['user_th']; // Thriller Tom is blocked by default
+        localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(defaultBlocked));
+        return defaultBlocked;
+      }
+    } else {
+      // Initialize with a default blocked user if nothing is stored
+      const defaultBlocked = ['user_th'];
+      localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(defaultBlocked));
+      return defaultBlocked;
+    }
+  }
+  return ['user_th']; // Default for non-browser environments
+};
+
+export const addBlockedUserId = (userId: string): void => {
+  if (typeof window !== 'undefined') {
+    const currentBlocked = getBlockedUserIds();
+    if (!currentBlocked.includes(userId)) {
+      const newBlocked = [...currentBlocked, userId];
+      localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(newBlocked));
+    }
+  }
+};
+
+export const removeBlockedUserId = (userId: string): void => {
+  if (typeof window !== 'undefined') {
+    const currentBlocked = getBlockedUserIds();
+    const newBlocked = currentBlocked.filter(id => id !== userId);
+    localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(newBlocked));
+  }
+};
+
+
 const defaultChapterContent = (novelTitle: string, chapterNum: number, chapterTitle: string) => `
 Placeholder content for ${chapterTitle} (Chapter ${chapterNum}) of "${novelTitle}".
 
@@ -212,7 +251,7 @@ export const getNovelsFromStorage = (): Novel[] => {
     status: novel.status || 'draft',
     views: novel.views ?? 0,
     rating: novel.rating ?? 0,
-    homePageFeaturedGenre: novel.homePageFeaturedGenre === undefined ? null : novel.homePageFeaturedGenre, // Ensure it's null if not present
+    homePageFeaturedGenre: novel.homePageFeaturedGenre === undefined ? null : novel.homePageFeaturedGenre,
     chapters: Array.isArray(novel.chapters) && novel.chapters.length > 0 ? novel.chapters.map(ch => ({
         id: ch.id || `ch-random-${Math.random().toString(36).substring(2, 9)}`,
         title: ch.title || 'Untitled Chapter',
@@ -232,7 +271,6 @@ export const getNovelsFromStorage = (): Novel[] => {
     };
   });
 };
-
 
 export const saveNovelsToStorage = (novels: Novel[]): void => {
   if (typeof window !== 'undefined') {
@@ -286,8 +324,6 @@ export const isUserActive = (userId: string): boolean => {
   return user ? user.isActive : false;
 };
 
-
-// Stored Chapter Comments - Refactored
 const defaultStoredChapterComments: StoredChapterComment[] = [
   {
     id: 'chapcomment-1-1',
@@ -361,7 +397,7 @@ export const getStoredChapterComments = (): StoredChapterComment[] => {
     localStorage.setItem(KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY, JSON.stringify(defaultStoredChapterComments));
     return defaultStoredChapterComments;
   }
-  return JSON.parse(JSON.stringify(defaultStoredChapterComments)); // Return a copy for server-side or initial state
+  return JSON.parse(JSON.stringify(defaultStoredChapterComments));
 };
 
 export const saveStoredChapterComments = (comments: StoredChapterComment[]): void => {
@@ -370,8 +406,6 @@ export const saveStoredChapterComments = (comments: StoredChapterComment[]): voi
   }
 };
 
-
-// Helper function to get all social feed posts (used by admin comment management)
 export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
     if (typeof window !== 'undefined') {
         const storedPosts = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
@@ -383,5 +417,5 @@ export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
             }
         }
     }
-    return []; // Return empty if not in browser or error
+    return [];
 };

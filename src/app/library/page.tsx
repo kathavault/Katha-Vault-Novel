@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bookmark, Search, FilterX, ListFilter, Users, ExternalLink } from 'lucide-react';
+import { Bookmark, Search, FilterX, ListFilter, Users, ExternalLink, ArrowRight } from 'lucide-react';
 import { allMockUsers, type MockUser, getNovelsFromStorage, type Novel } from '@/lib/mock-data'; 
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,13 +26,11 @@ export default function LibraryPage() {
   const [filteredUsers, setFilteredUsers] = useState<MockUser[]>([]);
 
   useEffect(() => {
-    // Fetch all novels, including drafts for admin, but public pages should filter
     const novels = getNovelsFromStorage(); 
     setAllLibraryNovels(novels);
   }, []);
 
   useEffect(() => {
-    // Filter for 'published' novels for public display
     let stories = allLibraryNovels.filter(novel => novel.status === 'published');
 
     if (storySearchTerm.trim() !== "") {
@@ -78,7 +76,6 @@ export default function LibraryPage() {
   
   const uniqueAvailableGenres = useMemo(() => {
     const genresFromStories = new Set<string>();
-    // Consider only published novels for genre filtering options on public page
     allLibraryNovels.filter(n => n.status === 'published').forEach(story => story.genres.forEach(genre => genresFromStories.add(genre)));
     return Array.from(new Set([...ALL_AVAILABLE_GENRES_FOR_FILTER, ...Array.from(genresFromStories)])).sort();
   }, [allLibraryNovels]);
@@ -189,21 +186,35 @@ export default function LibraryPage() {
         </CardContent>
       </Card>
 
-      <h2 className="text-3xl font-headline text-primary mt-12 mb-6">Library Books</h2>
-      {filteredStories.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-          {filteredStories.map(story => (
-            <StoryCard key={story.id} {...story} />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-lg text-muted-foreground font-body">
-            No published stories match your criteria. Try adjusting your search or filters.
-          </p>
-        </div>
-      )}
+      <section className="mb-12">
+        <h2 className="text-3xl font-headline text-primary mt-12 mb-6">Library Books</h2>
+        {filteredStories.length > 0 ? (
+            <div className="flex overflow-x-auto space-x-4 lg:space-x-6 pb-4 -mx-4 px-4">
+                {filteredStories.map(story => (
+                <div key={story.id} className="flex-shrink-0 w-[280px] sm:w-[300px] md:w-[320px]">
+                    <StoryCard {...story} />
+                </div>
+                ))}
+                {/* Optional: Add a "View More in Library" card if there are many items */}
+                {filteredStories.length >= 5 && ( // Example condition to show "View More"
+                <div className="flex-shrink-0 w-[280px] sm:w-[300px] md:w-[320px] flex items-center justify-center">
+                    <Button asChild variant="outline" className="h-full w-full text-lg">
+                    <Link href="/library" className="flex flex-col items-center justify-center">
+                        View All in Library
+                        <ArrowRight className="mt-2 h-6 w-6" />
+                    </Link>
+                    </Button>
+                </div>
+                )}
+            </div>
+        ) : (
+            <div className="text-center py-12">
+            <p className="text-lg text-muted-foreground font-body">
+                No published stories match your criteria. Try adjusting your search or filters.
+            </p>
+            </div>
+        )}
+      </section>
     </div>
   );
 }
-
