@@ -1,9 +1,10 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Eye, BookOpen, Star } from 'lucide-react'; // Added Star, removed Heart and MessageSquare
+import { ArrowRight, Eye, BookOpen, Star } from 'lucide-react';
 
 interface StoryCardProps {
   id: string;
@@ -15,8 +16,8 @@ interface StoryCardProps {
   aiHint?: string;
   views?: number;
   chapters?: number;
-  rating?: number; // Added rating
-  isTrending?: boolean; // Added for trending badge
+  rating?: number; 
+  isTrending?: boolean; 
 }
 
 export function StoryCard({ 
@@ -45,16 +46,18 @@ export function StoryCard({
       )}
       <CardHeader className="p-4">
         {coverImageUrl && (
-          <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
-            <Image 
-              src={coverImageUrl} 
-              alt={title} 
-              layout="fill" 
-              objectFit="cover" 
-              data-ai-hint={aiHint}
-              className="rounded-lg"
-            />
-          </div>
+          <Link href={`/story/${id}`} passHref className="block">
+            <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden cursor-pointer">
+              <Image 
+                src={coverImageUrl} 
+                alt={title} 
+                layout="fill" 
+                objectFit="cover" 
+                data-ai-hint={aiHint}
+                className="rounded-lg"
+              />
+            </div>
+          </Link>
         )}
         <Link href={`/story/${id}`} className="hover:text-primary transition-colors">
           <CardTitle className="font-headline text-xl md:text-2xl text-primary-foreground hover:text-primary line-clamp-2">{title}</CardTitle>
@@ -73,16 +76,16 @@ export function StoryCard({
         
         {(rating !== undefined || views !== undefined) && (
           <div className="flex items-center space-x-1 text-xs text-muted-foreground pt-2">
-            {rating !== undefined && (
+            {rating !== undefined && rating > 0 && (
               <span className="flex items-center">
                 <Star className="h-4 w-4 mr-1 text-yellow-500 fill-yellow-400" />
                 {rating.toFixed(1)}
               </span>
             )}
-            {rating !== undefined && views !== undefined && (
+            {rating !== undefined && rating > 0 && views !== undefined && views > 0 && (
               <span className="px-1 opacity-60">•</span>
             )}
-            {views !== undefined && (
+            {views !== undefined && views > 0 && (
               <span className="flex items-center">
                 <Eye className="h-4 w-4 mr-1 text-primary/80" />
                 {(views / 1000).toFixed(1)}K
@@ -98,10 +101,10 @@ export function StoryCard({
           </div>
         )}
       </CardContent>
-      <CardFooter className="p-4 mt-auto"> {/* mt-auto to push footer to bottom */}
+      <CardFooter className="p-4 mt-auto"> 
         <Button asChild variant="link" className="text-primary hover:text-primary/80 p-0 text-sm">
           <Link href={`/story/${id}`} className="flex items-center">
-            Read More <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            Read Story <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Link>
         </Button>
       </CardFooter>

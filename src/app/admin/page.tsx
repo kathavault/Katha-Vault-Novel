@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // DialogClose removed as it's part of DialogFooter now
 import {
   Table,
   TableBody,
@@ -45,16 +45,18 @@ export default function AdminPage() {
     let updatedNovels;
     if (editingNovel) {
       // Edit existing novel
-      updatedNovels = novels.map(n => (n.id === editingNovel.id ? { ...data, id: editingNovel.id } : n));
+      updatedNovels = novels.map(n => (n.id === editingNovel.id ? { ...data, id: editingNovel.id, views: n.views, rating: n.rating, isTrending: n.isTrending } : n));
     } else {
       // Add new novel
-      const newNovelWithId = { ...data, id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}` };
+      const newNovelWithId = { ...data, id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, views: 0, rating: 0, isTrending: false };
       updatedNovels = [...novels, newNovelWithId];
     }
     setNovels(updatedNovels);
-    saveNovelsToStorage(updatedNovels);
+    saveNovelsToStorage(updatedNovels); // Save potentially updated trending status too
     setIsFormModalOpen(false);
     setEditingNovel(null);
+     // Refresh from storage to reflect any dynamic changes like trending status
+    setNovels(getNovelsFromStorage());
   };
 
   const promptDeleteNovel = (novel: Novel) => {
@@ -74,6 +76,8 @@ export default function AdminPage() {
       });
       setNovelToDelete(null);
       setIsDeleteDialogOpen(false);
+      // Refresh from storage
+      setNovels(getNovelsFromStorage());
     }
   };
 
@@ -108,6 +112,9 @@ export default function AdminPage() {
                     <TableHead className="w-[250px]">Title</TableHead>
                     <TableHead>Author</TableHead>
                     <TableHead>Genres</TableHead>
+                    <TableHead className="text-center">Views</TableHead>
+                    <TableHead className="text-center">Rating</TableHead>
+                    <TableHead className="text-center">Trending</TableHead>
                     <TableHead className="text-right w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -117,6 +124,9 @@ export default function AdminPage() {
                       <TableCell className="font-medium">{novel.title}</TableCell>
                       <TableCell>{novel.author}</TableCell>
                       <TableCell>{novel.genres.join(", ")}</TableCell>
+                      <TableCell className="text-center">{novel.views?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-center">{novel.rating?.toFixed(1) || 'N/A'}</TableCell>
+                      <TableCell className="text-center">{novel.isTrending ? 'Yes' : 'No'}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button variant="ghost" size="icon" asChild>
                            <Link href={`/story/${novel.id}`} target="_blank" rel="noopener noreferrer" title="View Novel">
@@ -142,7 +152,7 @@ export default function AdminPage() {
       {/* Add/Edit Novel Form Modal */}
       <Dialog open={isFormModalOpen} onOpenChange={(isOpen) => {
           setIsFormModalOpen(isOpen);
-          if (!isOpen) setEditingNovel(null); // Reset editing state when dialog closes
+          if (!isOpen) setEditingNovel(null); 
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
