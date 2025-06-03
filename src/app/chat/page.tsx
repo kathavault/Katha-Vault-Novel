@@ -95,16 +95,16 @@ export default function ChatPage() {
 
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  const initialAiMessage = {
+      id: 'initial-ai-message-' + Date.now(),
+      text: 'Hello! How can I help you with your stories today? 😊',
+      sender: 'ai' as 'ai',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+  };
 
   useEffect(() => {
-    setAiMessages([
-      {
-        id: 'initial-ai-message-' + Date.now(),
-        text: 'Hello! How can I help you with your stories today? 😊',
-        sender: 'ai',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-      }
-    ]);
+    setAiMessages([initialAiMessage]);
   }, []);
 
   useEffect(() => {
@@ -213,6 +213,23 @@ export default function ChatPage() {
     toast({ title: "Message Deleted", description: "The message has been removed from your view." });
   };
 
+  const handleClearAiChat = () => {
+    setAiMessages([
+      {
+        ...initialAiMessage,
+        id: 'initial-ai-message-' + Date.now(), // New ID to avoid issues if cleared multiple times
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      }
+    ]);
+    toast({ title: "AI Chat Cleared", description: "Your conversation with the AI has been reset." });
+  };
+
+  const handleClearUserChat = () => {
+    setUserMessages([]);
+    toast({ title: "Chat Cleared", description: "The conversation has been cleared." });
+  };
+
+
   const CurrentChatInterface = ({
     chatPartnerName,
     chatPartnerAvatar,
@@ -254,16 +271,16 @@ export default function ChatPage() {
             <DropdownMenuContent align="end">
               {isUserChat ? (
                 <>
-                  <DropdownMenuItem>View Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Block User</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setUserMessages([])}>Clear Chat</DropdownMenuItem>
-                  <DropdownMenuItem>Report User</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast({ title: "View Profile", description: "This feature is coming soon!"})}>View Profile</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast({ title: "Block User", description: "This feature is coming soon!"})}>Block User</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleClearUserChat}>Clear Chat</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast({ title: "Report User", description: "This feature is coming soon!"})}>Report User</DropdownMenuItem>
                 </>
               ) : (
                  <>
                   <DropdownMenuItem onClick={handleNicknameChange}>Change AI Nickname</DropdownMenuItem>
                   <DropdownMenuItem onClick={handleAvatarChangeClick}>Change AI Avatar</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setAiMessages(aiMessages.filter(m => m.sender !== 'user' && m.sender !== 'ai'))}>Clear Chat History</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleClearAiChat}>Clear Chat History</DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
@@ -486,6 +503,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-
-    
