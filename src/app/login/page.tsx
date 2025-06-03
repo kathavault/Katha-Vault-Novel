@@ -2,18 +2,41 @@
 "use client";
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogIn, UserPlus, Mail, KeyRound } from 'lucide-react';
+import { LogIn, UserPlus, Mail, KeyRound, ShieldCheck } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import { updateCurrentLoggedInUser } from '@/lib/mock-data'; // Import the new function
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Placeholder for actual login logic
-    console.log("Login form submitted");
-    alert("Login functionality is not yet implemented.");
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email') as string;
+    // const password = formData.get('password') as string; // Password not used in this mock
+
+    if (!email) {
+        toast({ title: "Login Failed", description: "Please enter an email address.", variant: "destructive"});
+        return;
+    }
+
+    updateCurrentLoggedInUser(email);
+    toast({ title: "Login Successful!", description: `Welcome back! Your profile has been updated with email: ${email}` });
+    router.push('/profile'); // Redirect to profile page
+  };
+
+  const handleGoogleSignIn = () => {
+    // Simulate Google Sign-In with Kritika's email for demonstration
+    const googleUserEmail = "rajputkritika510@gmail.com";
+    updateCurrentLoggedInUser(googleUserEmail);
+    toast({ title: "Google Sign-In Successful!", description: "Welcome, Kritika! Your profile is updated." });
+    router.push('/profile'); // Redirect to profile page
   };
 
   return (
@@ -32,18 +55,17 @@ export default function LoginPage() {
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="you@example.com" required className="pl-10" />
+                <Input id="email" name="email" type="email" placeholder="you@example.com" required className="pl-10" />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" required className="pl-10" />
+                <Input id="password" name="password" type="password" placeholder="••••••••" required className="pl-10" />
               </div>
             </div>
             <div className="flex items-center justify-between">
-              {/* Add "Remember me" checkbox or "Forgot password" link if needed */}
               <Link href="#" className="text-sm text-primary hover:underline font-body">
                 Forgot password?
               </Link>
@@ -52,8 +74,14 @@ export default function LoginPage() {
               <LogIn className="mr-2 h-5 w-5" /> Login
             </Button>
           </form>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground mb-2">Or sign in with</p>
+            <Button variant="outline" className="w-full text-lg py-6" onClick={handleGoogleSignIn}>
+              <ShieldCheck className="mr-2 h-5 w-5 text-blue-500" /> Sign in with Google
+            </Button>
+          </div>
         </CardContent>
-        <CardFooter className="flex flex-col items-center space-y-2">
+        <CardFooter className="flex flex-col items-center space-y-2 mt-4">
           <p className="text-sm text-muted-foreground font-body">
             Don't have an account yet?
           </p>

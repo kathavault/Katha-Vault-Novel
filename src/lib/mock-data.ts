@@ -92,7 +92,6 @@ export interface StoredChapterComment {
 }
 
 export const CURRENT_USER_ID = 'user_ke';
-// CURRENT_USER_NAME is now derived from getKathaExplorerUser().name
 
 const KATHA_EXPLORER_FOLLOWING_IDS_KEY = 'kathaExplorerFollowingIds';
 const KATHA_VAULT_MANAGED_NOVELS_KEY = 'kathaVaultManagedNovels';
@@ -102,7 +101,7 @@ export const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 export const KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY = 'kathaVaultStoredChapterComments';
 export const KATHA_VAULT_BLOCKED_USER_IDS_KEY = 'kathaVaultBlockedUserIds';
 const KATHA_VAULT_CURRENT_USER_PROFILE_KEY = 'kathaVaultCurrentUserProfile';
-
+export const KATHA_LOGGED_IN_EMAIL_KEY = 'kathaLoggedInEmail'; // Not strictly necessary if updating kathaExplorerUser directly
 
 const defaultKathaExplorerUser: MockUser = {
   id: CURRENT_USER_ID,
@@ -124,21 +123,18 @@ export const getKathaExplorerUser = (): MockUser => {
     if (storedProfile) {
       try {
         const parsedProfile = JSON.parse(storedProfile) as MockUser;
-        // Ensure essential fields are present, fallback if structure changed
         return { ...defaultKathaExplorerUser, ...parsedProfile, id: CURRENT_USER_ID, isActive: parsedProfile.isActive !== undefined ? parsedProfile.isActive : true };
       } catch (e) {
         console.error("Error parsing current user profile from localStorage", e);
-        // Fallback to default and save it
         localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(defaultKathaExplorerUser));
         return { ...defaultKathaExplorerUser };
       }
     } else {
-      // If no profile stored, save the default one
       localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(defaultKathaExplorerUser));
       return { ...defaultKathaExplorerUser };
     }
   }
-  return { ...defaultKathaExplorerUser }; // Return default for non-browser environments (SSR/build)
+  return { ...defaultKathaExplorerUser };
 };
 
 export const saveKathaExplorerUser = (userData: MockUser): void => {
@@ -147,21 +143,56 @@ export const saveKathaExplorerUser = (userData: MockUser): void => {
   }
 };
 
-// Use getKathaExplorerUser() instead of kathaExplorerUser directly for name
+export const updateCurrentLoggedInUser = (loggedInEmail: string): void => {
+  let currentUser = getKathaExplorerUser();
+  let newName = currentUser.name; // Default to current name
+
+  // Determine special name and role based on email
+  if (loggedInEmail.toLowerCase() === "rajputkritika510@gmail.com") {
+    newName = "Kritika ✨ (CEO)";
+  } else if (loggedInEmail.toLowerCase() === "kathavault@gmail.com") {
+    newName = "Katha Vault Owner ✨";
+  } else {
+    // For other emails, you might want a default name or logic to fetch/create a user
+    // For this simulation, if it's not a special email, we'll just use a generic name if the current name is the default.
+    if (currentUser.name === defaultKathaExplorerUser.name || currentUser.email !== loggedInEmail) {
+       newName = "Katha User"; // Or keep currentUser.name if you want to preserve it unless it's default
+    }
+  }
+
+  const updatedUser: MockUser = {
+    ...currentUser,
+    email: loggedInEmail,
+    name: newName,
+    // id remains CURRENT_USER_ID, username can also be updated if desired
+    // For simplicity, we're mainly updating email and name based on login.
+  };
+  saveKathaExplorerUser(updatedUser);
+
+  // Optionally, update the "logged in email" key if used for other purposes
+  // if (typeof window !== 'undefined') {
+  //   localStorage.setItem(KATHA_LOGGED_IN_EMAIL_KEY, loggedInEmail);
+  // }
+};
+
+
 export const CURRENT_USER_NAME = () => getKathaExplorerUser().name;
 
 
 export const allMockUsers: MockUser[] = [
-  getKathaExplorerUser(), // Ensure the current user in this list reflects stored data if any
+  getKathaExplorerUser(),
   { id: 'user_er', name: 'Elara Reads', username: 'elara_reads', avatarUrl: 'https://placehold.co/128x128.png?text=ER', avatarFallback: 'ER', dataAiHint: 'person reading', bio: 'Lover of all things fantasy and sci-fi. Always looking for the next great adventure.', email: 'elara@example.com', emailVisible: false, gender: 'Female', isActive: true },
   { id: 'user_mw', name: 'Marcus Writes', username: 'marcus_writes', avatarUrl: 'https://placehold.co/128x128.png?text=MW', avatarFallback: 'MW', dataAiHint: 'person writing', bio: 'Aspiring novelist, currently working on a historical fiction piece. Coffee enthusiast.', email: 'marcus@example.com', emailVisible: true, gender: 'Male', isActive: true },
-  { id: 'user_sf', name: 'SciFi Guru', username: 'scifi_guru', avatarUrl: 'https://placehold.co/128x128.png?text=SG', avatarFallback: 'SG', dataAiHint: 'person space', bio: 'Exploring the final frontier, one book at a time. Beam me up!', email: 'scifi@example.com', emailVisible: true, gender: 'Prefer not to say', isActive: true },
+  { id: 'user_sg', name: 'SciFi Guru', username: 'scifi_guru', avatarUrl: 'https://placehold.co/128x128.png?text=SG', avatarFallback: 'SG', dataAiHint: 'person space', bio: 'Exploring the final frontier, one book at a time. Beam me up!', email: 'scifi@example.com', emailVisible: true, gender: 'Prefer not to say', isActive: true },
   { id: 'user_ff', name: 'Fantasy Fan', username: 'fantasy_fan', avatarUrl: 'https://placehold.co/128x128.png?text=FF', avatarFallback: 'FF', dataAiHint: 'person fantasy', bio: 'Dragons, magic, and epic quests are my jam.', email: 'fantasy@example.com', emailVisible: false, gender: 'Non-binary', isActive: true },
-  { id: 'user_ml', name: 'Mystery Lover', username: 'mystery_lover', avatarUrl: 'https://placehold.co/128x128.png?text=ML', avatarFallback: 'ML', dataAiHint: 'person detective', bio: 'Unraveling plots and solving crimes from my armchair.', email: 'mystery@example.com', emailVisible: true, gender: 'Female', isActive: false }, // Example of a deactivated user
+  { id: 'user_ml', name: 'Mystery Lover', username: 'mystery_lover', avatarUrl: 'https://placehold.co/128x128.png?text=ML', avatarFallback: 'ML', dataAiHint: 'person detective', bio: 'Unraveling plots and solving crimes from my armchair.', email: 'mystery@example.com', emailVisible: true, gender: 'Female', isActive: false },
   { id: 'user_aa', name: 'Adventure Alex', username: 'adventure_alex', avatarUrl: 'https://placehold.co/128x128.png?text=AA', avatarFallback: 'AA', dataAiHint: 'person adventure', bio: 'Seeking thrills in stories and in life!', email: 'alex@example.com', emailVisible: false, gender: 'Male', isActive: true },
   { id: 'user_rh', name: 'Romance Hannah', username: 'romance_hannah', avatarUrl: 'https://placehold.co/128x128.png?text=RH', avatarFallback: 'RH', dataAiHint: 'person romance', bio: 'Hopeless romantic, give me all the happy endings.', email: 'hannah@example.com', emailVisible: true, gender: 'Female', isActive: true },
   { id: 'user_th', name: 'Thriller Tom', username: 'thriller_tom', avatarUrl: 'https://placehold.co/128x128.png?text=TT', avatarFallback: 'TT', dataAiHint: 'person thriller', bio: 'Always on the edge of my seat. The more suspense, the better!', email: 'tom@example.com', emailVisible: false, gender: 'Male', isActive: true },
-].map(user => user.id === CURRENT_USER_ID ? getKathaExplorerUser() : user); // Ensure kathaExplorerUser in list is up-to-date
+  // Adding the special users to the general list with their base details
+  { id: 'user_kritika_ceo', name: 'Kritika Rajput', username: 'kritikar', avatarUrl: 'https://placehold.co/128x128.png?text=KR', avatarFallback: 'KR', dataAiHint: 'person ceo', bio: 'CEO of Katha Vault. Passionate about stories and innovation.', email: 'rajputkritika510@gmail.com', emailVisible: true, gender: 'Female', isActive: true },
+  { id: 'user_katha_owner', name: 'Katha Vault Team', username: 'kathavault_admin', avatarUrl: 'https://placehold.co/128x128.png?text=KV', avatarFallback: 'KV', dataAiHint: 'team logo', bio: 'The official account for Katha Vault.', email: 'kathavault@gmail.com', emailVisible: true, gender: 'Prefer not to say', isActive: true },
+].map(user => user.id === CURRENT_USER_ID ? getKathaExplorerUser() : user);
 
 
 export const getInitialFollowingIds = (): string[] => {
@@ -192,11 +223,9 @@ export const getKathaExplorerFollowingList = (): MockUser[] => {
 
 export const getKathaExplorerFollowersList = (count: number = 3): MockUser[] => {
   const followingIds = getInitialFollowingIds();
-  // Simulate: users who are not the current user and not followed by current user
   return allMockUsers.filter(user => user.id !== CURRENT_USER_ID && !followingIds.includes(user.id)).slice(0, count);
 };
 
-// Blocked Users Management
 export const getBlockedUserIds = (): string[] => {
   if (typeof window !== 'undefined') {
     const storedBlocked = localStorage.getItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY);
@@ -205,7 +234,7 @@ export const getBlockedUserIds = (): string[] => {
         return JSON.parse(storedBlocked);
       } catch (e) {
         console.error("Error parsing blocked user IDs from localStorage", e);
-        const defaultBlocked = ['user_th']; 
+        const defaultBlocked = ['user_th'];
         localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(defaultBlocked));
         return defaultBlocked;
       }
@@ -215,7 +244,7 @@ export const getBlockedUserIds = (): string[] => {
       return defaultBlocked;
     }
   }
-  return ['user_th']; 
+  return ['user_th'];
 };
 
 export const addBlockedUserId = (userId: string): void => {
@@ -354,7 +383,6 @@ export const getAllUniqueGenres = (novels: Novel[]): string[] => {
 };
 
 export const isUserActive = (userId: string): boolean => {
-  // If checking for the current user, use the persisted active status
   if (userId === CURRENT_USER_ID) {
     return getKathaExplorerUser().isActive;
   }
