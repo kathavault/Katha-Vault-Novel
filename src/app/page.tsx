@@ -4,9 +4,9 @@
 import Link from 'next/link';
 import { StoryCard } from '@/components/story-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, BookText, Clock, Heart, Rocket, Grid, ChevronRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { getNovelsFromStorage, type Novel } from '@/lib/mock-data';
+import { ArrowRight, TrendingUp, BookText, Clock, Heart, Rocket, Grid, ChevronRight, Sparkles } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { getNovelsFromStorage, getHomeSectionsConfig, type Novel } from '@/lib/mock-data';
 
 const SectionHeader = ({ title, icon, seeAllLink }: { title: string; icon: React.ReactNode; seeAllLink?: string }) => (
   <div className="flex items-center justify-between mb-6">
@@ -24,32 +24,24 @@ const SectionHeader = ({ title, icon, seeAllLink }: { title: string; icon: React
 
 export default function HomePage() {
   const [allNovels, setAllNovels] = useState<Novel[]>([]);
+  const [homeSections, setHomeSections] = useState<string[]>([]);
 
   useEffect(() => {
     setAllNovels(getNovelsFromStorage());
+    setHomeSections(getHomeSectionsConfig());
   }, []);
 
-  const trendingNovels = allNovels.filter(novel => novel.isTrending).slice(0, 5);
-  const fullLengthNovels = allNovels.filter(novel => (novel.chapters || 0) > 1 && !novel.genres.includes('Short Story')).slice(0, 5);
-  const shortStories = allNovels.filter(novel => novel.genres.includes('Short Story')).slice(0, 5);
-  const romanceReads = allNovels.filter(novel => novel.genres.map(g => g.toLowerCase()).includes('romance')).slice(0, 5);
-  const scifiAdventures = allNovels.filter(novel => novel.genres.map(g => g.toLowerCase()).includes('sci-fi') || novel.genres.map(g => g.toLowerCase()).includes('science fiction') || novel.genres.map(g => g.toLowerCase()).includes('space opera')).slice(0, 5);
-  const moreStories = allNovels.filter(novel => 
-        !trendingNovels.find(tn => tn.id === novel.id) &&
-        !fullLengthNovels.find(fln => fln.id === novel.id) &&
-        !shortStories.find(ss => ss.id === novel.id) &&
-        !romanceReads.find(rr => rr.id === novel.id) &&
-        !scifiAdventures.find(sa => sa.id === novel.id)
-    ).slice(0, 10);
+  const publishedNovels = useMemo(() => allNovels.filter(novel => novel.status === 'published'), [allNovels]);
 
+  const trendingNovels = useMemo(() => publishedNovels.filter(novel => novel.isTrending).slice(0, 5), [publishedNovels]);
 
   const renderSection = (
     title: string,
     icon: React.ReactNode,
     stories: Novel[],
-    seeAllLink?: string, // Make seeAllLink optional
-    layout: "grid" | "horizontal" = "grid",
-    gridCols: string = "md:grid-cols-2"
+    seeAllLink?: string,
+    layout: "grid" | "horizontal" = "horizontal", // Default to horizontal
+    gridCols: string = "md:grid-cols-2 lg:grid-cols-3" // Keep for grid layout
   ) => (
     <section>
       <SectionHeader title={title} icon={icon} seeAllLink={seeAllLink} />
@@ -61,7 +53,7 @@ export default function HomePage() {
                 <StoryCard {...story} />
               </div>
             ))}
-            {seeAllLink && stories.length >= 5 && ( // Show "See All" card if there are many items and a link
+            {seeAllLink && stories.length >= 5 && (
                <div className="flex-shrink-0 w-[280px] sm:w-[300px] md:w-[320px] flex items-center justify-center">
                 <Button asChild variant="outline" className="h-full w-full text-lg">
                   <Link href={seeAllLink} className="flex flex-col items-center justify-center">
@@ -80,10 +72,30 @@ export default function HomePage() {
           </div>
         )
       ) : (
-         <p className="text-muted-foreground">No stories in this section yet. Check back soon or add some in the Admin Panel!</p>
+         <p className="text-muted-foreground">No stories in this section yet. Check back soon or add some published novels in the Admin Panel!</p>
       )}
     </section>
   );
+
+  // Create a set of IDs for novels already displayed in trending or genre sections
+  const displayedNovelIds = new Set<string>();
+  trendingNovels.forEach(n => displayedNovelIds.add(n.id));
+
+  const genreSections = homeSections.map(genre => {
+    const storiesForGenre = publishedNovels.filter(
+      novel => novel.genres.includes(genre) && !displayedNovelIds.has(novel.id)
+    ).slice(0, 5);
+    storiesForGenre.forEach(n => displayedNovelIds.add(n.id)); // Add to displayed set
+    return {
+      title: `${genre} Stories`,
+      icon: <Sparkles className="h-7 w-7 text-primary" />, // Generic icon for now
+      stories: storiesForGenre,
+      seeAllLink: `/library?genre=${encodeURIComponent(genre)}`
+    };
+  });
+
+  const moreStories = publishedNovels.filter(novel => !displayedNovelIds.has(novel.id)).slice(0, 10);
+
 
   return (
     <div className="space-y-16">
@@ -104,11 +116,13 @@ export default function HomePage() {
       </section>
 
       {renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingNovels, "/library?filter=trending", "horizontal")}
-      {renderSection("Full-Length Novels", <BookText className="h-7 w-7 text-primary" />, fullLengthNovels, "/library?category=novels", "horizontal")}
-      {renderSection("Short Stories & Quick Reads", <Clock className="h-7 w-7 text-primary" />, shortStories, "/library?category=shorts", "horizontal")}
-      {renderSection("Romance Reads", <Heart className="h-7 w-7 text-primary" />, romanceReads, "/library?category=romance", "horizontal")}
-      {renderSection("Sci-Fi Adventures", <Rocket className="h-7 w-7 text-primary" />, scifiAdventures, "/library?category=scifi", "horizontal")}
-      {renderSection("More Stories to Explore", <Grid className="h-7 w-7 text-primary" />, moreStories, "/library", "horizontal")}
+      
+      {genreSections.map(section => 
+        section.stories.length > 0 && renderSection(section.title, section.icon, section.stories, section.seeAllLink, "horizontal")
+      )}
+      
+      {moreStories.length > 0 && renderSection("More Stories to Explore", <Grid className="h-7 w-7 text-primary" />, moreStories, "/library", "horizontal")}
     </div>
   );
 }
+

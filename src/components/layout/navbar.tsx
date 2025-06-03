@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Menu, Moon, UserPlus, Home, Library, Edit3, Bot, LogIn, Sun, MessageSquareText, Shield } from 'lucide-react'; // Added MessageSquareText, Shield
+import { Menu, Moon, UserPlus, Home, Library, Edit3, Bot, LogIn, Sun, MessageSquareText, Shield, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
@@ -24,6 +24,10 @@ export function Navbar() {
     { href: '/forum', label: 'Community Feed', icon: <MessageSquareText size={20} /> },
     { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
     { href: '/admin', label: 'Admin Panel', icon: <Shield size={20} /> },
+  ];
+
+  const adminSubLinks = [
+     { href: '/admin/home-layout', label: 'Home Layout', icon: <LayoutGrid size={18} /> },
   ];
 
   const toggleTheme = () => {
@@ -85,20 +89,39 @@ export function Navbar() {
                     Katha Vault Menu
                   </SheetTitle>
                 </SheetHeader>
-                <nav className="flex flex-col space-y-3">
+                <nav className="flex flex-col space-y-1">
                   {navLinks.map((link) => (
-                    <Button
-                      key={link.href}
-                      variant="ghost"
-                      className="justify-start text-md py-3 px-3"
-                      asChild
-                      onClick={() => setIsSheetOpen(false)}
-                    >
-                      <Link href={link.href} className="flex items-center">
-                        {link.icon}
-                        <span className="ml-3">{link.label}</span>
-                      </Link>
-                    </Button>
+                    <React.Fragment key={link.href}>
+                      <Button
+                        variant="ghost"
+                        className="justify-start text-md py-3 px-3"
+                        asChild
+                        onClick={() => setIsSheetOpen(false)}
+                      >
+                        <Link href={link.href} className="flex items-center">
+                          {link.icon}
+                          <span className="ml-3">{link.label}</span>
+                        </Link>
+                      </Button>
+                      {link.href === '/admin' && (
+                        <div className="pl-8 flex flex-col space-y-1 mt-1 mb-2">
+                          {adminSubLinks.map(subLink => (
+                            <Button
+                              key={subLink.href}
+                              variant="ghost"
+                              className="justify-start text-sm py-2 px-3 text-muted-foreground hover:text-primary"
+                              asChild
+                              onClick={() => setIsSheetOpen(false)}
+                            >
+                              <Link href={subLink.href} className="flex items-center">
+                                {subLink.icon}
+                                <span className="ml-2">{subLink.label}</span>
+                              </Link>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </React.Fragment>
                   ))}
                   <hr className="my-3 border-border" />
                    <Button
@@ -135,28 +158,16 @@ export function Navbar() {
           </div>
           
           <nav className="hidden lg:flex flex-wrap items-center justify-center gap-x-1">
-            {navLinks.slice(0, 3).map((link) => ( // First 3 links
+            {navLinks.map((link) => (
               <Button key={link.href} variant="ghost" asChild>
                 <Link href={link.href} className="flex items-center text-sm font-medium px-2 py-1">
                   {link.icon} <span className="ml-2">{link.label}</span>
                 </Link>
               </Button>
             ))}
-             {navLinks.length > 3 && ( // Remaining links in a dropdown or second row
-              <>
-                {navLinks.slice(3).map((link) => (
-                  <Button key={link.href} variant="ghost" asChild>
-                    <Link href={link.href} className="flex items-center text-sm font-medium px-2 py-1">
-                     {link.icon} <span className="ml-2">{link.label}</span>
-                    </Link>
-                  </Button>
-                ))}
-              </>
-            )}
           </nav>
           
-          <div className="flex-grow lg:hidden"></div> {/* Adjusted for logo centering with flex on mobile */}
-
+          <div className="flex-grow lg:hidden"></div>
 
           <div className="flex items-center space-x-3 sm:space-x-4">
             <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
@@ -174,3 +185,4 @@ export function Navbar() {
     </nav>
   );
 }
+

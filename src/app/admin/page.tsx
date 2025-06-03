@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { NovelForm } from '@/components/novel-form';
 import { getNovelsFromStorage, saveNovelsToStorage, type Novel } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen } from 'lucide-react'; // Added BookOpen
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -41,19 +41,30 @@ export default function AdminPage() {
     setIsFormModalOpen(true);
   };
 
-  const handleFormSubmit = (data: Novel) => {
+  const handleFormSubmit = (data: Omit<Novel, 'chapters' | 'id' | 'views' | 'rating' | 'isTrending'> & { chapters?: Novel['chapters'] }) => {
     let updatedNovels;
     if (editingNovel) {
-      updatedNovels = novels.map(n => (n.id === editingNovel.id ? { ...data, id: editingNovel.id, views: n.views, rating: n.rating, chapters: n.chapters } : n));
+      updatedNovels = novels.map(n => (n.id === editingNovel.id ? { 
+        ...n, // Keep existing id, views, rating, chapters (unless chapters are passed in data, which they aren't here)
+        ...data, // Apply new title, author, genres, snippet, status, coverImageUrl, aiHint
+        chapters: editingNovel.chapters, // Explicitly keep existing chapters
+      } : n));
     } else {
-      const newNovelWithDefaults = { ...data, id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, views: 0, rating: 0, chapters: data.chapters || [] }; // Ensure chapters is an array
+      const newNovelWithDefaults: Novel = { 
+        ...data, 
+        id: `novel-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, 
+        views: 0, 
+        rating: 0, 
+        chapters: data.chapters || [],
+        isTrending: false, // Default for new novels
+      };
       updatedNovels = [...novels, newNovelWithDefaults];
     }
     setNovels(updatedNovels);
     saveNovelsToStorage(updatedNovels);
     setIsFormModalOpen(false);
     setEditingNovel(null);
-    setNovels(getNovelsFromStorage()); // Refresh to reflect dynamic trending status
+    // No need to call getNovelsFromStorage here again if setNovels triggers re-render with updatedNovels
   };
 
   const promptDeleteNovel = (novel: Novel) => {
@@ -73,7 +84,6 @@ export default function AdminPage() {
       });
       setNovelToDelete(null);
       setIsDeleteDialogOpen(false);
-      setNovels(getNovelsFromStorage());
     }
   };
 
@@ -91,11 +101,18 @@ export default function AdminPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="font-headline text-2xl text-primary">Manage Novels</CardTitle>
-            <CardDescription>View, add, edit, or delete novels.</CardDescription>
+            <CardDescription>View, add, edit, or delete novels. Configure Home Page layout.</CardDescription>
           </div>
-          <Button onClick={handleOpenAddForm}>
-            <PlusCircle className="mr-2 h-5 w-5" /> Add New Novel
-          </Button>
+          <div className="flex items-center space-x-3">
+            <Button asChild variant="outline">
+              <Link href="/admin/home-layout">
+                <LayoutGrid className="mr-2 h-5 w-5" /> Configure Home Layout
+              </Link>
+            </Button>
+            <Button onClick={handleOpenAddForm}>
+              <PlusCircle className="mr-2 h-5 w-5" /> Add New Novel
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {novels.length === 0 ? (
@@ -108,7 +125,8 @@ export default function AdminPage() {
                     <TableHead className="w-[200px]">Title</TableHead>
                     <TableHead>Author</TableHead>
                     <TableHead>Genres</TableHead>
-                    <TableHead className="text-center">No. of Chapters</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Chapters</TableHead>
                     <TableHead className="text-center">Views</TableHead>
                     <TableHead className="text-center">Rating</TableHead>
                     <TableHead className="text-center">Trending</TableHead>
@@ -121,6 +139,11 @@ export default function AdminPage() {
                       <TableCell className="font-medium">{novel.title}</TableCell>
                       <TableCell>{novel.author}</TableCell>
                       <TableCell>{novel.genres.join(", ")}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={novel.status === 'published' ? 'default' : 'secondary'} className="capitalize">
+                          {novel.status}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-center">{novel.chapters.length}</TableCell>
                       <TableCell className="text-center">{novel.views?.toLocaleString() || 0}</TableCell>
                       <TableCell className="text-center">{novel.rating?.toFixed(1) || 'N/A'}</TableCell>
@@ -196,5 +219,4 @@ export default function AdminPage() {
     </div>
   );
 }
-
     

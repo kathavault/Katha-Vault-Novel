@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
-import { Star, Share2, Facebook, Twitter, MessageCircle as WhatsAppIcon, Link2, BookOpen, ChevronLeft } from 'lucide-react';
+import { Star, Share2, Facebook, Twitter, MessageCircle as WhatsAppIcon, Link2, BookOpen, ChevronLeft, AlertCircle } from 'lucide-react';
 
 const StoryDetailPage = () => {
   const params = useParams();
@@ -24,10 +24,23 @@ const StoryDetailPage = () => {
     if (storyId) {
       const allNovels = getNovelsFromStorage();
       const foundNovel = allNovels.find(n => n.id === storyId);
-      setNovel(foundNovel || null);
+      // Only set the novel if it's found and published
+      if (foundNovel && foundNovel.status === 'published') {
+        setNovel(foundNovel);
+      } else {
+        setNovel(null); // Set to null if not found or not published
+        if (foundNovel && foundNovel.status === 'draft') {
+          toast({
+            title: "Content Not Available",
+            description: "This story is currently a draft and not available for public viewing.",
+            variant: "default",
+            duration: 5000,
+          });
+        }
+      }
     }
     setIsLoading(false);
-  }, [storyId]);
+  }, [storyId, toast]);
 
   const handleShare = (platform: string) => {
     const url = window.location.href;
@@ -53,7 +66,6 @@ const StoryDetailPage = () => {
     if (shareUrl) {
         window.open(shareUrl, '_blank', 'noopener,noreferrer');
     }
-    toast({ title: "Shared!", description: `Story shared on ${platform} (simulated).` });
   };
 
   if (isLoading) {
@@ -63,8 +75,9 @@ const StoryDetailPage = () => {
   if (!novel) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-center">
+        <AlertCircle className="h-16 w-16 text-destructive mb-4" />
         <h1 className="text-4xl font-bold mb-4">Story Not Found</h1>
-        <p className="text-muted-foreground mb-6">The story you are looking for does not exist or has been moved.</p>
+        <p className="text-muted-foreground mb-6">The story you are looking for does not exist or is not currently available.</p>
         <Button onClick={() => router.push('/library')}>
             <ChevronLeft className="mr-2 h-4 w-4" /> Back to Library
         </Button>
@@ -153,7 +166,7 @@ const StoryDetailPage = () => {
                   {novel.chapters.map((chapter, index) => (
                     <Link key={chapter.id} href={`/story/${storyId}/${index + 1}`} passHref>
                       <div className="flex items-center p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors cursor-pointer space-x-3">
-                        <div className="flex-shrink-0 h-[68px] w-[48px] relative rounded overflow-hidden aspect-[12/17]">
+                        <div className="flex-shrink-0 h-auto w-[48px] relative rounded overflow-hidden aspect-[12/17]">
                            <Image
                             src={novel.coverImageUrl || `https://placehold.co/48x68.png?text=C${index + 1}`}
                             alt={`${chapter.title} thumbnail`}

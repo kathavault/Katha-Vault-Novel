@@ -13,7 +13,7 @@ import { Bookmark, Search, FilterX, ListFilter, Users, ExternalLink } from 'luci
 import { allMockUsers, type MockUser, getNovelsFromStorage, type Novel } from '@/lib/mock-data'; 
 import { useToast } from "@/hooks/use-toast";
 
-const ALL_AVAILABLE_GENRES_FOR_FILTER = ["Sci-Fi", "Adventure", "Mystery", "Thriller", "Fantasy", "Epic", "Cyberpunk", "Romance", "Historical", "Horror", "Cosmic Horror", "Contemporary", "Time Travel", "Steampunk", "Short Story", "Urban Fantasy", "Magic", "Space Opera", "Existential", "Dystopia", "Action", "General", "Reading", "Book"];
+const ALL_AVAILABLE_GENRES_FOR_FILTER = ["Sci-Fi", "Adventure", "Mystery", "Thriller", "Fantasy", "Epic", "Cyberpunk", "Romance", "Historical", "Horror", "Cosmic Horror", "Contemporary", "Time Travel", "Steampunk", "Short Story", "Urban Fantasy", "Magic", "Space Opera", "Existential", "Dystopia", "Action", "General", "Reading", "Book", "Essay"];
 
 export default function LibraryPage() {
   const { toast } = useToast();
@@ -26,13 +26,14 @@ export default function LibraryPage() {
   const [filteredUsers, setFilteredUsers] = useState<MockUser[]>([]);
 
   useEffect(() => {
-    const novels = getNovelsFromStorage();
+    // Fetch all novels, including drafts for admin, but public pages should filter
+    const novels = getNovelsFromStorage(); 
     setAllLibraryNovels(novels);
-    setFilteredStories(novels); // Initialize filtered stories with all novels
   }, []);
 
   useEffect(() => {
-    let stories = allLibraryNovels;
+    // Filter for 'published' novels for public display
+    let stories = allLibraryNovels.filter(novel => novel.status === 'published');
 
     if (storySearchTerm.trim() !== "") {
       stories = stories.filter(story =>
@@ -77,8 +78,8 @@ export default function LibraryPage() {
   
   const uniqueAvailableGenres = useMemo(() => {
     const genresFromStories = new Set<string>();
-    allLibraryNovels.forEach(story => story.genres.forEach(genre => genresFromStories.add(genre)));
-    // Combine predefined genres with those from actual stories to ensure all are filterable
+    // Consider only published novels for genre filtering options on public page
+    allLibraryNovels.filter(n => n.status === 'published').forEach(story => story.genres.forEach(genre => genresFromStories.add(genre)));
     return Array.from(new Set([...ALL_AVAILABLE_GENRES_FOR_FILTER, ...Array.from(genresFromStories)])).sort();
   }, [allLibraryNovels]);
 
@@ -198,10 +199,11 @@ export default function LibraryPage() {
       ) : (
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground font-body">
-            No stories match your criteria. Try adjusting your search or filters, or add more novels in the Admin Panel.
+            No published stories match your criteria. Try adjusting your search or filters.
           </p>
         </div>
       )}
     </div>
   );
 }
+

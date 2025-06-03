@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { Novel } from "@/lib/mock-data"; // Chapter type is implicitly handled
+import type { Novel } from "@/lib/mock-data";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
@@ -30,16 +31,16 @@ const novelFormSchema = z.object({
   author: z.string().min(2, "Author name must be at least 2 characters."),
   genres: z.string().min(1, "Please enter at least one genre."),
   snippet: z.string().min(10, "Snippet must be at least 10 characters."),
+  status: z.enum(["draft", "published"], { required_error: "Please select a status."}),
   coverImageUrl: z.string().optional().or(z.literal('')),
   aiHint: z.string().optional(),
-  // Chapters array is managed separately, not directly in this form for novel core details.
 });
 
 type NovelFormValues = z.infer<typeof novelFormSchema>;
 
 interface NovelFormProps {
   initialData?: Novel | null;
-  onSubmitForm: (data: Omit<Novel, 'chapters' | 'id' | 'views' | 'rating' | 'isTrending'> & { chapters?: Novel['chapters'] }) => void; // Adjusted for chapter management
+  onSubmitForm: (data: Omit<Novel, 'chapters' | 'id' | 'views' | 'rating' | 'isTrending'> & { chapters?: Novel['chapters'] }) => void;
   submitButtonText?: string;
   onCancel?: () => void;
 }
@@ -55,6 +56,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       author: "",
       genres: "",
       snippet: "",
+      status: "draft",
       coverImageUrl: "",
       aiHint: "",
     },
@@ -67,6 +69,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         author: initialData.author || "",
         genres: initialData.genres?.join(", ") || "",
         snippet: initialData.snippet || "",
+        status: initialData.status || "draft",
         coverImageUrl: initialData.coverImageUrl || "",
         aiHint: initialData.aiHint || "",
       });
@@ -77,6 +80,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         author: "",
         genres: "",
         snippet: "",
+        status: "draft",
         coverImageUrl: "",
         aiHint: "",
       });
@@ -138,9 +142,9 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       author: data.author,
       genres: data.genres.split(",").map(g => g.trim()).filter(g => g.length > 0),
       snippet: data.snippet,
+      status: data.status,
       coverImageUrl: finalCoverImageUrl || undefined,
       aiHint: data.aiHint || undefined,
-      // Chapters are managed separately, pass existing if editing
       chapters: initialData?.chapters 
     };
     
@@ -203,6 +207,30 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
             </FormItem>
           )}
         />
+         <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select novel status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                "Draft" novels are not visible to public users. "Published" novels are live.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
         <FormItem>
           <FormLabel>Cover Image</FormLabel>
@@ -225,7 +253,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
             )}
           />
           {imagePreview && (
-            <div className="mt-4 relative w-32 h-[calc(32px*17/12)] aspect-[12/17] rounded border border-muted overflow-hidden">
+            <div className="mt-4 relative w-32 h-auto aspect-[12/17] rounded border border-muted overflow-hidden">
               <Image src={imagePreview} alt="Cover preview" layout="fill" objectFit="cover" />
             </div>
           )}
@@ -249,7 +277,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         />
         
         <p className="text-sm text-muted-foreground font-body">
-          Note: Number of chapters, views, and ratings are managed by user interaction or the dedicated chapter management section.
+          Note: Views and ratings are managed by user interaction or the dedicated chapter management section.
         </p>
 
         <div className="flex justify-end space-x-3">
@@ -260,10 +288,11 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
                 author: initialData.author || "",
                 genres: initialData.genres?.join(", ") || "",
                 snippet: initialData.snippet || "",
+                status: initialData.status || "draft",
                 coverImageUrl: initialData.coverImageUrl || "",
                 aiHint: initialData.aiHint || "",
               } : {
-                title: "", author: "", genres: "", snippet: "", coverImageUrl: "", aiHint: "",
+                title: "", author: "", genres: "", snippet: "", status: "draft", coverImageUrl: "", aiHint: "",
               });
             setImagePreview(initialData?.coverImageUrl || null);
           }}>Cancel</Button>}
