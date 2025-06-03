@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const CURRENT_USER_NAME = "Katha Explorer"; 
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
-const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
+const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts'; // To update if post is deleted from profile
 
 
 const initialUserProfile = {
@@ -134,7 +134,6 @@ export default function ProfilePage() {
       setFollowing(prev => prev.filter(user => user.id !== userId));
       toast({ title: "User Unfollowed", description: "This change is local to your session."});
     }
-     // Close modal after action
     setModalOpenFor(null);
   };
 
@@ -144,7 +143,6 @@ export default function ProfilePage() {
     localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
     setUserProfile(prev => ({ ...prev, postsCount: updatedPosts.length }));
     
-
     try {
         const socialFeedRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
         if (socialFeedRaw) {
@@ -199,25 +197,15 @@ export default function ProfilePage() {
         onViewFollowing={() => openUserListModal('following')}
       />
 
-      <Tabs defaultValue="reading-progress" className="w-full">
+      <Tabs defaultValue="my-posts" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
+           <TabsTrigger value="my-posts" onClick={loadUserPosts}> 
+            <Edit2 className="mr-2 h-4 w-4" /> My Posts
+          </TabsTrigger>
           <TabsTrigger value="reading-progress">
             <BookOpenText className="mr-2 h-4 w-4" /> Reading Progress
           </TabsTrigger>
-          <TabsTrigger value="my-posts" onClick={loadUserPosts}> 
-            <Edit2 className="mr-2 h-4 w-4" /> My Posts
-          </TabsTrigger>
         </TabsList>
-        <TabsContent value="reading-progress" className="mt-6">
-          <div className="space-y-6">
-            <h2 className="text-2xl font-headline text-primary">Currently Reading</h2>
-            {readingProgress.length > 0 ? (
-              readingProgress.map(item => <ReadingProgressItem key={item.id} {...item} />)
-            ) : (
-              <p className="text-muted-foreground font-body">No stories in progress. Start reading to track them here!</p>
-            )}
-          </div>
-        </TabsContent>
         <TabsContent value="my-posts" className="mt-6">
           <div className="space-y-6">
             <h2 className="text-2xl font-headline text-primary" id="my-posts-section">My Posts</h2>
@@ -229,10 +217,21 @@ export default function ProfilePage() {
                   onDeletePost={handleDeleteMyPost}
                   onUpdateComments={handleUpdateMyPostComments}
                   isFullView={true} 
+                  currentUserName={CURRENT_USER_NAME}
                 />
               )) 
             ) : (
               <p className="text-muted-foreground font-body">You haven't made any posts yet. Create one in the Community Feed!</p>
+            )}
+          </div>
+        </TabsContent>
+        <TabsContent value="reading-progress" className="mt-6">
+          <div className="space-y-6">
+            <h2 className="text-2xl font-headline text-primary">Currently Reading</h2>
+            {readingProgress.length > 0 ? (
+              readingProgress.map(item => <ReadingProgressItem key={item.id} {...item} />)
+            ) : (
+              <p className="text-muted-foreground font-body">No stories in progress. Start reading to track them here!</p>
             )}
           </div>
         </TabsContent>
@@ -254,3 +253,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

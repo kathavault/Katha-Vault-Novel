@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Users, TrendingUp, MessageSquareText, Send, Edit } from 'lucide-react'; 
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCheck } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 // Enhanced sample comments data structure (example)
@@ -22,18 +23,18 @@ const sampleCommentsLevel1: FeedItemComment[] = [
   { id: 'reply-1-2', authorName: 'SupportiveSam', authorInitials: 'SS', text: 'Great discussion!', timestamp: '10m ago', commentLikes: 1, isCommentLikedByUser: true, replies: [] },
 ];
 const sampleCommentsTopLevel: FeedItemComment[] = [
-  { id: 'comment-1', authorName: 'ReaderReply', authorInitials: 'RR', text: 'This is a great point!', timestamp: '20m ago', commentLikes: 5, isCommentLikedByUser: false, replies: sampleCommentsLevel1 },
-  { id: 'comment-2', authorName: 'CriticalThinker', authorInitials: 'CT', text: 'I have a different perspective.', timestamp: '18m ago', commentLikes: 3, isCommentLikedByUser: true, replies: [] },
+  { id: 'comment-1', authorName: 'ReaderReply', authorInitials: 'RR', text: 'This is a great point!', timestamp: '20m ago', commentLikes: 5, isCommentLikedByUser: false, replies: sampleCommentsLevel1, authorAvatarUrl: 'https://placehold.co/40x40.png?text=RR' },
+  { id: 'comment-2', authorName: 'CriticalThinker', authorInitials: 'CT', text: 'I have a different perspective.', timestamp: '18m ago', commentLikes: 3, isCommentLikedByUser: true, replies: [], authorAvatarUrl: 'https://placehold.co/40x40.png?text=CT' },
 ];
 
 const initialTrendingPosts: FeedItemCardProps[] = [
-  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true, discussionGroupName: "Last Nebula Leveling" },
-  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false },
+  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true, discussionGroupName: "Last Nebula Leveling", privacy: 'public' },
+  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false, privacy: 'public' },
 ];
 
 const initialSocialFeedPosts: FeedItemCardProps[] = [
-  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true, discussionGroupName: "Introductions" },
-  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false },
+  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true, discussionGroupName: "Introductions", privacy: 'public' },
+  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false, privacy: 'public' },
 ];
 
 const CURRENT_USER_NAME = "Katha Explorer";
@@ -47,6 +48,8 @@ export default function FeedPage() {
   const [newPostContent, setNewPostContent] = useState("");
   const [includeDiscussion, setIncludeDiscussion] = useState(false);
   const [discussionGroupName, setDiscussionGroupName] = useState("");
+  const [postPrivacy, setPostPrivacy] = useState<'public' | 'private' | 'custom'>('public');
+  
   const [socialFeedPosts, setSocialFeedPosts] = useState<FeedItemCardProps[]>([]);
   const [trendingPosts, setTrendingPosts] = useState<FeedItemCardProps[]>(initialTrendingPosts); 
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
@@ -56,20 +59,21 @@ export default function FeedPage() {
     try {
       const storedSocialFeedPostsRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
       if (storedSocialFeedPostsRaw) {
-        setSocialFeedPosts(JSON.parse(storedSocialFeedPostsRaw));
+        const parsedPosts: FeedItemCardProps[] = JSON.parse(storedSocialFeedPostsRaw);
+        setSocialFeedPosts(parsedPosts);
       } else {
         setSocialFeedPosts(initialSocialFeedPosts); 
         localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(initialSocialFeedPosts));
       }
     } catch (error) {
       console.error("Error loading social feed posts from localStorage:", error);
-      setSocialFeedPosts(initialSocialFeedPosts);
+      setSocialFeedPosts(initialSocialFeedPosts); // Fallback to initial if error
     }
     setIsLoadingFeed(false);
   }, []);
 
   useEffect(() => {
-    if (!isLoadingFeed && socialFeedPosts.length >= 0) { // Allow saving empty state
+    if (!isLoadingFeed && socialFeedPosts.length >= 0) { 
       try {
         localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeedPosts));
       } catch (error) {
@@ -101,6 +105,7 @@ export default function FeedPage() {
       comments: [],
       includeDiscussionGroup: includeDiscussion,
       discussionGroupName: includeDiscussion ? (discussionGroupName.trim() || `Discussion for: ${newPostContent.substring(0,30)}...`) : undefined,
+      privacy: postPrivacy,
     };
 
     const updatedSocialFeed = [newPost, ...socialFeedPosts];
@@ -120,6 +125,7 @@ export default function FeedPage() {
     setNewPostContent("");
     setIncludeDiscussion(false);
     setDiscussionGroupName("");
+    setPostPrivacy('public'); // Reset privacy to default
     toast({ title: "Post Submitted!", description: "Your thoughts have been shared." });
   };
 
@@ -159,6 +165,14 @@ export default function FeedPage() {
       console.error("Error updating comments in user's posts localStorage:", error);
     }
   };
+
+  const filteredSocialFeedPosts = socialFeedPosts.filter(post => {
+    if (post.privacy === 'public') return true;
+    if (post.privacy === 'private' || post.privacy === 'custom') { // Custom behaves like private for this sim
+      return post.authorName === CURRENT_USER_NAME;
+    }
+    return true; // Should not happen with defined privacy types
+  });
 
 
   return (
@@ -228,6 +242,35 @@ export default function FeedPage() {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-3">
+                  <Label className="font-body text-sm font-medium">Post Privacy</Label>
+                  <RadioGroup
+                    value={postPrivacy}
+                    onValueChange={(value: 'public' | 'private' | 'custom') => setPostPrivacy(value)}
+                    className="flex flex-col sm:flex-row gap-2 sm:gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="public" id="privacy-public" />
+                      <Label htmlFor="privacy-public" className="font-body text-sm flex items-center"><Globe className="mr-1.5 h-4 w-4 text-blue-500"/>Public</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="private" id="privacy-private" />
+                      <Label htmlFor="privacy-private" className="font-body text-sm flex items-center"><Lock className="mr-1.5 h-4 w-4 text-orange-500"/>Private</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="custom" id="privacy-custom" />
+                      <Label htmlFor="privacy-custom" className="font-body text-sm flex items-center"><UserCheck className="mr-1.5 h-4 w-4 text-green-500"/>Custom</Label>
+                    </div>
+                  </RadioGroup>
+                  <p className="text-xs text-muted-foreground font-body pl-1">
+                    {postPrivacy === 'public' && 'Visible to everyone.'}
+                    {postPrivacy === 'private' && 'Visible to you. (Simulation: In a real app, this would be followers/following).'}
+                    {postPrivacy === 'custom' && 'Visible to you. (Simulation: In a real app, you could select specific users).'}
+                  </p>
+                </div>
+
+
                 <div className="flex justify-end">
                   <Button type="submit" size="lg">
                     <Send className="mr-2 h-5 w-5" /> Post
@@ -239,14 +282,15 @@ export default function FeedPage() {
 
           {isLoadingFeed ? (
             <p className="text-center text-muted-foreground py-8">Loading feed...</p>
-          ) : socialFeedPosts.length > 0 ? (
-             socialFeedPosts.map(post => (
+          ) : filteredSocialFeedPosts.length > 0 ? (
+             filteredSocialFeedPosts.map(post => (
               <FeedItemCard 
                 key={post.id} 
                 {...post} 
                 onDeletePost={handleDeletePost}
                 onUpdateComments={handleUpdatePostComments}
                 isFullView={true}
+                currentUserName={CURRENT_USER_NAME}
               />
             ))
           ) : ( 
@@ -263,10 +307,9 @@ export default function FeedPage() {
                 isFullView={true}
                 onDeletePost={() => toast({ title: "Action Denied", description: "Trending posts cannot be deleted from this view."})}
                 onUpdateComments={(postId, comments) => {
-                  // This is a simplified update for trending posts for consistency.
-                  // Ideally, trending posts would be immutable or have their own update logic.
                   setTrendingPosts(prev => prev.map(p => p.id === postId ? {...p, comments} : p));
                 }}
+                currentUserName={CURRENT_USER_NAME}
               />
             ))}
             {trendingPosts.length === 0 && (
@@ -278,3 +321,5 @@ export default function FeedPage() {
     </div>
   );
 }
+
+    

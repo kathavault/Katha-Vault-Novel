@@ -8,16 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck } from 'lucide-react';
 import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
 
-// Simulate current user
-const CURRENT_USER_NAME = "Katha Explorer";
-const CURRENT_USER_INITIALS = "KE";
-const CURRENT_USER_AVATAR_URL = "https://placehold.co/40x40.png?text=KE";
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
 
@@ -49,9 +45,11 @@ export interface FeedItemCardProps {
   comments: FeedItemComment[];
   includeDiscussionGroup?: boolean;
   discussionGroupName?: string;
+  privacy: 'public' | 'private' | 'custom';
   onDeletePost?: (postId: string) => void;
   onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
   isFullView?: boolean;
+  currentUserName?: string; // To determine if the current viewer is the author
 }
 
 export function FeedItemCard({
@@ -70,9 +68,11 @@ export function FeedItemCard({
   comments: initialComments,
   includeDiscussionGroup = false,
   discussionGroupName,
+  privacy,
   onDeletePost,
   onUpdateComments,
   isFullView = true,
+  currentUserName,
 }: FeedItemCardProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -84,7 +84,7 @@ export function FeedItemCard({
   const [replyText, setReplyText] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  const isCurrentUserPost = authorName === CURRENT_USER_NAME;
+  const isAuthorViewing = authorName === currentUserName;
 
   useEffect(() => {
     setPostComments(initialComments);
@@ -143,9 +143,9 @@ export function FeedItemCard({
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: CURRENT_USER_NAME,
-      authorInitials: CURRENT_USER_INITIALS,
-      authorAvatarUrl: CURRENT_USER_AVATAR_URL,
+      authorName: currentUserName || "Anonymous", // Use current user or fallback
+      authorInitials: currentUserName ? currentUserName.substring(0,2).toUpperCase() : "AN",
+      authorAvatarUrl: currentUserName === "Katha Explorer" ? "https://placehold.co/40x40.png?text=KE" : undefined, // Example avatar
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -207,7 +207,7 @@ export function FeedItemCard({
       const discussionExists = joinedDiscussions.some(d => d.postId === postId);
       if (!discussionExists) {
         joinedDiscussions.push({
-          id: postId, // Using postId as discussion ID for simplicity
+          id: postId, 
           name: groupNameDisplay,
           postId: postId,
         });
@@ -232,7 +232,7 @@ export function FeedItemCard({
         variant: "destructive"
       });
     }
-    router.push('/chat?section=discussions');
+    router.push(`/chat?section=discussions&discussionId=${postId}`);
   };
 
   const handleDeleteDiscussionGroup = () => {
@@ -242,9 +242,6 @@ export function FeedItemCard({
         description: `The discussion group '${groupNameDisplay}' for this post would be removed by the admin. This action is visual for this session.`,
         variant: "destructive"
     });
-    // In a real app, update the post state (e.g., post.includeDiscussionGroup = false) and persist
-    // Also, potentially remove from JOINED_DISCUSSIONS_STORAGE_KEY for all users if possible client-side,
-    // or ideally, handle on backend.
   };
 
   const handleInternalDeletePost = () => {
@@ -255,8 +252,15 @@ export function FeedItemCard({
     }
   }
 
+  const PrivacyIcon = () => {
+    if (!isAuthorViewing || privacy === 'public') return null;
+    if (privacy === 'private') return <Lock className="h-3.5 w-3.5 text-orange-500 ml-1.5" title="Private Post"/>;
+    if (privacy === 'custom') return <UserCheck className="h-3.5 w-3.5 text-green-500 ml-1.5" title="Custom Audience"/>;
+    return null;
+  };
+
   const CommentItem = ({ comment, depth = 0 }: { comment: FeedItemComment, depth?: number }) => {
-    const canCurrentUserDeleteThisComment = comment.authorName === CURRENT_USER_NAME || isCurrentUserPost;
+    const canCurrentUserDeleteThisComment = comment.authorName === currentUserName || isAuthorViewing;
 
     return (
       <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
@@ -332,7 +336,10 @@ export function FeedItemCard({
             </Avatar>
             <div className="flex-grow">
               <p className="text-sm font-semibold text-foreground">{authorName}</p>
-              <CardDescription className="font-body text-xs text-muted-foreground">{timestamp}</CardDescription>
+              <CardDescription className="font-body text-xs text-muted-foreground flex items-center">
+                {timestamp}
+                <PrivacyIcon />
+              </CardDescription>
             </div>
             <div className="flex items-center">
               {isFullView && (
@@ -340,7 +347,7 @@ export function FeedItemCard({
                     <Share2 className="h-4 w-4" />
                  </Button>
               )}
-              {isCurrentUserPost && onDeletePost && isFullView && (
+              {isAuthorViewing && onDeletePost && isFullView && (
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
@@ -403,7 +410,7 @@ export function FeedItemCard({
                         Join {discussionGroupName ? `"${discussionGroupName}"` : "Discussion"}
                     </Button>
                 )}
-                { isCurrentUserPost && includeDiscussionGroup && isFullView && (
+                { isAuthorViewing && includeDiscussionGroup && isFullView && (
                      <Button variant="outline" size="sm" onClick={handleDeleteDiscussionGroup} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Group
@@ -442,3 +449,5 @@ export function FeedItemCard({
     </>
   );
 }
+
+    
