@@ -5,14 +5,16 @@ import { useState, useEffect } from 'react';
 import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
-import { FeedItemCard, type FeedItemCardProps } from '@/components/forum-post-card'; 
+import { FeedItemCard, type FeedItemCardProps, type FeedItemComment } from '@/components/forum-post-card'; 
 import { UserListModal, type ModalUser } from '@/components/profile/user-list-modal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpenText, Edit2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
+const CURRENT_USER_NAME = "Katha Explorer"; // Used for identifying user's own posts
+
 const initialUserProfile = {
-  name: 'Katha Explorer',
+  name: CURRENT_USER_NAME,
   username: 'katha_explorer',
   avatarUrl: 'https://placehold.co/128x128.png',
   bio: 'Avid reader and aspiring writer. Exploring worlds one story at a time.',
@@ -58,7 +60,7 @@ export default function ProfilePage() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalActionButtonLabel, setModalActionButtonLabel] = useState("");
 
-  useEffect(() => {
+  const loadUserPosts = () => {
     try {
       const storedPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
       if (storedPostsRaw) {
@@ -66,6 +68,7 @@ export default function ProfilePage() {
         setMyProfilePosts(storedPosts);
         setUserProfile(prev => ({ ...prev, postsCount: storedPosts.length }));
       } else {
+         setMyProfilePosts([]);
         setUserProfile(prev => ({ ...prev, postsCount: 0 }));
       }
     } catch (error) {
@@ -75,8 +78,13 @@ export default function ProfilePage() {
         description: "Could not load your posts for the profile page.",
         variant: "destructive",
       });
+       setMyProfilePosts([]);
        setUserProfile(prev => ({ ...prev, postsCount: 0 }));
     }
+  };
+
+  useEffect(() => {
+    loadUserPosts();
   }, [toast]);
 
 
@@ -126,6 +134,47 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDeleteMyPost = (postId: string) => {
+    const updatedPosts = myProfilePosts.filter(post => post.id !== postId);
+    setMyProfilePosts(updatedPosts);
+    localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
+    setUserProfile(prev => ({ ...prev, postsCount: updatedPosts.length }));
+    toast({ title: "Post Deleted", description: "Your post has been removed." });
+
+    // Also remove from general social feed if it exists there
+    try {
+        const socialFeedRaw = localStorage.getItem('kathaVaultSocialFeedPosts');
+        if (socialFeedRaw) {
+            let socialFeed: FeedItemCardProps[] = JSON.parse(socialFeedRaw);
+            socialFeed = socialFeed.filter(p => p.id !== postId);
+            localStorage.setItem('kathaVaultSocialFeedPosts', JSON.stringify(socialFeed));
+        }
+    } catch (e) {
+        console.error("Error removing post from social feed localStorage", e);
+    }
+  };
+
+  const handleUpdateMyPostComments = (postId: string, updatedComments: FeedItemComment[]) => {
+    const updatedPosts = myProfilePosts.map(post => 
+      post.id === postId ? { ...post, comments: updatedComments } : post
+    );
+    setMyProfilePosts(updatedPosts);
+    localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
+
+    // Also update in general social feed if it exists there
+     try {
+        const socialFeedRaw = localStorage.getItem('kathaVaultSocialFeedPosts');
+        if (socialFeedRaw) {
+            let socialFeed: FeedItemCardProps[] = JSON.parse(socialFeedRaw);
+            socialFeed = socialFeed.map(p => p.id === postId ? { ...p, comments: updatedComments } : p);
+            localStorage.setItem('kathaVaultSocialFeedPosts', JSON.stringify(socialFeed));
+        }
+    } catch (e) {
+        console.error("Error updating comments in social feed localStorage", e);
+    }
+  };
+
+
   return (
     <div className="space-y-8">
       <UserProfileHeader
@@ -152,7 +201,7 @@ export default function ProfilePage() {
           <TabsTrigger value="reading-progress">
             <BookOpenText className="mr-2 h-4 w-4" /> Reading Progress
           </TabsTrigger>
-          <TabsTrigger value="my-posts">
+          <TabsTrigger value="my-posts" onClick={loadUserPosts}> {/* Reload posts when tab is clicked */}
             <Edit2 className="mr-2 h-4 w-4" /> My Posts
           </TabsTrigger>
         </TabsList>
@@ -170,7 +219,15 @@ export default function ProfilePage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-headline text-primary" id="my-posts-section">My Posts</h2>
             {myProfilePosts.length > 0 ? (
-              myProfilePosts.map(post => <FeedItemCard key={post.id} {...post} />) 
+              myProfilePosts.map(post => (
+                <FeedItemCard 
+                  key={post.id} 
+                  {...post} 
+                  onDeletePost={handleDeleteMyPost}
+                  onUpdateComments={handleUpdateMyPostComments}
+                  isFullView={false} // Potentially a simplified view for profile posts
+                />
+              )) 
             ) : (
               <p className="text-muted-foreground font-body">You haven't made any posts yet. Create one in the Community Feed!</p>
             )}

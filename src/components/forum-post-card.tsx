@@ -7,11 +7,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2 } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical } from 'lucide-react';
+import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
+
+// Simulate current user
+const CURRENT_USER_NAME = "Katha Explorer";
+const CURRENT_USER_INITIALS = "KE";
+const CURRENT_USER_AVATAR_URL = "https://placehold.co/40x40.png?text=KE";
+
 
 export interface FeedItemComment {
   id: string;
@@ -40,6 +47,9 @@ export interface FeedItemCardProps {
   aiHint?: string;
   comments: FeedItemComment[];
   includeDiscussionGroup?: boolean;
+  onDeletePost?: (postId: string) => void;
+  onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
+  isFullView?: boolean; // To control some UI elements in different contexts like profile page
 }
 
 export function FeedItemCard({
@@ -57,6 +67,9 @@ export function FeedItemCard({
   aiHint = "feed image",
   comments: initialComments,
   includeDiscussionGroup = false,
+  onDeletePost,
+  onUpdateComments,
+  isFullView = true, // Default to true for normal feed view
 }: FeedItemCardProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -68,12 +81,28 @@ export function FeedItemCard({
   const [replyText, setReplyText] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  // Simulate current user for OP actions
-  const isCurrentUserPost = authorName === 'Katha Explorer';
+  const isCurrentUserPost = authorName === CURRENT_USER_NAME;
+
+  useEffect(() => {
+    setPostComments(initialComments);
+  }, [initialComments]);
+
+  useEffect(() => {
+    setCurrentPostLikes(initialLikesCount);
+  } , [initialLikesCount]);
+
 
   const handlePostLike = () => {
     setIsPostLiked(prev => !prev);
     setCurrentPostLikes(prev => isPostLiked ? prev - 1 : prev + 1);
+    // In a real app, you'd call an API here
+  };
+
+  const updateCommentsStateAndNotifyParent = (updatedComments: FeedItemComment[]) => {
+    setPostComments(updatedComments);
+    if (onUpdateComments) {
+      onUpdateComments(postId, updatedComments);
+    }
   };
 
   const handleCommentLike = (targetCommentId: string) => {
@@ -95,7 +124,7 @@ export function FeedItemCard({
         return comment;
       });
     };
-    setPostComments(prevComments => updateLikesRecursively(prevComments));
+    updateCommentsStateAndNotifyParent(updateLikesRecursively(postComments));
   };
   
   const handleToggleReplyInput = (commentId: string) => {
@@ -112,9 +141,9 @@ export function FeedItemCard({
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: 'Katha Explorer', // Placeholder for current user
-      authorInitials: 'KE',
-      authorAvatarUrl: 'https://placehold.co/32x32.png?text=KE', 
+      authorName: CURRENT_USER_NAME, 
+      authorInitials: CURRENT_USER_INITIALS,
+      authorAvatarUrl: CURRENT_USER_AVATAR_URL, 
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -140,91 +169,133 @@ export function FeedItemCard({
       });
     };
 
-    setPostComments(prevComments => addReplyRecursively(prevComments));
+    updateCommentsStateAndNotifyParent(addReplyRecursively(postComments));
     setReplyText("");
     setReplyingToCommentId(null); 
     toast({ title: "Reply Posted", description: "Your reply has been added." });
   };
 
-  const commentsToDisplay = showAllComments ? postComments : postComments.slice(0, 2);
-  const totalTopLevelComments = postComments.length;
-
-  const handleOpenShareModal = () => {
-    setIsShareModalOpen(true);
+  const handleDeleteComment = (targetCommentId: string) => {
+    const deleteCommentRecursively = (comments: FeedItemComment[]): FeedItemComment[] => {
+      return comments.filter(comment => comment.id !== targetCommentId).map(comment => {
+        if (comment.replies && comment.replies.length > 0) {
+          return {
+            ...comment,
+            replies: deleteCommentRecursively(comment.replies),
+          };
+        }
+        return comment;
+      });
+    };
+    updateCommentsStateAndNotifyParent(deleteCommentRecursively(postComments));
+    toast({ title: "Comment Deleted", description: "The comment has been removed." });
   };
 
+  const commentsToDisplay = showAllComments || !isFullView ? postComments : postComments.slice(0, 2);
+  const totalTopLevelComments = postComments.length;
+
+  const handleOpenShareModal = () => setIsShareModalOpen(true);
+
   const handleJoinDiscussion = () => {
-    if (postType === 'forum' && !includeDiscussionGroup) { // Original forum post behavior
+    if (postType === 'forum' && !includeDiscussionGroup) { 
         toast({
             title: "Joining General Discussion...",
-            description: `Taking you to the chat area for "${title || 'this post'}". This is a general discussion topic.`,
+            description: `Taking you to the chat area for "${title || 'this post'}".`,
             duration: 4000,
         });
         router.push('/chat');
-    } else { // For posts with specific discussion groups (social or forum)
+    } else { 
         toast({
             title: "Joining Discussion Group!",
-            description: `You've joined the discussion for "${title || mainText.substring(0,30)+"..."}"! (This would typically open a dedicated chat. For now, you can use the main chat page to discuss this post with ID: ${postId})`,
+            description: `You've joined the discussion for "${title || mainText.substring(0,30)+"..."}"! (Post ID: ${postId})`,
             duration: 5000,
         });
-        // Potentially copy postId to clipboard or pass to chat page via query param in a real scenario
-        // navigator.clipboard.writeText(`Post ID for discussion: ${postId}`);
+        router.push('/chat'); // Could eventually pass postId to filter chat
     }
   };
 
-  const handleDeleteDiscussion = () => {
+  const handleDeleteDiscussionGroup = () => {
     toast({
         title: "Discussion Group Deleted (Simulated)",
-        description: "If this were a real feature, the dedicated discussion group for this post would be removed.",
+        description: "The dedicated discussion group for this post would be removed.",
         variant: "destructive"
     });
-    // In a real app, you'd update the post's state (e.g., set includeDiscussionGroup to false)
-    // and persist this change. For now, it's just a visual confirmation.
+    // In a real app, update the post state to includeDiscussionGroup: false and persist
   };
 
+  const handleInternalDeletePost = () => {
+    if (onDeletePost) {
+      onDeletePost(postId);
+    } else {
+      toast({ title: "Error", description: "Delete function not available.", variant: "destructive"});
+    }
+  }
 
-  const CommentItem = ({ comment }: { comment: FeedItemComment }) => (
-    <div className={`flex space-x-3 mt-4 ${comment.id.startsWith('reply-') ? 'ml-6 sm:ml-8' : ''}`}>
-      <Avatar className="h-8 w-8">
-        <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
-        <AvatarFallback>{comment.authorInitials}</AvatarFallback>
-      </Avatar>
-      <div className="flex-1 space-y-1">
-        <div>
-          <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
-          <span className="text-xs text-muted-foreground ml-2">{comment.timestamp}</span>
-        </div>
-        <p className="text-sm text-foreground/90 whitespace-pre-wrap">{comment.text}</p>
-        <div className="flex items-center space-x-2 text-xs">
-          <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)}>
-            <ThumbsUp className={`h-3.5 w-3.5 mr-1 ${comment.isCommentLikedByUser ? 'fill-primary text-primary' : ''}`} /> 
-            {comment.commentLikes > 0 ? comment.commentLikes : 'Like'}
-          </Button>
-          <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)}>
-            <CornerDownRight className="h-3.5 w-3.5 mr-1" /> Reply
-          </Button>
-        </div>
-        {replyingToCommentId === comment.id && (
-          <form onSubmit={(e) => handlePostReply(e, comment.id)} className="mt-2 flex items-center space-x-2">
-            <Input 
-              type="text" 
-              placeholder="Write a reply..." 
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              className="h-8 text-sm flex-grow" 
-              autoFocus
-            />
-            <Button type="submit" size="sm" variant="ghost" className="h-8 px-2">
-              <Send className="h-4 w-4" />
+  const CommentItem = ({ comment, depth = 0 }: { comment: FeedItemComment, depth?: number }) => {
+    const canCurrentUserDeleteThisComment = comment.authorName === CURRENT_USER_NAME || isCurrentUserPost;
+
+    return (
+      <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
+          <AvatarFallback>{comment.authorInitials}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1 space-y-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
+              <span className="text-xs text-muted-foreground ml-2">{comment.timestamp}</span>
+            </div>
+            {canCurrentUserDeleteThisComment && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="text-destructive hover:!text-destructive focus:!text-destructive focus:!bg-destructive/10"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete Comment
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+          <p className="text-sm text-foreground/90 whitespace-pre-wrap">{comment.text}</p>
+          <div className="flex items-center space-x-2 text-xs">
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)}>
+              <ThumbsUp className={`h-3.5 w-3.5 mr-1 ${comment.isCommentLikedByUser ? 'fill-primary text-primary' : ''}`} /> 
+              {comment.commentLikes > 0 ? comment.commentLikes : 'Like'}
             </Button>
-          </form>
-        )}
-        {comment.replies?.map(reply => (
-          <CommentItem key={reply.id} comment={reply} /> 
-        ))}
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)}>
+              <CornerDownRight className="h-3.5 w-3.5 mr-1" /> Reply
+            </Button>
+          </div>
+          {replyingToCommentId === comment.id && (
+            <form onSubmit={(e) => handlePostReply(e, comment.id)} className="mt-2 flex items-center space-x-2">
+              <Input 
+                type="text" 
+                placeholder="Write a reply..." 
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                className="h-8 text-sm flex-grow" 
+                autoFocus
+              />
+              <Button type="submit" size="sm" variant="ghost" className="h-8 px-2">
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          )}
+          {comment.replies?.map(reply => (
+            <CommentItem key={reply.id} comment={reply} depth={depth + 1} /> 
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -239,16 +310,37 @@ export function FeedItemCard({
               <p className="text-sm font-semibold text-foreground">{authorName}</p>
               <CardDescription className="font-body text-xs text-muted-foreground">{timestamp}</CardDescription>
             </div>
-             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8" onClick={handleOpenShareModal}>
-                <Share2 className="h-4 w-4" />
-             </Button>
+            <div className="flex items-center">
+              {isFullView && (
+                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-8 w-8" onClick={handleOpenShareModal}>
+                    <Share2 className="h-4 w-4" />
+                 </Button>
+              )}
+              {isCurrentUserPost && onDeletePost && (
+                 <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={handleInternalDeletePost}
+                      className="text-destructive hover:!text-destructive focus:!text-destructive focus:!bg-destructive/10"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete Post
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
           {postType === 'forum' && title && (
             <CardTitle className="font-headline text-xl mt-1">{title}</CardTitle>
           )}
         </CardHeader>
         <CardContent className="pt-0 pb-3">
-          <p className={`font-body text-foreground/90 ${postType === 'forum' ? 'line-clamp-4' : 'whitespace-pre-wrap'}`}>
+          <p className={`font-body text-foreground/90 ${postType === 'forum' && isFullView ? 'line-clamp-4' : 'whitespace-pre-wrap'}`}>
             {mainText}
           </p>
           {postType === 'social' && imageUrl && (
@@ -281,14 +373,14 @@ export function FeedItemCard({
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                { (postType === 'forum' || includeDiscussionGroup) && (
+                { (postType === 'forum' || includeDiscussionGroup) && isFullView && (
                     <Button variant="outline" size="sm" onClick={handleJoinDiscussion}>
                         <Users className="mr-2 h-4 w-4" />
                         Join Discussion
                     </Button>
                 )}
-                { isCurrentUserPost && includeDiscussionGroup && (
-                     <Button variant="outline" size="sm" onClick={handleDeleteDiscussion} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
+                { isCurrentUserPost && includeDiscussionGroup && isFullView && (
+                     <Button variant="outline" size="sm" onClick={handleDeleteDiscussionGroup} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Discussion
                     </Button>
@@ -296,17 +388,17 @@ export function FeedItemCard({
               </div>
           </div>
           
-          {postComments.length > 0 && (
+          {(showAllComments || !isFullView) && postComments.length > 0 && (
             <div className="w-full pt-3 mt-2 border-t border-border/50">
               {commentsToDisplay.map(comment => (
                 <CommentItem key={comment.id} comment={comment} />
               ))}
-              {!showAllComments && totalTopLevelComments > 2 && (
+              {isFullView && !showAllComments && totalTopLevelComments > 2 && (
                 <Button variant="link" size="sm" className="text-primary hover:text-primary/80 mt-3 p-0 h-auto" onClick={() => setShowAllComments(true)}>
                   View all {totalTopLevelComments} comments
                 </Button>
               )}
-               {showAllComments && totalTopLevelComments > 2 && (
+               {isFullView && showAllComments && totalTopLevelComments > 2 && (
                 <Button variant="link" size="sm" className="text-muted-foreground hover:text-primary/80 mt-3 p-0 h-auto" onClick={() => setShowAllComments(false)}>
                   Show fewer comments
                 </Button>

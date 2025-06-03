@@ -12,96 +12,32 @@ import { Label } from "@/components/ui/label";
 import { Users, TrendingUp, MessageSquareText, Send, Edit } from 'lucide-react'; 
 import { useToast } from "@/hooks/use-toast";
 
-// Enhanced sample comments data structure
+// Enhanced sample comments data structure (example)
 const sampleCommentsLevel2: FeedItemComment[] = [
-  {
-    id: 'reply-1-1-1',
-    authorName: 'DeepThinker',
-    authorInitials: 'DT',
-    authorAvatarUrl: 'https://placehold.co/32x32.png?text=DT',
-    text: 'Indeed, a very nuanced point!',
-    timestamp: '5m ago',
-    commentLikes: 1,
-    isCommentLikedByUser: false,
-    replies: [],
-  },
+  { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
 ];
-
 const sampleCommentsLevel1: FeedItemComment[] = [
-  {
-    id: 'reply-1-1',
-    authorName: 'OriginalPoster',
-    authorInitials: 'OP',
-    authorAvatarUrl: 'https://placehold.co/32x32.png?text=OP',
-    text: 'Thanks for the feedback! Much appreciated.',
-    timestamp: '15m ago',
-    commentLikes: 2,
-    isCommentLikedByUser: false,
-    replies: sampleCommentsLevel2, // Nested reply
-  },
-    {
-    id: 'reply-1-2',
-    authorName: 'SupportiveSam',
-    authorInitials: 'SS',
-    authorAvatarUrl: 'https://placehold.co/32x32.png?text=SS',
-    text: 'Great discussion, everyone!',
-    timestamp: '10m ago',
-    commentLikes: 1,
-    isCommentLikedByUser: true,
-    replies: [],
-  },
+  { id: 'reply-1-1', authorName: 'OriginalPoster', authorInitials: 'OP', text: 'Thanks for the feedback!', timestamp: '15m ago', commentLikes: 2, isCommentLikedByUser: false, replies: sampleCommentsLevel2 },
+  { id: 'reply-1-2', authorName: 'SupportiveSam', authorInitials: 'SS', text: 'Great discussion!', timestamp: '10m ago', commentLikes: 1, isCommentLikedByUser: true, replies: [] },
 ];
-
 const sampleCommentsTopLevel: FeedItemComment[] = [
-  {
-    id: 'comment-1',
-    authorName: 'ReaderReply',
-    authorInitials: 'RR',
-    authorAvatarUrl: 'https://placehold.co/32x32.png?text=RR',
-    text: 'This is a great point! I totally agree with the assessment. The way the author handled the character development was masterful.',
-    timestamp: '20m ago',
-    commentLikes: 5,
-    isCommentLikedByUser: false,
-    replies: sampleCommentsLevel1,
-  },
-  {
-    id: 'comment-2',
-    authorName: 'CriticalThinker',
-    authorInitials: 'CT',
-    authorAvatarUrl: 'https://placehold.co/32x32.png?text=CT',
-    text: 'I have a slightly different perspective on this. What about considering the antagonist\'s motivations more deeply?',
-    timestamp: '18m ago',
-    commentLikes: 3,
-    isCommentLikedByUser: true,
-    replies: [],
-  },
-  {
-    id: 'comment-3',
-    authorName: 'AnotherUser',
-    authorInitials: 'AU',
-    authorAvatarUrl: 'https://placehold.co/32x32.png?text=AU',
-    text: 'Just wanted to say hi! Love this platform.',
-    timestamp: '5m ago',
-    commentLikes: 0,
-    isCommentLikedByUser: false,
-    replies: [],
-  }
+  { id: 'comment-1', authorName: 'ReaderReply', authorInitials: 'RR', text: 'This is a great point!', timestamp: '20m ago', commentLikes: 5, isCommentLikedByUser: false, replies: sampleCommentsLevel1 },
+  { id: 'comment-2', authorName: 'CriticalThinker', authorInitials: 'CT', text: 'I have a different perspective.', timestamp: '18m ago', commentLikes: 3, isCommentLikedByUser: true, replies: [] },
 ];
 
 const initialTrendingPosts: FeedItemCardProps[] = [
   { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true },
   { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false },
-  { id: 'trend-3', postType: 'social', mainText: 'My latest short story "The Clockwork Nightingale" is now published on Katha Vault! Check it out and let me know what you think! 🐦⚙️ #NewStory #Steampunk', authorName: 'AuthorAnne', authorInitials: 'AA', timestamp: '6 hours ago', likesCount: 850, authorAvatarUrl: 'https://placehold.co/40x40.png?text=AA', comments: [], includeDiscussionGroup: false },
 ];
 
 const initialSocialFeedPosts: FeedItemCardProps[] = [
   { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true },
   { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false },
-  { id: 'social-3', postType: 'forum', title: 'Seeking Beta Readers for Sci-Fi Novel', authorName: 'Jax Orion', authorInitials: 'JO', timestamp: '15 hours ago', mainText: 'Looking for 3-4 beta readers for my upcoming sci-fi novel "Planetfall". DM me if interested! Genre: Space Opera, Adventure.', likesCount: 18, viewsCount: 95, authorAvatarUrl: 'https://placehold.co/40x40.png?text=JO', comments: [], includeDiscussionGroup: false },
-  { id: 'social-4', postType: 'social', mainText: 'Just read an amazing short story by @Elara Moonwhisper! Highly recommend "The Sunstone Amulet". #ReadingCommunity', authorName: 'SciFiFanatic', authorInitials: 'SF', timestamp: '5 hours ago', likesCount: 25, authorAvatarUrl: 'https://placehold.co/40x40.png?text=SF', comments: [sampleCommentsTopLevel[0]], includeDiscussionGroup: true },
-  { id: 'social-5', postType: 'social', mainText: 'Brainstorming session for my next horror story. Thinking something involving an abandoned lighthouse... 👻 #horrorwriting #plotbunnies', authorName: 'SpookyStories', authorInitials: 'SS', timestamp: '30 mins ago', likesCount: 15, authorAvatarUrl: 'https://placehold.co/40x40.png?text=SS', imageUrl: 'https://placehold.co/600x400.png', aiHint: 'lighthouse night', comments: [sampleCommentsTopLevel[2]], includeDiscussionGroup: false },
 ];
 
+const CURRENT_USER_NAME = "Katha Explorer";
+const CURRENT_USER_INITIALS = "KE";
+const CURRENT_USER_AVATAR_URL = "https://placehold.co/40x40.png?text=KE";
 const CURRENT_USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 
@@ -138,15 +74,10 @@ export default function FeedPage() {
     }
   }, [socialFeedPosts, isLoadingFeed]);
 
-
   const handleCreatePost = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!newPostContent.trim()) {
-      toast({
-        title: "Empty Post",
-        description: "You can't submit an empty post.",
-        variant: "destructive",
-      });
+      toast({ title: "Empty Post", description: "You can't submit an empty post.", variant: "destructive" });
       return;
     }
 
@@ -154,37 +85,73 @@ export default function FeedPage() {
       id: `social-${Date.now()}`,
       postType: 'social',
       mainText: newPostContent,
-      authorName: 'Katha Explorer', // Placeholder for current user
-      authorInitials: 'KE', 
-      authorAvatarUrl: 'https://placehold.co/40x40.png?text=KE', 
+      authorName: CURRENT_USER_NAME,
+      authorInitials: CURRENT_USER_INITIALS, 
+      authorAvatarUrl: CURRENT_USER_AVATAR_URL, 
       timestamp: 'Just now',
       likesCount: 0,
       comments: [],
       includeDiscussionGroup: includeDiscussion,
     };
 
-    setSocialFeedPosts(prevPosts => [newPost, ...prevPosts]);
+    const updatedSocialFeed = [newPost, ...socialFeedPosts];
+    setSocialFeedPosts(updatedSocialFeed);
 
-    try {
-      const existingUserPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
-      const existingUserPosts: FeedItemCardProps[] = existingUserPostsRaw ? JSON.parse(existingUserPostsRaw) : [];
-      localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify([newPost, ...existingUserPosts]));
-    } catch (error) {
-      console.error("Error saving post to user's posts localStorage:", error);
-      toast({
-        title: "Storage Error",
-        description: "Could not save your post for your profile page due to a local storage issue.",
-        variant: "destructive",
-      });
+    if (newPost.authorName === CURRENT_USER_NAME) {
+      try {
+        const existingUserPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
+        const existingUserPosts: FeedItemCardProps[] = existingUserPostsRaw ? JSON.parse(existingUserPostsRaw) : [];
+        localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify([newPost, ...existingUserPosts]));
+      } catch (error) {
+        console.error("Error saving post to user's posts localStorage:", error);
+        toast({ title: "Storage Error", description: "Could not save your post for your profile page.", variant: "destructive" });
+      }
     }
 
     setNewPostContent("");
     setIncludeDiscussion(false);
-    toast({
-      title: "Post Submitted!",
-      description: "Your thoughts have been shared.",
-    });
+    toast({ title: "Post Submitted!", description: "Your thoughts have been shared." });
   };
+
+  const handleDeletePost = (postId: string) => {
+    const updatedFeed = socialFeedPosts.filter(post => post.id !== postId);
+    setSocialFeedPosts(updatedFeed);
+    
+    // Also attempt to remove from user's specific posts if they authored it
+    try {
+      const existingUserPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
+      if (existingUserPostsRaw) {
+        const existingUserPosts: FeedItemCardProps[] = JSON.parse(existingUserPostsRaw);
+        const updatedUserPosts = existingUserPosts.filter(post => post.id !== postId);
+        localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify(updatedUserPosts));
+      }
+    } catch (error) {
+      console.error("Error removing post from user's posts localStorage:", error);
+    }
+    toast({ title: "Post Deleted", description: "The post has been removed from the feed." });
+  };
+
+  const handleUpdatePostComments = (postId: string, updatedComments: FeedItemComment[]) => {
+    const updatedFeed = socialFeedPosts.map(post => 
+      post.id === postId ? { ...post, comments: updatedComments } : post
+    );
+    setSocialFeedPosts(updatedFeed);
+
+    // Also attempt to update in user's specific posts if they authored it
+     try {
+      const existingUserPostsRaw = localStorage.getItem(CURRENT_USER_POSTS_STORAGE_KEY);
+      if (existingUserPostsRaw) {
+        const existingUserPosts: FeedItemCardProps[] = JSON.parse(existingUserPostsRaw);
+        const updatedUserPosts = existingUserPosts.map(post =>
+          post.id === postId ? { ...post, comments: updatedComments } : post
+        );
+        localStorage.setItem(CURRENT_USER_POSTS_STORAGE_KEY, JSON.stringify(updatedUserPosts));
+      }
+    } catch (error) {
+      console.error("Error updating comments in user's posts localStorage:", error);
+    }
+  };
+
 
   return (
     <div className="space-y-8">
@@ -216,7 +183,7 @@ export default function FeedPage() {
             <CardContent>
               <form onSubmit={handleCreatePost} className="space-y-4">
                 <Textarea
-                  placeholder="What's on your mind, Katha Explorer?"
+                  placeholder={`What's on your mind, ${CURRENT_USER_NAME}?`}
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   className="min-h-[100px] font-body text-base"
@@ -245,7 +212,12 @@ export default function FeedPage() {
             <p className="text-center text-muted-foreground py-8">Loading feed...</p>
           ) : socialFeedPosts.length > 0 ? (
              socialFeedPosts.map(post => (
-              <FeedItemCard key={post.id} {...post} />
+              <FeedItemCard 
+                key={post.id} 
+                {...post} 
+                onDeletePost={handleDeletePost}
+                onUpdateComments={handleUpdatePostComments}
+              />
             ))
           ) : ( 
             <p className="text-center text-muted-foreground py-8">The social feed is quiet for now. Create a post or follow others to see updates!</p>
@@ -255,7 +227,7 @@ export default function FeedPage() {
         <TabsContent value="trending-posts">
           <div className="space-y-6">
             {trendingPosts.map(post => (
-              <FeedItemCard key={post.id} {...post} />
+              <FeedItemCard key={post.id} {...post} /> // Trending posts are typically not directly deletable by general users from this view
             ))}
             {trendingPosts.length === 0 && (
               <p className="text-center text-muted-foreground py-8">No trending posts right now. Check back later!</p>
