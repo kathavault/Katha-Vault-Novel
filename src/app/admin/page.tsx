@@ -87,8 +87,8 @@ export default function AdminPage() {
         return;
       }
       
-      const currentUser = getKathaExplorerUser();
-      setAdminUser(currentUser);
+      const currentUserForAdminPage = getKathaExplorerUser();
+      setAdminUser(currentUserForAdminPage);
 
       const loadedNovels = getNovelsFromStorage();
       setNovels(loadedNovels);
@@ -96,15 +96,16 @@ export default function AdminPage() {
       loadChapterComments(loadedNovels);
 
       let baseUsers = [...allMockUsers];
-      const adminIndex = baseUsers.findIndex(u => u.id === currentUser.id);
-      if (adminIndex !== -1) {
-        baseUsers[adminIndex] = currentUser;
+      const adminIndexInBase = baseUsers.findIndex(u => u.id === currentUserForAdminPage.id);
+      if (adminIndexInBase !== -1) {
+        baseUsers[adminIndexInBase] = currentUserForAdminPage;
       } else {
-        if (!baseUsers.find(u => u.id === currentUser.id)) {
-           baseUsers.push(currentUser);
+        if (!baseUsers.find(u => u.id === currentUserForAdminPage.id)) {
+           baseUsers.push(currentUserForAdminPage);
         }
       }
-      setUsers(baseUsers.filter((user, index, self) => index === self.findIndex(u => u.id === user.id)));
+      const uniqueByIdUsers = baseUsers.filter((user, index, self) => index === self.findIndex(u => u.id === user.id));
+      setUsers(uniqueByIdUsers);
       setIsLoadingPage(false); 
     }
   }, [router, toast]);
@@ -220,19 +221,15 @@ export default function AdminPage() {
   const filteredUsers = useMemo(() => {
     let results = [...users]; 
 
-    if (adminUser) { 
-        const currentAdminInListIdx = results.findIndex(u => u.id === adminUser.id);
-        if (currentAdminInListIdx !== -1) {
-            results[currentAdminInListIdx] = adminUser; 
-        } else {
-             if (!results.find(u => u.id === adminUser.id)) {
-                 results.push(adminUser);
-             }
-        }
+    if (adminUser && adminUser.id === CURRENT_USER_ID) {
+      const isAdminKritikaImpersonator = adminUser.email === KRITIKA_EMAIL && CURRENT_USER_ID !== KRITIKA_USER_ID;
+      const isAdminOwnerImpersonator = adminUser.email === KATHAVAULT_OWNER_EMAIL && CURRENT_USER_ID !== KATHAVAULT_OWNER_USER_ID;
+
+      if (isAdminKritikaImpersonator || isAdminOwnerImpersonator) {
+        results = results.filter(u => u.id !== CURRENT_USER_ID);
+      }
     }
-    results = results.filter((user, index, self) => index === self.findIndex(u => u.id === user.id));
-
-
+    
     if (userSearchTerm.trim()) {
       const lowerSearchTerm = userSearchTerm.toLowerCase();
       results = results.filter(user =>
@@ -242,7 +239,7 @@ export default function AdminPage() {
       );
     }
     return results;
-  }, [userSearchTerm, adminUser, users]);
+  }, [users, adminUser, userSearchTerm]);
   const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, ITEMS_PER_PAGE_INITIAL);
 
 
@@ -615,5 +612,6 @@ export default function AdminPage() {
     </div>
   );
 }
+
 
     
