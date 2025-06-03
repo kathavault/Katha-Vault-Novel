@@ -75,16 +75,23 @@ export interface FeedItemCardProps {
 }
 
 
-export interface SimulatedChapterComment {
+// New StoredChapterComment interface
+export interface StoredChapterComment {
   id: string;
   novelId: string;
-  novelTitle: string;
-  chapterId: string; 
-  chapterTitle: string;
-  userId: string;
-  userName: string;
+  chapterId: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarUrl?: string;
+  authorInitials: string;
   text: string;
   timestamp: string;
+  commentLikes: number;
+  isCommentLikedByUser: boolean;
+  replies: StoredChapterComment[];
+  // For admin page display if needed, not part of core structure
+  novelTitle?: string; 
+  chapterTitle?: string;
 }
 
 
@@ -96,7 +103,7 @@ const KATHA_VAULT_MANAGED_NOVELS_KEY = 'kathaVaultManagedNovels';
 export const KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY = 'kathaVaultHomeSectionsConfig';
 export const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 export const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
-export const KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY = 'kathaVaultSimulatedChapterComments';
+export const KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY = 'kathaVaultStoredChapterComments'; // Renamed key
 
 
 export const kathaExplorerUser: MockUser = {
@@ -273,37 +280,93 @@ export const getAllUniqueGenres = (novels: Novel[]): string[] => {
 
 export const isUserActive = (userId: string): boolean => {
   const user = allMockUsers.find(u => u.id === userId);
-  return user ? user.isActive : false; 
+  return user ? user.isActive : false;
 };
 
-// Simulated Chapter Comments
-export const getSimulatedChapterCommentsFromStorage = (): SimulatedChapterComment[] => {
+
+// Stored Chapter Comments - Refactored
+const defaultStoredChapterComments: StoredChapterComment[] = [
+  {
+    id: 'chapcomment-1-1',
+    novelId: 'trend-1',
+    chapterId: 'chronos-ch-1',
+    authorId: 'user_er',
+    authorName: 'Elara Reads',
+    authorAvatarUrl: 'https://placehold.co/40x40.png?text=ER',
+    authorInitials: 'ER',
+    text: 'What a fantastic start to "The Whispers of Chronos"! The concept of a missing chronomancer is so intriguing. Can\'t wait to see where this temporal journey leads!',
+    timestamp: '2 days ago',
+    commentLikes: 15,
+    isCommentLikedByUser: false,
+    replies: [
+      {
+        id: 'chapreply-1-1-1',
+        novelId: 'trend-1',
+        chapterId: 'chronos-ch-1',
+        authorId: 'user_mw',
+        authorName: 'Marcus Writes',
+        authorAvatarUrl: 'https://placehold.co/40x40.png?text=MW',
+        authorInitials: 'MW',
+        text: 'Agreed, Elara! The pacing is excellent and the mystery is already building.',
+        timestamp: '1 day ago',
+        commentLikes: 7,
+        isCommentLikedByUser: true,
+        replies: [],
+      },
+    ],
+  },
+  {
+    id: 'chapcomment-1-2',
+    novelId: 'trend-1',
+    chapterId: 'chronos-ch-2',
+    authorId: 'user_sf',
+    authorName: 'SciFi Guru',
+    authorAvatarUrl: 'https://placehold.co/40x40.png?text=SG',
+    authorInitials: 'SG',
+    text: 'Chapter 2, "Paradox Alley", was mind-bending! The way Vance handles temporal mechanics is brilliant.',
+    timestamp: '12 hours ago',
+    commentLikes: 22,
+    isCommentLikedByUser: false,
+    replies: [],
+  },
+  {
+    id: 'chapcomment-2-1',
+    novelId: 'trend-2',
+    chapterId: 'canopy-ch-1',
+    authorId: 'user_ff',
+    authorName: 'Fantasy Fan',
+    authorAvatarUrl: 'https://placehold.co/40x40.png?text=FF',
+    authorInitials: 'FF',
+    text: 'The world-building in "Beneath the Emerald Canopy" is breathtaking. The description of the ancient rainforest magic is so vivid!',
+    timestamp: '3 days ago',
+    commentLikes: 18,
+    isCommentLikedByUser: false,
+    replies: [],
+  },
+];
+
+export const getStoredChapterComments = (): StoredChapterComment[] => {
   if (typeof window !== 'undefined') {
-    const storedComments = localStorage.getItem(KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY);
+    const storedComments = localStorage.getItem(KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY);
     if (storedComments) {
       try {
         return JSON.parse(storedComments);
       } catch (e) {
-        console.error("Error parsing simulated chapter comments from localStorage", e);
+        console.error("Error parsing stored chapter comments from localStorage", e);
       }
     }
-    // Create some default simulated chapter comments if none exist
-    const defaultSimulatedComments: SimulatedChapterComment[] = [
-      { id: 'scc1', novelId: 'trend-1', novelTitle: 'The Whispers of Chronos', chapterId: 'chronos-ch-1', chapterTitle: 'Chapter 1: Epoch\'s Echo', userId: 'user_er', userName: 'Elara Reads', text: 'Fascinating start to Chronos! Can\'t wait to see where this goes.', timestamp: '2 days ago' },
-      { id: 'scc2', novelId: 'trend-2', novelTitle: 'Beneath the Emerald Canopy', chapterId: 'canopy-ch-1', chapterTitle: 'Chapter 1: Root and Ritual', userId: 'user_mw', userName: 'Marcus Writes', text: 'The world-building in Emerald Canopy is amazing!', timestamp: '1 day ago' },
-      { id: 'scc3', novelId: 'trend-1', novelTitle: 'The Whispers of Chronos', chapterId: 'chronos-ch-2', chapterTitle: 'Chapter 2: Paradox Alley', userId: 'user_sf', userName: 'SciFi Guru', text: 'The paradox in chapter 2 was mind-bending!', timestamp: '3 hours ago' },
-    ];
-    localStorage.setItem(KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY, JSON.stringify(defaultSimulatedComments));
-    return defaultSimulatedComments;
+    localStorage.setItem(KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY, JSON.stringify(defaultStoredChapterComments));
+    return defaultStoredChapterComments;
   }
-  return [];
+  return JSON.parse(JSON.stringify(defaultStoredChapterComments)); // Return a copy for server-side or initial state
 };
 
-export const saveSimulatedChapterCommentsToStorage = (comments: SimulatedChapterComment[]): void => {
+export const saveStoredChapterComments = (comments: StoredChapterComment[]): void => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(KATHA_VAULT_SIMULATED_CHAPTER_COMMENTS_KEY, JSON.stringify(comments));
+    localStorage.setItem(KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY, JSON.stringify(comments));
   }
 };
+
 
 // Helper function to get all social feed posts (used by admin comment management)
 export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {

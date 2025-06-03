@@ -20,7 +20,7 @@ import {
   getNovelsFromStorage, saveNovelsToStorage, type Novel, 
   allMockUsers, type MockUser, CURRENT_USER_ID,
   getSocialFeedPostsFromStorage, type FeedItemCardProps, type FeedItemComment, SOCIAL_FEED_POSTS_STORAGE_KEY, USER_POSTS_STORAGE_KEY,
-  getSimulatedChapterCommentsFromStorage, saveSimulatedChapterCommentsToStorage, type SimulatedChapterComment
+  getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment // Updated import
 } from '@/lib/mock-data';
 import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, ListFilter, BookText, Users } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -28,9 +28,16 @@ import Link from 'next/link';
 
 interface FlatPostComment extends FeedItemComment {
   postId: string;
-  postTitleOrContent: string; // Title for forum, mainText for social
+  postTitleOrContent: string; 
   originalPostType: 'forum' | 'social';
 }
+
+// For admin view of chapter comments, we flatten them and add novel/chapter titles
+interface FlatChapterComment extends StoredChapterComment {
+  novelTitleAdmin: string;
+  chapterTitleAdmin: string;
+}
+
 
 export default function AdminPage() {
   const { toast } = useToast();
@@ -55,16 +62,18 @@ export default function AdminPage() {
   const [isDeletePostCommentDialogOpen, setIsDeletePostCommentDialogOpen] = useState(false);
 
   // Chapter Comments state
-  const [simulatedChapterComments, setSimulatedChapterComments] = useState<SimulatedChapterComment[]>([]);
+  const [allChapterComments, setAllChapterComments] = useState<StoredChapterComment[]>([]); // Store raw StoredChapterComment
+  const [flatChapterComments, setFlatChapterComments] = useState<FlatChapterComment[]>([]);
   const [chapterCommentSearchTerm, setChapterCommentSearchTerm] = useState("");
-  const [chapterCommentToDelete, setChapterCommentToDelete] = useState<SimulatedChapterComment | null>(null);
+  const [chapterCommentToDelete, setChapterCommentToDelete] = useState<FlatChapterComment | null>(null); // Use FlatChapterComment for deletion context
   const [isDeleteChapterCommentDialogOpen, setIsDeleteChapterCommentDialogOpen] = useState(false);
 
 
   useEffect(() => {
-    setNovels(getNovelsFromStorage());
+    const loadedNovels = getNovelsFromStorage();
+    setNovels(loadedNovels);
     loadPostComments();
-    setSimulatedChapterComments(getSimulatedChapterCommentsFromStorage());
+    loadChapterComments(loadedNovels);
   }, []);
 
   const loadPostComments = () => {
@@ -76,13 +85,48 @@ export default function AdminPage() {
         comments.forEach(comment => {
           flattened.push({ ...comment, postId, postTitleOrContent: postContext, originalPostType: postType });
           if (comment.replies && comment.replies.length > 0) {
-            extractComments(comment.replies, postId, postContext, postType); // Recursively add replies, they'll share the same top-level post context
+            extractComments(comment.replies, postId, postContext, postType); 
           }
         });
       }
       extractComments(post.comments, post.id, post.title || post.mainText.substring(0, 50) + "...", post.postType);
     });
     setFlatPostComments(flattened);
+  };
+
+  const loadChapterComments = (currentNovels: Novel[]) => {
+    const chapterCommentsData = getStoredChapterComments();
+    setAllChapterComments(chapterCommentsData);
+    const flattened: FlatChapterComment[] = [];
+    
+    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: Novel, chapter: Chapter) => {
+        comments.forEach(comment => {
+            flattened.push({
+                ...comment,
+                novelTitleAdmin: novel.title,
+                chapterTitleAdmin: chapter.title,
+            });
+            if (comment.replies && comment.replies.length > 0) {
+                extractChapterCommentsRecursively(comment.replies, novel, chapter);
+            }
+        });
+    };
+
+    chapterCommentsData.forEach(topLevelComment => {
+        const novel = currentNovels.find(n => n.id === topLevelComment.novelId);
+        const chapter = novel?.chapters.find(ch => ch.id === topLevelComment.chapterId);
+        if (novel && chapter) {
+             flattened.push({
+                ...topLevelComment,
+                novelTitleAdmin: novel.title,
+                chapterTitleAdmin: chapter.title,
+            });
+            if (topLevelComment.replies && topLevelComment.replies.length > 0) {
+                 extractChapterCommentsRecursively(topLevelComment.replies, novel, chapter);
+            }
+        }
+    });
+    setFlatChapterComments(flattened);
   };
   
 
@@ -117,6 +161,7 @@ export default function AdminPage() {
     saveNovelsToStorage(updatedNovels);
     setIsFormModalOpen(false);
     setEditingNovel(null);
+    loadChapterComments(updatedNovels); // Refresh chapter comments in case novel/chapter titles changed
   };
 
   const promptDeleteNovel = (novel: Novel) => { setNovelToDelete(novel); setIsDeleteDialogOpen(true); };
@@ -127,6 +172,7 @@ export default function AdminPage() {
       saveNovelsToStorage(updatedNovels);
       toast({ title: "Novel Deleted", description: `"${novelToDelete.title}" removed.`, variant: "destructive" });
       setNovelToDelete(null); setIsDeleteDialogOpen(false);
+      loadChapterComments(updatedNovels); // Refresh chapter comments as novel is gone
     }
   };
 
@@ -169,7 +215,6 @@ export default function AdminPage() {
   const confirmDeletePostComment = () => {
     if (!postCommentToDelete) return;
 
-    // 1. Update allSocialPosts
     const updatedSocialPosts = allSocialPosts.map(post => {
       if (post.id === postCommentToDelete.postId) {
         const deleteCommentRecursively = (comments: FeedItemComment[], targetId: string): FeedItemComment[] => {
@@ -187,9 +232,8 @@ export default function AdminPage() {
     setAllSocialPosts(updatedSocialPosts);
     if(typeof window !== 'undefined') localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(updatedSocialPosts));
 
-    // 2. Update USER_POSTS_STORAGE_KEY if necessary
     const postAuthorId = allSocialPosts.find(p => p.id === postCommentToDelete.postId)?.authorId;
-    if (postAuthorId === CURRENT_USER_ID) { // Assuming current user is kathaExplorerUser for USER_POSTS_STORAGE_KEY
+    if (postAuthorId === CURRENT_USER_ID) { 
         const userPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
         if (userPostsRaw) {
             let userPosts: FeedItemCardProps[] = JSON.parse(userPostsRaw);
@@ -211,7 +255,7 @@ export default function AdminPage() {
         }
     }
     
-    loadPostComments(); // Refresh flatPostComments list
+    loadPostComments(); 
     toast({ title: "Post Comment Deleted", description: `Comment by ${postCommentToDelete.authorName} removed.`, variant: "destructive" });
     setPostCommentToDelete(null);
     setIsDeletePostCommentDialogOpen(false);
@@ -220,30 +264,39 @@ export default function AdminPage() {
 
   // Chapter Comments Management
   const filteredChapterComments = useMemo(() => {
-    if (!chapterCommentSearchTerm.trim()) return simulatedChapterComments;
+    if (!chapterCommentSearchTerm.trim()) return flatChapterComments;
     const lowerSearchTerm = chapterCommentSearchTerm.toLowerCase();
-    return simulatedChapterComments.filter(comment => 
+    return flatChapterComments.filter(comment => 
       comment.text.toLowerCase().includes(lowerSearchTerm) ||
-      comment.userName.toLowerCase().includes(lowerSearchTerm) ||
-      comment.novelTitle.toLowerCase().includes(lowerSearchTerm) ||
-      comment.chapterTitle.toLowerCase().includes(lowerSearchTerm)
+      comment.authorName.toLowerCase().includes(lowerSearchTerm) ||
+      comment.novelTitleAdmin.toLowerCase().includes(lowerSearchTerm) ||
+      comment.chapterTitleAdmin.toLowerCase().includes(lowerSearchTerm)
     );
-  }, [simulatedChapterComments, chapterCommentSearchTerm]);
+  }, [flatChapterComments, chapterCommentSearchTerm]);
   
-  const promptDeleteChapterComment = (comment: SimulatedChapterComment) => {
+  const promptDeleteChapterComment = (comment: FlatChapterComment) => {
     setChapterCommentToDelete(comment);
     setIsDeleteChapterCommentDialogOpen(true);
   };
 
   const confirmDeleteChapterComment = () => {
-    if (chapterCommentToDelete) {
-      const updatedComments = simulatedChapterComments.filter(c => c.id !== chapterCommentToDelete.id);
-      setSimulatedChapterComments(updatedComments);
-      saveSimulatedChapterCommentsToStorage(updatedComments);
-      toast({ title: "Chapter Comment Deleted", description: `Comment by ${chapterCommentToDelete.userName} removed.`, variant: "destructive" });
-      setChapterCommentToDelete(null);
-      setIsDeleteChapterCommentDialogOpen(false);
-    }
+    if (!chapterCommentToDelete) return;
+
+    const deleteCommentRecursively = (comments: StoredChapterComment[], targetId: string): StoredChapterComment[] => {
+      return comments
+        .filter(c => c.id !== targetId)
+        .map(c => ({
+          ...c,
+          replies: c.replies ? deleteCommentRecursively(c.replies, targetId) : [],
+        }));
+    };
+    const updatedStoredChapterComments = deleteCommentRecursively(allChapterComments, chapterCommentToDelete.id);
+    
+    saveStoredChapterComments(updatedStoredChapterComments);
+    loadChapterComments(novels); // Reload and re-flatten
+    toast({ title: "Chapter Comment Deleted", description: `Comment by ${chapterCommentToDelete.authorName} removed.`, variant: "destructive" });
+    setChapterCommentToDelete(null);
+    setIsDeleteChapterCommentDialogOpen(false);
   };
 
 
@@ -343,16 +396,16 @@ export default function AdminPage() {
                  <div className="pt-4 space-y-3">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search chapter comments..." value={chapterCommentSearchTerm} onChange={(e) => setChapterCommentSearchTerm(e.target.value)} className="pl-9"/>
+                    <Input placeholder="Search ch. comments (novel, ch, user, text)..." value={chapterCommentSearchTerm} onChange={(e) => setChapterCommentSearchTerm(e.target.value)} className="pl-9"/>
                   </div>
-                  {filteredChapterComments.length === 0 ? <p className="text-muted-foreground text-center py-6">No chapter comments match. (Simulated)</p> : (
-                    <Table><TableHeader><TableRow><TableHead>User</TableHead><TableHead>Comment</TableHead><TableHead>Chapter</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                  {filteredChapterComments.length === 0 ? <p className="text-muted-foreground text-center py-6">No chapter comments match.</p> : (
+                    <Table><TableHeader><TableRow><TableHead>User</TableHead><TableHead>Comment</TableHead><TableHead>Context</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {filteredChapterComments.map((comment) => (
                           <TableRow key={comment.id}>
-                            <TableCell className="max-w-[80px] truncate" title={comment.userName}>{comment.userName}</TableCell>
+                            <TableCell className="max-w-[80px] truncate" title={comment.authorName}>{comment.authorName}</TableCell>
                             <TableCell className="max-w-[150px] truncate" title={comment.text}>{comment.text}</TableCell>
-                            <TableCell className="max-w-[150px] truncate" title={`${comment.novelTitle} - ${comment.chapterTitle}`}>{`${comment.novelTitle.substring(0,15)}... - ${comment.chapterTitle.substring(0,15)}...`}</TableCell>
+                            <TableCell className="max-w-[150px] truncate" title={`${comment.novelTitleAdmin} - ${comment.chapterTitleAdmin}`}>{`${comment.novelTitleAdmin.substring(0,12)}... - ${comment.chapterTitleAdmin.substring(0,12)}...`}</TableCell>
                             <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => promptDeleteChapterComment(comment)} title="Delete Comment"><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
                           </TableRow>
                         ))}
@@ -414,8 +467,7 @@ export default function AdminPage() {
       <Dialog open={isDeletePostCommentDialogOpen} onOpenChange={setIsDeletePostCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Post Comment Deletion</DialogTitle><DialogDescription>Delete comment by "{postCommentToDelete?.authorName}": "{postCommentToDelete?.text.substring(0,50)}..."? Cannot be undone.</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeletePostCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeletePostComment}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
 
       {/* Delete Chapter Comment Confirmation */}
-      <Dialog open={isDeleteChapterCommentDialogOpen} onOpenChange={setIsDeleteChapterCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Chapter Comment Deletion</DialogTitle><DialogDescription>Delete chapter comment by "{chapterCommentToDelete?.userName}": "{chapterCommentToDelete?.text.substring(0,50)}..."? Cannot be undone (simulated).</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeleteChapterCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeleteChapterComment}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
+      <Dialog open={isDeleteChapterCommentDialogOpen} onOpenChange={setIsDeleteChapterCommentDialogOpen}><DialogContent><DialogHeader><DialogTitle>Confirm Chapter Comment Deletion</DialogTitle><DialogDescription>Delete chapter comment by "{chapterCommentToDelete?.authorName}": "{chapterCommentToDelete?.text.substring(0,50)}..."? Cannot be undone.</DialogDescription></DialogHeader><DialogModalFooter><Button variant="outline" onClick={() => setIsDeleteChapterCommentDialogOpen(false)}>Cancel</Button><Button variant="destructive" onClick={confirmDeleteChapterComment}>Delete</Button></DialogModalFooter></DialogContent></Dialog>
     </div>
   );
 }
-
