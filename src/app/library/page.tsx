@@ -6,8 +6,13 @@ import { StoryCard } from '@/components/story-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card components
-import { Bookmark, Search, FilterX, ListFilter } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Bookmark, Search, FilterX, ListFilter, Users } from 'lucide-react';
+import { allMockUsers, type MockUser } from '@/lib/mock-data'; // Import mock users
+import { useToast } from "@/hooks/use-toast";
+
 
 // Expanded placeholder data
 const initialLibraryStories = [
@@ -22,30 +27,44 @@ const initialLibraryStories = [
 const ALL_GENRES = ["Sci-Fi", "Adventure", "Mystery", "Thriller", "Fantasy", "Epic", "Cyberpunk", "Romance", "Historical", "Horror", "Cosmic Horror", "Contemporary"];
 
 export default function LibraryPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
+  const [storySearchTerm, setStorySearchTerm] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [filteredStories, setFilteredStories] = useState(initialLibraryStories);
+
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [filteredUsers, setFilteredUsers] = useState<MockUser[]>([]);
 
   useEffect(() => {
     let stories = initialLibraryStories;
 
-    // Filter by search term (title or author)
-    if (searchTerm.trim() !== "") {
+    if (storySearchTerm.trim() !== "") {
       stories = stories.filter(story =>
-        story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        story.author.toLowerCase().includes(searchTerm.toLowerCase())
+        story.title.toLowerCase().includes(storySearchTerm.toLowerCase()) ||
+        story.author.toLowerCase().includes(storySearchTerm.toLowerCase())
       );
     }
 
-    // Filter by selected genres
     if (selectedGenres.length > 0) {
       stories = stories.filter(story =>
-        story.genres.some(genre => selectedGenres.includes(genre))
+        selectedGenres.every(selGenre => story.genres.includes(selGenre))
       );
     }
-
     setFilteredStories(stories);
-  }, [searchTerm, selectedGenres]);
+  }, [storySearchTerm, selectedGenres]);
+
+  useEffect(() => {
+    if (userSearchTerm.trim() === "") {
+      setFilteredUsers([]);
+      return;
+    }
+    const lowercasedTerm = userSearchTerm.toLowerCase();
+    const found = allMockUsers.filter(user =>
+      user.name.toLowerCase().includes(lowercasedTerm) ||
+      user.username.toLowerCase().includes(lowercasedTerm)
+    );
+    setFilteredUsers(found);
+  }, [userSearchTerm]);
 
   const handleGenreToggle = (genreToToggle: string) => {
     setSelectedGenres(prevSelectedGenres =>
@@ -55,9 +74,9 @@ export default function LibraryPage() {
     );
   };
 
-  const clearAllFilters = () => {
+  const clearAllStoryFilters = () => {
     setSelectedGenres([]);
-    setSearchTerm("");
+    setStorySearchTerm("");
   };
   
   const uniqueAvailableGenres = useMemo(() => {
@@ -73,29 +92,28 @@ export default function LibraryPage() {
         <Bookmark className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">My Personal Library</h1>
         <p className="text-xl text-foreground font-body font-semibold">
-          Discover stories or find your saved favorites.
+          Discover stories, find your favorites, and connect.
         </p>
       </header>
 
-      {/* Search and Filter Section */}
+      {/* Search and Filter Stories Section */}
       <Card className="shadow-lg border-border">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center">
             <Search className="mr-3 h-6 w-6" /> Find Your Next Read
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6 pt-2"> {/* Adjusted pt for CardContent */}
+        <CardContent className="space-y-6 pt-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Search stories by title or author..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={storySearchTerm}
+              onChange={(e) => setStorySearchTerm(e.target.value)}
               className="pl-10 text-base"
             />
           </div>
-
           <div>
             <div className="flex items-center mb-3">
               <ListFilter className="h-5 w-5 text-primary mr-2" />
@@ -115,16 +133,63 @@ export default function LibraryPage() {
               ))}
             </div>
           </div>
-          
-          {(selectedGenres.length > 0 || searchTerm) && (
-            <Button variant="ghost" onClick={clearAllFilters} className="text-primary hover:text-primary/80 mt-3 p-0 h-auto text-sm">
-              <FilterX className="mr-2 h-4 w-4" /> Clear All Filters & Search
+          {(selectedGenres.length > 0 || storySearchTerm) && (
+            <Button variant="ghost" onClick={clearAllStoryFilters} className="text-primary hover:text-primary/80 mt-3 p-0 h-auto text-sm">
+              <FilterX className="mr-2 h-4 w-4" /> Clear Story Filters & Search
             </Button>
           )}
         </CardContent>
       </Card>
 
+      {/* Find Friends Section */}
+      <Card className="shadow-lg border-border">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline text-primary flex items-center">
+            <Users className="mr-3 h-6 w-6" /> Find Friends
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search users by name or username..."
+              value={userSearchTerm}
+              onChange={(e) => setUserSearchTerm(e.target.value)}
+              className="pl-10 text-base"
+            />
+          </div>
+          {userSearchTerm && filteredUsers.length > 0 && (
+            <ScrollArea className="h-60 w-full rounded-md border p-2">
+              <div className="space-y-2">
+                {filteredUsers.map(user => (
+                  <div key={user.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md">
+                    <div className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint={user.dataAiHint || "person avatar"} />
+                        <AvatarFallback>{user.avatarFallback}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">@{user.username}</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => toast({ title: "View Profile", description: `Feature to view ${user.name}'s profile is coming soon!`})}>
+                      View Profile
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+           {userSearchTerm && filteredUsers.length === 0 && (
+             <p className="text-sm text-muted-foreground text-center py-4">No users found matching "{userSearchTerm}".</p>
+           )}
+        </CardContent>
+      </Card>
+
       {/* Stories Grid */}
+      <h2 className="text-3xl font-headline text-primary mt-12 mb-6">Library Books</h2>
       {filteredStories.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {filteredStories.map(story => (
