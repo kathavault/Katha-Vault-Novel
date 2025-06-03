@@ -347,6 +347,3 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
     </Form>
   );
 }
-
-    
-```
