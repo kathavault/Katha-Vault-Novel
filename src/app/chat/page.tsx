@@ -29,6 +29,7 @@ const aiChatUser = {
   nickname: "Katha AI (Default)",
 };
 
+// Initialize unread counts to 0 or a static value for placeholderUserChats
 const initialPlaceholderUserChats = allMockUsers
   .filter(user => user.id !== CURRENT_USER_ID && user.id !== aiChatUser.id)
   .map(user => ({
@@ -39,8 +40,8 @@ const initialPlaceholderUserChats = allMockUsers
     avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
     lastMessage: `Chat with ${user.name}`, 
     timestamp: '10:30 AM', 
-    unreadCount: 0, 
-    isOnline: false, 
+    unreadCount: 0, // Initial static value
+    isOnline: false, // Initial static value
     dataAiHint: user.dataAiHint || 'person chat',
   }));
 
@@ -136,9 +137,7 @@ function ChatPageContent() {
   const [joinedDiscussions, setJoinedDiscussions] = useState<JoinedDiscussion[]>([]);
   const [selectedDiscussionGroup, setSelectedDiscussionGroup] = useState<JoinedDiscussion | null>(null);
 
-  const [displayedUserChats, setDisplayedUserChats] = useState(
-    initialPlaceholderUserChats.map(chat => ({...chat, unreadCount: 0, isOnline: false }))
-  );
+  const [displayedUserChats, setDisplayedUserChats] = useState(initialPlaceholderUserChats);
 
 
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
@@ -159,10 +158,11 @@ function ChatPageContent() {
   useEffect(() => {
     if (authStatus !== 'loggedIn') return; 
 
+    // Set initial random-like values for unreadCount and isOnline only on client-side after mount
     setDisplayedUserChats(
       initialPlaceholderUserChats.map(chat => ({
         ...chat,
-        unreadCount: Math.floor(Math.random() * 3),
+        unreadCount: Math.random() > 0.7 ? Math.floor(Math.random() * 5) + 1 : 0, // Some chats have unread messages
         isOnline: Math.random() > 0.5,
       }))
     );
@@ -176,7 +176,8 @@ function ChatPageContent() {
         const parsedDiscussions: JoinedDiscussion[] = JSON.parse(storedDiscussionsRaw);
         setJoinedDiscussions(parsedDiscussions);
         if (discussionIdToOpen && parsedDiscussions.some(d => d.id === discussionIdToOpen)) {
-            setSelectedDiscussionGroup(parsedDiscussions.find(d => d.id === discussionIdToOpen) || null);
+            const discussionToSelect = parsedDiscussions.find(d => d.id === discussionIdToOpen) || null;
+            setSelectedDiscussionGroup(discussionToSelect);
             setActiveMainTab('discussions');
         }
       }
@@ -201,6 +202,10 @@ function ChatPageContent() {
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             }
         ]);
+        // Clear unread count for this chat
+        setDisplayedUserChats(prevChats => prevChats.map(chat => 
+            chat.id === userIdToOpen ? { ...chat, unreadCount: 0 } : chat
+        ));
       } else if (userIdToOpen === aiChatUser.id) {
          setSelectedDirectChatUser(null); 
          setActiveMainTab('direct');
@@ -210,6 +215,8 @@ function ChatPageContent() {
   
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
+    // This effect manages initial messages based on selection, but should not reset unread counts
+    // Unread counts are managed by the selection handlers and the effect above for userIdToOpen.
     if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen) { 
       setMessages([
           {
@@ -294,16 +301,19 @@ function ChatPageContent() {
         setIsAiResponding(false);
       }
     } else if (activeMainTab === 'direct' && selectedDirectChatUser) { 
+      // Simulate receiving a message from the other user
+      // This is where you would increment unread count if the chat wasn't active
       const otherUserResponse: Message = {
         id: 'other-user-resp-' + Date.now(),
         text: `This is a simulated reply to: "${userMessageText}". Simulating as if I am ${selectedDirectChatUser.name}.`,
-        sender: 'ai', 
+        sender: 'ai', // Using 'ai' sender for simulation, but from selectedUser's perspective
         userName: selectedDirectChatUser.name,
         userId: selectedDirectChatUser.id,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
       setTimeout(() => setMessages(prev => [...prev, otherUserResponse]), 500); 
     } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { 
+      // Simulate receiving a message in the discussion group
       const discussionReply: Message = {
         id: 'discussion-reply-' + Date.now(),
         text: `Someone in "${selectedDiscussionGroup.name}" might reply to: "${userMessageText}". (Simulated)`,
@@ -447,6 +457,7 @@ function ChatPageContent() {
                   <DropdownMenuItem onSelect={() => toast({title: "Discussion Info", description: `Post ID: ${selectedDiscussionGroup?.postId}. Feature coming soon!`})}>View Discussion Info</DropdownMenuItem>
                   <DropdownMenuItem onSelect={handleClearChat}>Clear Discussion History</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => {
+                    if (authStatus !== 'loggedIn' || !selectedDiscussionGroup) return;
                     const newJoinedDiscussions = joinedDiscussions.filter(d => d.id !== selectedDiscussionGroup?.id);
                     setJoinedDiscussions(newJoinedDiscussions);
                     if (typeof window !== 'undefined') localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(newJoinedDiscussions));
@@ -541,6 +552,37 @@ function ChatPageContent() {
     </Card>
   );
 
+  const handleDirectChatSelection = (chatUser: typeof initialPlaceholderUserChats[0]) => {
+    setSelectedDirectChatUser(chatUser);
+    setSelectedDiscussionGroup(null);
+    setCurrentMessage('');
+    setActiveMainTab('direct');
+    router.replace(`/chat?section=direct&userId=${chatUser.id}`, undefined);
+    // Clear unread count for this chat
+    setDisplayedUserChats(prevChats => prevChats.map(chat => 
+        chat.id === chatUser.id ? { ...chat, unreadCount: 0 } : chat
+    ));
+  };
+
+  const handleAiChatSelection = () => {
+    setSelectedDirectChatUser(null);
+    setSelectedDiscussionGroup(null);
+    setCurrentMessage('');
+    setActiveMainTab('direct');
+    router.replace('/chat?section=direct', undefined);
+    // AI chat doesn't have an unread count in displayedUserChats
+  };
+  
+  const handleDiscussionSelection = (discussion: JoinedDiscussion) => {
+    setSelectedDiscussionGroup(discussion);
+    setSelectedDirectChatUser(null);
+    setCurrentMessage('');
+    setActiveMainTab('discussions');
+    router.replace(`/chat?section=discussions&discussionId=${discussion.id}`, undefined);
+    // Discussion groups don't have unread counts in displayedUserChats directly
+  };
+
+
   const DirectChatsSidebar = () => (
     <Card className="flex flex-col h-full">
       <CardHeader className="p-4 flex-shrink-0">
@@ -550,7 +592,7 @@ function ChatPageContent() {
         <ScrollArea className="h-full">
           <div
             className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${chatContext === 'ai' ? 'bg-muted' : ''}`}
-            onClick={() => { setSelectedDirectChatUser(null); setSelectedDiscussionGroup(null); setCurrentMessage(''); setActiveMainTab('direct'); router.replace('/chat?section=direct', undefined);}}
+            onClick={handleAiChatSelection}
           >
             <Avatar>
               <AvatarImage src={aiAvatar} alt={aiChatUser.name} data-ai-hint="robot ai" />
@@ -564,9 +606,9 @@ function ChatPageContent() {
           {displayedUserChats.map(chat => ( 
             <div key={chat.id}
               className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedDirectChatUser?.id === chat.id ? 'bg-muted': ''}`}
-              onClick={() => { setSelectedDirectChatUser(chat); setSelectedDiscussionGroup(null); setCurrentMessage(''); setActiveMainTab('direct'); router.replace(`/chat?section=direct&userId=${chat.id}`, undefined); }}
+              onClick={() => handleDirectChatSelection(chat)}
             >
-              <Link href={`/profile/${chat.id}`} className="relative flex-shrink-0">
+              <Link href={`/profile/${chat.id}`} className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Avatar>
                   <AvatarImage src={chat.avatarUrl} alt={chat.name} data-ai-hint="person chat"/>
                   <AvatarFallback>{chat.avatarFallback}</AvatarFallback>
@@ -576,7 +618,7 @@ function ChatPageContent() {
                 )}
               </Link>
               <div className="flex-grow overflow-hidden">
-                <Link href={`/profile/${chat.id}`} className="hover:underline">
+                <Link href={`/profile/${chat.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                   <p className="font-semibold text-sm text-foreground truncate">{chat.name}</p>
                 </Link>
                 <p className="text-xs text-muted-foreground truncate">{chat.lastMessage}</p>
@@ -608,7 +650,7 @@ function ChatPageContent() {
                 {joinedDiscussions.map(discussion => (
                     <div key={discussion.id}
                         className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedDiscussionGroup?.id === discussion.id ? 'bg-muted' : ''}`}
-                        onClick={() => { setSelectedDiscussionGroup(discussion); setSelectedDirectChatUser(null); setCurrentMessage(''); setActiveMainTab('discussions'); router.replace(`/chat?section=discussions&discussionId=${discussion.id}`, undefined);}}
+                        onClick={() => handleDiscussionSelection(discussion)}
                     >
                         <Avatar>
                             <AvatarImage src="https://placehold.co/40x40.png?text=DG" alt={discussion.name} data-ai-hint="group discussion icon" />
@@ -656,10 +698,20 @@ function ChatPageContent() {
       <Tabs value={activeMainTab} onValueChange={(value) => {
         const newTab = value as 'direct' | 'discussions';
         setActiveMainTab(newTab);
-        if (newTab === 'direct' && !selectedDirectChatUser) router.replace('/chat?section=direct', undefined);
-        else if (newTab === 'direct' && selectedDirectChatUser) router.replace(`/chat?section=direct&userId=${selectedDirectChatUser.id}`, undefined);
-        else if (newTab === 'discussions' && !selectedDiscussionGroup) router.replace('/chat?section=discussions', undefined);
-        else if (newTab === 'discussions' && selectedDiscussionGroup) router.replace(`/chat?section=discussions&discussionId=${selectedDiscussionGroup.id}`, undefined);
+        if (newTab === 'direct') {
+            // If switching to direct, select AI chat by default if no user is selected
+            if (!selectedDirectChatUser) handleAiChatSelection();
+            else handleDirectChatSelection(selectedDirectChatUser); // Reselect to clear potential discussion selection
+        } else if (newTab === 'discussions') {
+            // If switching to discussions, if a group is selected, ensure it's active
+            // Otherwise, don't select any specific discussion by default here.
+            if (selectedDiscussionGroup) handleDiscussionSelection(selectedDiscussionGroup);
+            else {
+                setSelectedDiscussionGroup(null);
+                setSelectedDirectChatUser(null);
+                 router.replace('/chat?section=discussions', undefined);
+            }
+        }
       }} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="direct"><CircleUserRound className="mr-2 h-5 w-5" />Direct Chats</TabsTrigger>
