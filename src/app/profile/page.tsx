@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
@@ -15,11 +16,12 @@ import {
   getInitialFollowingIds, 
   getKathaExplorerFollowersList, 
   CURRENT_USER_ID, 
-  // CURRENT_USER_NAME, // No longer directly used, fetched from getKathaExplorerUser
   updateFollowingIds, 
   type MockUser,
   getKathaExplorerUser,
-  saveKathaExplorerUser
+  saveKathaExplorerUser,
+  isUserLoggedIn, // Import isUserLoggedIn
+  setLoggedInStatus // For logout
 } from '@/lib/mock-data';
 
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
@@ -41,6 +43,7 @@ export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'username' 
 
 export default function ProfilePage() {
   const { toast } = useToast();
+  const router = useRouter(); // Initialize router
   const [currentUserProfileData, setCurrentUserProfileData] = useState<UserProfileData | null>(null);
   const [myProfilePosts, setMyProfilePosts] = useState<FeedItemCardProps[]>([]);
   
@@ -53,21 +56,30 @@ export default function ProfilePage() {
   const [modalActionButtonLabel, setModalActionButtonLabel] = useState("");
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !isUserLoggedIn()) {
+      router.replace('/login?redirect=/profile');
+      return;
+    }
+    loadUserProfile();
+    loadUserPosts();
+    refreshFollowCountsAndLists();
+    setIsLoadingProfile(false); // Moved here after initial checks and loads
+  }, [router]); 
+
   const loadUserProfile = () => {
     const user = getKathaExplorerUser();
-    // Counts will be updated after posts and follow lists are loaded
     setCurrentUserProfileData({
         ...user,
         postsCount: myProfilePosts.length, 
         followersCount: followers.length, 
         followingCount: following.length 
     });
-    setIsLoadingProfile(false);
   };
   
   const loadUserPosts = () => {
     try {
-      const storedPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
+      const storedPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
       const storedPosts: FeedItemCardProps[] = storedPostsRaw ? JSON.parse(storedPostsRaw) : [];
       setMyProfilePosts(storedPosts);
       setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: storedPosts.length }) : null);
@@ -88,7 +100,6 @@ export default function ProfilePage() {
      const actualFollowingUsers = allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== CURRENT_USER_ID);
      setFollowing(mapMockUsersToProfileModalUsers(actualFollowingUsers));
      
-     // Simulate followers - can be more dynamic if we store followers per user
      const simulatedFollowers = getKathaExplorerFollowersList(5); 
      setFollowers(mapMockUsersToProfileModalUsers(simulatedFollowers));
 
@@ -99,14 +110,9 @@ export default function ProfilePage() {
       }) : null);
   };
 
-  useEffect(() => {
-    loadUserProfile();
-    loadUserPosts();
-    refreshFollowCountsAndLists();
-  }, []); 
 
-  useEffect(() => { // Update profile data counts when posts or follow lists change
-    if(currentUserProfileData){
+  useEffect(() => { 
+    if(currentUserProfileData && !isLoadingProfile){ // Ensure not to run on initial load if data is null
         setCurrentUserProfileData(prev => prev ? ({
             ...prev,
             postsCount: myProfilePosts.length,
@@ -114,7 +120,7 @@ export default function ProfilePage() {
             followingCount: following.length,
         }): null);
     }
-  }, [myProfilePosts, followers, following]);
+  }, [myProfilePosts, followers, following, isLoadingProfile]);
 
 
   const handleAvatarChange = (newAvatarUrl: string) => {
@@ -154,9 +160,7 @@ export default function ProfilePage() {
 
   const handleModalActionClick = (userId: string) => {
     if (modalOpenFor === 'followers') {
-      // Navigate to profile or show toast
-      toast({ title: "View Profile Action", description: `Navigating to profile of user ${userId} (or would in a real app).` });
-      // router.push(`/profile/${userId}`); // If you want actual navigation
+      router.push(`/profile/${userId}`);
     } else if (modalOpenFor === 'following') {
       const currentFollowingIds = getInitialFollowingIds();
       const updatedFollowingIds = currentFollowingIds.filter(id => id !== userId);
@@ -170,15 +174,15 @@ export default function ProfilePage() {
   const handleDeleteMyPost = (postId: string) => {
     const updatedPosts = myProfilePosts.filter(post => post.id !== postId);
     setMyProfilePosts(updatedPosts);
-    localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
+    if (typeof window !== 'undefined') localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
     setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: updatedPosts.length }) : null);
     
     try {
-        const socialFeedRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
+        const socialFeedRaw = typeof window !== 'undefined' ? localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY) : null;
         if (socialFeedRaw) {
             let socialFeed: FeedItemCardProps[] = JSON.parse(socialFeedRaw);
             socialFeed = socialFeed.filter(p => p.id !== postId);
-            localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeed));
+            if (typeof window !== 'undefined') localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeed));
         }
     } catch (e) {
         console.error("Error removing post from social feed localStorage", e);
@@ -191,19 +195,26 @@ export default function ProfilePage() {
       post.id === postId ? { ...post, comments: updatedComments } : post
     );
     setMyProfilePosts(updatedPosts);
-    localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
+    if (typeof window !== 'undefined') localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
 
      try {
-        const socialFeedRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
+        const socialFeedRaw = typeof window !== 'undefined' ? localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY) : null;
         if (socialFeedRaw) {
             let socialFeed: FeedItemCardProps[] = JSON.parse(socialFeedRaw);
             socialFeed = socialFeed.map(p => p.id === postId ? { ...p, comments: updatedComments } : p);
-            localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeed));
+            if (typeof window !== 'undefined') localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeed));
         }
     } catch (e) {
         console.error("Error updating comments in social feed localStorage", e);
     }
   };
+  
+  const handleLogout = () => {
+    setLoggedInStatus(false);
+    toast({ title: "Logged Out", description: "You have been successfully logged out." });
+    router.push('/login');
+  };
+
 
 const readingProgress = [
   { id: 'story1', title: 'The Last Nebula', progress: 75, coverImageUrl: 'https://placehold.co/360x510.png', aiHint: 'nebula space' },
@@ -228,6 +239,7 @@ const readingProgress = [
         isViewingOwnProfile={true}
         onAvatarChange={handleAvatarChange}
         onProfileSave={handleProfileSave}
+        onLogout={handleLogout} // Pass logout handler
       />
       <UserStats
         postsCount={currentUserProfileData.postsCount}
@@ -257,7 +269,7 @@ const readingProgress = [
                   onDeletePost={handleDeleteMyPost}
                   onUpdateComments={handleUpdateMyPostComments}
                   isFullView={true} 
-                  currentUserName={currentUserProfileData.name} // Use persisted name
+                  currentUserName={currentUserProfileData.name} 
                   currentUserId={CURRENT_USER_ID}
                 />
               )) 

@@ -8,15 +8,57 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import React from 'react';
+import { isUserAdmin, isUserLoggedIn, getKathaExplorerUser } from '@/lib/mock-data'; // Import auth functions
 
 export function Navbar() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [showAdminLink, setShowAdminLink] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [currentEmail, setCurrentEmail] = useState("");
+
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const checkLoginAndAdminStatus = () => {
+      const userLoggedIn = isUserLoggedIn();
+      setLoggedIn(userLoggedIn);
+      if (userLoggedIn) {
+        const user = getKathaExplorerUser();
+        setCurrentEmail(user.email || "");
+        setShowAdminLink(isUserAdmin());
+      } else {
+        setCurrentEmail("");
+        setShowAdminLink(false);
+      }
+    };
+
+    checkLoginAndAdminStatus(); // Initial check
+
+    // Listen for storage changes that might affect login status (e.g., login/logout on another tab)
+    // This is a basic implementation. For robust multi-tab sync, consider BroadcastChannel or custom events.
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'kathaVaultIsLoggedIn' || event.key === 'kathaVaultCurrentUserProfile') {
+        checkLoginAndAdminStatus();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+
+  }, []); // Run once on mount
+
+   // Effect to re-check admin status when email or loggedIn status changes
+   useEffect(() => {
+    if (mounted) { // Ensure this only runs client-side after initial mount
+      if (loggedIn) {
+        setShowAdminLink(isUserAdmin()); // isUserAdmin already checks isUserLoggedIn internally
+      } else {
+        setShowAdminLink(false);
+      }
+    }
+  }, [loggedIn, currentEmail, mounted]);
+
 
   const navLinks = [
     { href: '/', label: 'Home', icon: <Home size={20} /> },
@@ -24,12 +66,14 @@ export function Navbar() {
     { href: '/create', label: 'Create Story', icon: <Edit3 size={20} /> },
     { href: '/forum', label: 'Community Feed', icon: <MessageSquareText size={20} /> },
     { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
-    { href: '/admin', label: 'Admin Panel', icon: <Shield size={20} /> },
+  ];
+  // Admin link is handled conditionally
+
+  const adminSpecificLinks = [
+     { href: '/admin', label: 'Admin Panel', icon: <Shield size={20} /> },
+     { href: '/admin/home-layout', label: 'Home Layout', icon: <LayoutGrid size={18} />, isSubLink: true },
   ];
 
-  const adminSubLinks = [
-     { href: '/admin/home-layout', label: 'Home Layout', icon: <LayoutGrid size={18} /> },
-  ];
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -60,10 +104,24 @@ export function Navbar() {
                 </SheetHeader>
                 <nav className="flex flex-col space-y-1">
                   {navLinks.map((link) => (
-                    <React.Fragment key={link.href}>
-                      <Button
+                    <Button
+                      key={link.href}
+                      variant="ghost"
+                      className="justify-start text-md py-3 px-3"
+                      asChild
+                      onClick={() => setIsSheetOpen(false)}
+                    >
+                      <Link href={link.href} className="flex items-center">
+                        {link.icon}
+                        <span className="ml-3">{link.label}</span>
+                      </Link>
+                    </Button>
+                  ))}
+                  {showAdminLink && adminSpecificLinks.map((link) => (
+                     <Button
+                        key={link.href}
                         variant="ghost"
-                        className="justify-start text-md py-3 px-3"
+                        className={`justify-start text-md py-3 px-3 ${link.isSubLink ? "pl-10 text-sm" : ""}`}
                         asChild
                         onClick={() => setIsSheetOpen(false)}
                       >
@@ -72,49 +130,46 @@ export function Navbar() {
                           <span className="ml-3">{link.label}</span>
                         </Link>
                       </Button>
-                      {link.href === '/admin' && (
-                        <div className="pl-8 flex flex-col space-y-1 mt-1 mb-2">
-                          {adminSubLinks.map(subLink => (
-                            <Button
-                              key={subLink.href}
-                              variant="ghost"
-                              className="justify-start text-sm py-2 px-3 text-muted-foreground hover:text-primary"
-                              asChild
-                              onClick={() => setIsSheetOpen(false)}
-                            >
-                              <Link href={subLink.href} className="flex items-center">
-                                {subLink.icon}
-                                <span className="ml-2">{subLink.label}</span>
-                              </Link>
-                            </Button>
-                          ))}
-                        </div>
-                      )}
-                    </React.Fragment>
                   ))}
                   <hr className="my-3 border-border" />
-                   <Button
-                      variant="ghost"
-                      className="justify-start text-md py-3 px-3"
-                      asChild
-                      onClick={() => setIsSheetOpen(false)}
-                    >
-                      <Link href="/login" className="flex items-center">
-                        <LogIn size={20} />
-                        <span className="ml-3">Login</span>
-                      </Link>
-                    </Button>
+                  {loggedIn ? (
                      <Button
-                      variant="default"
-                      className="justify-start text-md py-3 px-3 mt-2"
-                      asChild
-                      onClick={() => setIsSheetOpen(false)}
-                    >
-                      <Link href="/signup" className="flex items-center">
-                        <UserPlus size={20} />
-                        <span className="ml-3">Sign Up</span>
-                      </Link>
-                    </Button>
+                        variant="ghost"
+                        className="justify-start text-md py-3 px-3"
+                        asChild
+                        onClick={() => setIsSheetOpen(false)} // Logout is handled on profile page for now
+                      >
+                        <Link href="/profile" className="flex items-center">
+                          <Shield size={20} />
+                          <span className="ml-3">My Account</span>
+                        </Link>
+                      </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="justify-start text-md py-3 px-3"
+                        asChild
+                        onClick={() => setIsSheetOpen(false)}
+                      >
+                        <Link href="/login" className="flex items-center">
+                          <LogIn size={20} />
+                          <span className="ml-3">Login</span>
+                        </Link>
+                      </Button>
+                       <Button
+                        variant="default"
+                        className="justify-start text-md py-3 px-3 mt-2"
+                        asChild
+                        onClick={() => setIsSheetOpen(false)}
+                      >
+                        <Link href="/signup" className="flex items-center">
+                          <UserPlus size={20} />
+                          <span className="ml-3">Sign Up</span>
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </nav>
               </SheetContent>
             </Sheet>
@@ -129,6 +184,13 @@ export function Navbar() {
           <nav className="hidden lg:flex flex-wrap items-center justify-center gap-x-1">
             {navLinks.map((link) => (
               <Button key={link.href} variant="ghost" asChild>
+                <Link href={link.href} className="flex items-center text-sm font-medium px-2 py-1">
+                  {link.icon} <span className="ml-2">{link.label}</span>
+                </Link>
+              </Button>
+            ))}
+            {showAdminLink && adminSpecificLinks.filter(l => !l.isSubLink).map((link) => (
+               <Button key={link.href} variant="ghost" asChild>
                 <Link href={link.href} className="flex items-center text-sm font-medium px-2 py-1">
                   {link.icon} <span className="ml-2">{link.label}</span>
                 </Link>
@@ -168,12 +230,22 @@ export function Navbar() {
                 <Moon size={22} />
               )}
             </Button>
-            <Button asChild size="sm" className="hidden sm:inline-flex px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
-              <Link href="/signup">
-                <UserPlus size={18} className="mr-1 sm:mr-2" />
-                Sign Up
-              </Link>
-            </Button>
+            {!loggedIn && (
+                <Button asChild size="sm" className="hidden sm:inline-flex px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
+                <Link href="/signup">
+                    <UserPlus size={18} className="mr-1 sm:mr-2" />
+                    Sign Up
+                </Link>
+                </Button>
+            )}
+             {loggedIn && (
+                <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
+                    <Link href="/profile">
+                        <Shield size={18} className="mr-1 sm:mr-2" />
+                         Account
+                    </Link>
+                </Button>
+            )}
           </div>
         </div>
       </div>

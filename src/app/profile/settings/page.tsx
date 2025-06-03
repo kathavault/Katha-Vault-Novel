@@ -16,7 +16,8 @@ import {
   allMockUsers, 
   getBlockedUserIds, 
   removeBlockedUserId, 
-  type MockUser 
+  type MockUser,
+  isUserLoggedIn // Import isUserLoggedIn
 } from '@/lib/mock-data';
 import { ChevronLeft, Mail, KeyRound, UserX, ShieldAlert, SettingsIcon, Loader2 } from 'lucide-react';
 
@@ -33,12 +34,16 @@ export default function AccountSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && !isUserLoggedIn()) {
+      router.replace('/login?redirect=/profile/settings');
+      return;
+    }
     const user = getKathaExplorerUser();
     setCurrentUser(user);
-    setNewEmail(user.email || ""); // Pre-fill newEmail with current for easier update UX
+    setNewEmail(user.email || ""); 
     loadBlockedUsers();
     setIsLoading(false);
-  }, []);
+  }, [router]);
 
   const loadBlockedUsers = () => {
     const blockedIds = getBlockedUserIds();
@@ -55,7 +60,7 @@ export default function AccountSettingsPage() {
     }
     const updatedUser = { ...currentUser, email: newEmail };
     saveKathaExplorerUser(updatedUser);
-    setCurrentUser(updatedUser); // Update local state to reflect change immediately
+    setCurrentUser(updatedUser); 
     toast({ title: "Email Updated", description: `Your email has been changed to ${newEmail}.` });
   };
 

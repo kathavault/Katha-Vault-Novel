@@ -8,12 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck, UserCog } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Eye, Send, CornerDownRight, Share2, Users, Trash2, MoreVertical, Globe, Lock, UserCheck, UserCog, LogIn } from 'lucide-react';
 import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
-import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, getKathaExplorerUser, isUserActive } from '@/lib/mock-data';
+import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, getKathaExplorerUser, isUserActive, isUserLoggedIn, isUserAdmin as checkIsUserAdmin } from '@/lib/mock-data';
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -53,8 +53,8 @@ export interface FeedItemCardProps {
   onDeletePost?: (postId: string) => void;
   onUpdateComments?: (postId: string, updatedComments: FeedItemComment[]) => void;
   isFullView?: boolean;
-  currentUserName: string; // This should be the name of the LOGGED IN user
-  currentUserId: string;   // This should be the ID of the LOGGED IN user
+  currentUserName: string; 
+  currentUserId: string;   
 }
 
 export function FeedItemCard({
@@ -79,8 +79,8 @@ export function FeedItemCard({
   onDeletePost,
   onUpdateComments,
   isFullView = true,
-  currentUserName, // Logged in user's name
-  currentUserId,   // Logged in user's ID
+  currentUserName, 
+  currentUserId,   
 }: FeedItemCardProps) {
   const { toast } = useToast();
   const router = useRouter();
@@ -93,12 +93,29 @@ export function FeedItemCard({
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [currentDiscussionGroupName, setCurrentDiscussionGroupName] = useState(initialDiscussionGroupName);
   const [isDiscussionGroupIncluded, setIsDiscussionGroupIncluded] = useState(includeDiscussionGroup);
+  
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [userIsAdmin, setUserIsAdmin] = useState(false);
+  const [activeUser, setActiveUser] = useState(false);
 
-  // Note: currentUserName and currentUserId are passed as props and represent the logged-in user
-  // authorId is the ID of the post's author
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const userLoggedIn = isUserLoggedIn();
+        setLoggedIn(userLoggedIn);
+        if(userLoggedIn) {
+            const user = getKathaExplorerUser();
+            setUserIsAdmin(checkIsUserAdmin());
+            setActiveUser(isUserActive(user.id));
+        } else {
+            setUserIsAdmin(false);
+            setActiveUser(false);
+        }
+    }
+  }, []);
+
+
   const isAuthorViewingPost = authorId === currentUserId;
-  const isCurrentUserAdmin = currentUserId === CURRENT_USER_ID; // Assuming CURRENT_USER_ID is admin
-  const loggedInUserIsActive = isUserActive(currentUserId); // Check if logged-in user is active
+  // const isCurrentUserAdmin = currentUserId === CURRENT_USER_ID; // This check is simplified by userIsAdmin state
 
   useEffect(() => {
     setPostComments(initialComments);
@@ -118,8 +135,13 @@ export function FeedItemCard({
 
 
   const handlePostLike = () => {
-    if (!loggedInUserIsActive) {
-      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+    if (!loggedIn) {
+      toast({ title: "Login Required", description: "Please login to like posts.", variant: "destructive" });
+      router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
+    if (!activeUser) {
+      toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
       return;
     }
     setIsPostLiked(prev => !prev);
@@ -134,8 +156,13 @@ export function FeedItemCard({
   };
 
   const handleCommentLike = (targetCommentId: string) => {
-    if (!loggedInUserIsActive) {
-      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+    if (!loggedIn) {
+      toast({ title: "Login Required", description: "Please login to like comments.", variant: "destructive" });
+      router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
+    if (!activeUser) {
+      toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
       return;
     }
     const updateLikesRecursively = (comments: FeedItemComment[]): FeedItemComment[] => {
@@ -160,8 +187,13 @@ export function FeedItemCard({
   };
 
   const handleToggleReplyInput = (commentId: string) => {
-    if (!loggedInUserIsActive) {
-      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+    if (!loggedIn) {
+      toast({ title: "Login Required", description: "Please login to reply.", variant: "destructive" });
+       router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
+    if (!activeUser) {
+      toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
       return;
     }
     setReplyingToCommentId(prevId => (prevId === commentId ? null : commentId));
@@ -170,8 +202,13 @@ export function FeedItemCard({
 
   const handlePostReply = (e: FormEvent<HTMLFormElement>, targetParentCommentId: string) => {
     e.preventDefault();
-    if (!loggedInUserIsActive) {
-      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+    if (!loggedIn) {
+      toast({ title: "Login Required", description: "Please login to post replies.", variant: "destructive" });
+      router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
+    if (!activeUser) {
+      toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
       return;
     }
     if (!replyText.trim()) {
@@ -179,14 +216,14 @@ export function FeedItemCard({
       return;
     }
     
-    const loggedInUserDetails = getKathaExplorerUser(); // Get fresh data for logged in user
+    const loggedInUserDetails = getKathaExplorerUser(); 
 
     const newReply: FeedItemComment = {
       id: `reply-${targetParentCommentId}-${Date.now()}`,
-      authorName: loggedInUserDetails.name, // Use loggedInUserDetails.name
-      authorInitials: loggedInUserDetails.avatarFallback, // Use loggedInUserDetails.avatarFallback
-      authorAvatarUrl: loggedInUserDetails.avatarUrl, // Use loggedInUserDetails.avatarUrl
-      authorId: currentUserId, // currentUserId is the ID of the logged-in user
+      authorName: loggedInUserDetails.name, 
+      authorInitials: loggedInUserDetails.avatarFallback, 
+      authorAvatarUrl: loggedInUserDetails.avatarUrl, 
+      authorId: currentUserId, 
       text: replyText,
       timestamp: 'Just now',
       commentLikes: 0,
@@ -199,7 +236,7 @@ export function FeedItemCard({
         if (comment.id === targetParentCommentId) {
           return {
             ...comment,
-            replies: [newReply, ...(comment.replies || [])], // Ensure replies is an array
+            replies: [newReply, ...(comment.replies || [])], 
           };
         }
         if (comment.replies && comment.replies.length > 0) {
@@ -219,17 +256,21 @@ export function FeedItemCard({
   };
 
   const handleDeleteComment = (targetCommentId: string) => {
+    if (!loggedIn) {
+      toast({ title: "Login Required", description: "Please login to delete comments.", variant: "destructive" });
+      router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
     const deleteCommentRecursively = (comments: FeedItemComment[]): FeedItemComment[] => {
       return comments.filter(comment => {
           if (comment.id === targetCommentId) {
-              // Permission check: logged-in user is comment author OR admin
-              return !(comment.authorId === currentUserId || isCurrentUserAdmin);
+              return !(comment.authorId === currentUserId || userIsAdmin);
           }
           if (comment.replies && comment.replies.length > 0) {
             comment.replies = deleteCommentRecursively(comment.replies);
           }
-          return true; // Keep the comment if it's not the target or if no permission
-      }).map(comment => { // Ensure the mapping for replies is correct
+          return true; 
+      }).map(comment => { 
           if (comment.replies) {
               comment.replies = deleteCommentRecursively(comment.replies);
           }
@@ -237,14 +278,13 @@ export function FeedItemCard({
       });
     };
     
-    // Check if comment exists and if user has permission before attempting to update state
     let commentExists = false;
     let hasPermission = false;
     const findComment = (comments: FeedItemComment[]): FeedItemComment | undefined => {
         for (const comment of comments) {
             if (comment.id === targetCommentId) {
                 commentExists = true;
-                if (comment.authorId === currentUserId || isCurrentUserAdmin) {
+                if (comment.authorId === currentUserId || userIsAdmin) {
                     hasPermission = true;
                 }
                 return comment;
@@ -258,10 +298,10 @@ export function FeedItemCard({
     };
     findComment(postComments);
 
-    if (commentExists && hasPermission && loggedInUserIsActive) {
+    if (commentExists && hasPermission && activeUser) {
         updateCommentsStateAndNotifyParent(deleteCommentRecursively(postComments).filter(c => c.id !== targetCommentId));
         toast({ title: "Comment Deleted", description: "The comment has been removed." });
-    } else if (!loggedInUserIsActive) {
+    } else if (!activeUser) {
         toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive" });
     } else if (!hasPermission) {
         toast({ title: "Deletion Failed", description: "You do not have permission to delete this comment.", variant: "destructive" });
@@ -271,26 +311,38 @@ export function FeedItemCard({
   const commentsToDisplay = showAllComments || !isFullView ? postComments : postComments.slice(0, 2);
   const totalTopLevelComments = postComments.length;
 
-  const handleOpenShareModal = () => setIsShareModalOpen(true);
+  const handleOpenShareModal = () => {
+    if (!loggedIn) {
+      toast({ title: "Login Required", description: "Please login to share posts.", variant: "destructive" });
+      router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
+    setIsShareModalOpen(true)
+  };
 
   const handleJoinDiscussion = () => {
-    if (!loggedInUserIsActive) {
-      toast({ title: "Action Denied", description: "Your account is deactivated. Please contact an admin.", variant: "destructive"});
+    if (!loggedIn) {
+      toast({ title: "Login Required", description: "Please login to join discussions.", variant: "destructive" });
+      router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
+    if (!activeUser) {
+      toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
       return;
     }
     const groupNameDisplay = currentDiscussionGroupName || title || `Discussion for post ${postId}`;
     try {
-      const storedDiscussionsRaw = localStorage.getItem(JOINED_DISCUSSIONS_STORAGE_KEY);
+      const storedDiscussionsRaw = typeof window !== 'undefined' ? localStorage.getItem(JOINED_DISCUSSIONS_STORAGE_KEY) : null;
       let joinedDiscussions: { id: string; name: string; postId: string }[] = storedDiscussionsRaw ? JSON.parse(storedDiscussionsRaw) : [];
 
       const discussionExists = joinedDiscussions.some(d => d.postId === postId);
       if (!discussionExists) {
         joinedDiscussions.push({
-          id: `discussion-${postId}`, // Ensure discussion group ID is unique and related to post
+          id: `discussion-${postId}`, 
           name: groupNameDisplay,
           postId: postId,
         });
-        localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(joinedDiscussions));
+        if (typeof window !== 'undefined') localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(joinedDiscussions));
         toast({
           title: `Added to "Joined Discussions"!`,
           description: `You can find "${groupNameDisplay}" in the Chat section. Post ID: ${postId}`,
@@ -316,10 +368,12 @@ export function FeedItemCard({
   };
 
   const handleDeleteDiscussionGroup = () => {
+    if (!loggedIn || !activeUser) {
+        toast({ title: "Action Denied", description: "Login required or account deactivated.", variant: "destructive"});
+        return;
+    }
     const groupNameDisplay = currentDiscussionGroupName || title || `Discussion for post ${postId}`;
     setIsDiscussionGroupIncluded(false);
-    // Optionally, also remove from localStorage if the user is leaving their own group
-    // For now, this just visually hides it on the card
     toast({
         title: "Discussion Group Removed (Visual)",
         description: `The discussion group '${groupNameDisplay}' for this post is now visually hidden from this card.`,
@@ -327,9 +381,12 @@ export function FeedItemCard({
   };
 
   const handleInternalDeletePost = () => {
-    if (onDeletePost && (isAuthorViewingPost || isCurrentUserAdmin) && loggedInUserIsActive) {
+    if (onDeletePost && (isAuthorViewingPost || userIsAdmin) && loggedIn && activeUser) {
       onDeletePost(postId);
-    } else if (!loggedInUserIsActive) {
+    } else if (!loggedIn) {
+        toast({ title: "Login Required", description: "Please login to delete posts.", variant: "destructive"});
+        router.push(`/login?redirect=${window.location.pathname}`);
+    } else if (!activeUser) {
       toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
     } else {
       toast({ title: "Action Denied", description: "You cannot delete this post.", variant: "destructive"});
@@ -337,7 +394,7 @@ export function FeedItemCard({
   }
 
   const PrivacyIcon = () => {
-    if (!isAuthorViewingPost && !isCurrentUserAdmin) return null; // Show privacy only to author or admin
+    if (!isAuthorViewingPost && !userIsAdmin) return null; 
     if (privacy === 'public') return <Globe className="h-3.5 w-3.5 text-blue-500 ml-1.5" title="Public Post"/>;
     if (privacy === 'private') return <Lock className="h-3.5 w-3.5 text-orange-500 ml-1.5" title="Private Post (Only visible to you)"/>;
     if (privacy === 'custom') return <UserCog className="h-3.5 w-3.5 text-teal-500 ml-1.5" title={`Custom Audience (${customAudienceUserIds?.length || 0} specific users)`}/>;
@@ -345,12 +402,12 @@ export function FeedItemCard({
   };
 
   const CommentItem = ({ comment, depth = 0 }: { comment: FeedItemComment, depth?: number }) => {
-    const isCommentByLoggedInUser = comment.authorId === currentUserId;
-    const canLoggedInUserDeleteThisComment = loggedInUserIsActive && (isCommentByLoggedInUser || isCurrentUserAdmin); 
+    const isCommentByLoggedInUser = loggedIn && comment.authorId === currentUserId;
+    const canLoggedInUserDeleteThisComment = loggedIn && activeUser && (isCommentByLoggedInUser || userIsAdmin); 
 
     return (
       <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
-        <Link href={`/profile/${comment.authorId || ''}`} className="flex-shrink-0">
+        <Link href={comment.authorId ? `/profile/${comment.authorId}` : '#'} className="flex-shrink-0">
           <Avatar className="h-8 w-8">
             <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
             <AvatarFallback>{comment.authorInitials}</AvatarFallback>
@@ -359,7 +416,7 @@ export function FeedItemCard({
         <div className="flex-1 space-y-1">
           <div className="flex items-center justify-between">
             <div>
-              <Link href={`/profile/${comment.authorId || ''}`} className="hover:underline">
+              <Link href={comment.authorId ? `/profile/${comment.authorId}` : '#'} className="hover:underline">
                 <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
               </Link>
               <span className="text-xs text-muted-foreground ml-2">{comment.timestamp}</span>
@@ -384,11 +441,11 @@ export function FeedItemCard({
           </div>
           <p className="text-sm text-foreground/90 whitespace-pre-wrap">{comment.text}</p>
           <div className="flex items-center space-x-2 text-xs">
-            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)} disabled={!loggedInUserIsActive}>
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)} disabled={!loggedIn || !activeUser}>
               <ThumbsUp className={`h-3.5 w-3.5 mr-1 ${comment.isCommentLikedByUser ? 'fill-primary text-primary' : ''}`} />
               {comment.commentLikes > 0 ? comment.commentLikes : 'Like'}
             </Button>
-            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)} disabled={!loggedInUserIsActive}>
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)} disabled={!loggedIn || !activeUser}>
               <CornerDownRight className="h-3.5 w-3.5 mr-1" /> Reply
             </Button>
           </div>
@@ -401,9 +458,9 @@ export function FeedItemCard({
                 onChange={(e) => setReplyText(e.target.value)}
                 className="h-8 text-sm flex-grow"
                 autoFocus
-                disabled={!loggedInUserIsActive}
+                disabled={!loggedIn || !activeUser}
               />
-              <Button type="submit" size="sm" variant="ghost" className="h-8 px-2" disabled={!loggedInUserIsActive || !replyText.trim()}>
+              <Button type="submit" size="sm" variant="ghost" className="h-8 px-2" disabled={!loggedIn || !activeUser || !replyText.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
             </form>
@@ -442,10 +499,10 @@ export function FeedItemCard({
                     <Share2 className="h-4 w-4" />
                  </Button>
               )}
-              {(isAuthorViewingPost || isCurrentUserAdmin) && onDeletePost && isFullView && (
+              {(isAuthorViewingPost || userIsAdmin) && onDeletePost && isFullView && (
                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8" disabled={!loggedInUserIsActive}>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8" disabled={!loggedIn || !activeUser}>
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -453,7 +510,7 @@ export function FeedItemCard({
                     <DropdownMenuItem
                       onSelect={handleInternalDeletePost}
                       className="text-destructive hover:!text-destructive focus:!text-destructive focus:!bg-destructive/10"
-                      disabled={!loggedInUserIsActive}
+                      disabled={!loggedIn || !activeUser}
                     >
                       <Trash2 className="mr-2 h-4 w-4" /> Delete Post
                     </DropdownMenuItem>
@@ -490,7 +547,7 @@ export function FeedItemCard({
         <CardFooter className="flex flex-col items-start text-muted-foreground text-sm pt-2">
           <div className="w-full flex justify-between items-center mb-3">
               <div className="flex space-x-3">
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike} disabled={!loggedInUserIsActive}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={handlePostLike} disabled={!loggedIn || !activeUser}>
                   <ThumbsUp className={`h-4 w-4 mr-1 ${isPostLiked ? 'fill-primary text-primary' : ''}`} /> {currentPostLikes}
                 </Button>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary p-1 h-auto" onClick={() => {if (isFullView) setShowAllComments(prev => !prev)}}>
@@ -504,13 +561,13 @@ export function FeedItemCard({
               </div>
               <div className="flex items-center space-x-2">
                 { isDiscussionGroupIncluded && isFullView && (
-                    <Button variant="outline" size="sm" onClick={handleJoinDiscussion} disabled={!loggedInUserIsActive}>
+                    <Button variant="outline" size="sm" onClick={handleJoinDiscussion} disabled={!loggedIn || !activeUser}>
                         <Users className="mr-2 h-4 w-4" />
                         Join {currentDiscussionGroupName ? `"${currentDiscussionGroupName}"` : "Discussion"}
                     </Button>
                 )}
-                { (isAuthorViewingPost || isCurrentUserAdmin) && isDiscussionGroupIncluded && isFullView && (
-                     <Button variant="outline" size="sm" onClick={handleDeleteDiscussionGroup} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive" disabled={!loggedInUserIsActive}>
+                { (isAuthorViewingPost || userIsAdmin) && isDiscussionGroupIncluded && isFullView && (
+                     <Button variant="outline" size="sm" onClick={handleDeleteDiscussionGroup} className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive" disabled={!loggedIn || !activeUser}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Group
                     </Button>
@@ -536,45 +593,56 @@ export function FeedItemCard({
             </div>
           )}
           {isFullView && ( 
-            <form onSubmit={(e) => {
-                e.preventDefault(); // Prevent default form submission
-                const loggedInUserDetails = getKathaExplorerUser();
-                if (!isUserActive(loggedInUserDetails.id)) {
-                    toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
-                    return;
-                }
-                if (!replyText.trim()) {
-                    toast({ title: "Empty Comment", description: "Cannot submit an empty comment.", variant: "destructive" });
-                    return;
-                }
-                const newTopLevelComment: FeedItemComment = {
-                    id: `comment-${postId}-${Date.now()}`,
-                    authorName: loggedInUserDetails.name,
-                    authorInitials: loggedInUserDetails.avatarFallback,
-                    authorAvatarUrl: loggedInUserDetails.avatarUrl,
-                    authorId: loggedInUserDetails.id,
-                    text: replyText,
-                    timestamp: 'Just now',
-                    commentLikes: 0,
-                    isCommentLikedByUser: false,
-                    replies: [],
-                };
-                updateCommentsStateAndNotifyParent([newTopLevelComment, ...postComments]);
-                setReplyText(""); // Clear input after posting
-                toast({ title: "Comment Posted", description: "Your comment has been added to the post." });
-            }} className="w-full mt-4 pt-3 border-t border-border/50 flex items-center space-x-2">
-                <Input
-                    type="text"
-                    placeholder={loggedInUserIsActive ? "Write a comment..." : "Your account is deactivated."}
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    className="h-9 text-sm flex-grow"
-                    disabled={!loggedInUserIsActive}
-                />
-                <Button type="submit" size="sm" className="h-9 px-3" disabled={!loggedInUserIsActive || !replyText.trim()}>
-                    <Send className="h-4 w-4" />
-                </Button>
-            </form>
+            loggedIn ? (
+                <form onSubmit={(e) => {
+                    e.preventDefault(); 
+                    if (!activeUser) {
+                        toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
+                        return;
+                    }
+                    if (!replyText.trim()) {
+                        toast({ title: "Empty Comment", description: "Cannot submit an empty comment.", variant: "destructive" });
+                        return;
+                    }
+                    const loggedInUserDetails = getKathaExplorerUser();
+                    const newTopLevelComment: FeedItemComment = {
+                        id: `comment-${postId}-${Date.now()}`,
+                        authorName: loggedInUserDetails.name,
+                        authorInitials: loggedInUserDetails.avatarFallback,
+                        authorAvatarUrl: loggedInUserDetails.avatarUrl,
+                        authorId: loggedInUserDetails.id,
+                        text: replyText,
+                        timestamp: 'Just now',
+                        commentLikes: 0,
+                        isCommentLikedByUser: false,
+                        replies: [],
+                    };
+                    updateCommentsStateAndNotifyParent([newTopLevelComment, ...postComments]);
+                    setReplyText(""); 
+                    toast({ title: "Comment Posted", description: "Your comment has been added to the post." });
+                }} className="w-full mt-4 pt-3 border-t border-border/50 flex items-center space-x-2">
+                    <Input
+                        type="text"
+                        placeholder={activeUser ? "Write a comment..." : "Your account is deactivated."}
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="h-9 text-sm flex-grow"
+                        disabled={!activeUser}
+                    />
+                    <Button type="submit" size="sm" className="h-9 px-3" disabled={!activeUser || !replyText.trim()}>
+                        <Send className="h-4 w-4" />
+                    </Button>
+                </form>
+            ) : (
+                <div className="w-full mt-4 pt-3 border-t border-border/50 text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Login to like, comment, and join discussions.</p>
+                    <Button asChild variant="default" size="sm">
+                        <Link href={`/login?redirect=${typeof window !== 'undefined' ? window.location.pathname : '/'}`}>
+                            <LogIn className="mr-2 h-4 w-4" /> Login
+                        </Link>
+                    </Button>
+                </div>
+            )
         )}
         </CardFooter>
       </Card>

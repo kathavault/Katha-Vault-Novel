@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -23,9 +24,10 @@ import {
   getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment,
   getKathaExplorerUser,
   isUserActive,
-  KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL
+  KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL,
+  isUserLoggedIn, isUserAdmin // Import new auth functions
 } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -44,7 +46,9 @@ const ITEMS_PER_PAGE_INITIAL = 10;
 
 export default function AdminPage() {
   const { toast } = useToast();
+  const router = useRouter(); // Initialize router
   const [adminUser, setAdminUser] = useState<MockUser | null>(null);
+  const [isLoadingPage, setIsLoadingPage] = useState(true); // For initial auth check
 
   const [novels, setNovels] = useState<Novel[]>([]);
   const [novelSearchTerm, setNovelSearchTerm] = useState("");
@@ -54,7 +58,7 @@ export default function AdminPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [showAllNovels, setShowAllNovels] = useState(false);
 
-  const [users, setUsers] = useState<MockUser[]>([]); // Will be populated after adminUser is set
+  const [users, setUsers] = useState<MockUser[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [showAllUsers, setShowAllUsers] = useState(false);
 
@@ -73,27 +77,38 @@ export default function AdminPage() {
   const [showAllChapterComments, setShowAllChapterComments] = useState(false);
 
   useEffect(() => {
-    const currentUser = getKathaExplorerUser();
-    setAdminUser(currentUser);
+    if (typeof window !== 'undefined') { // Ensure router and localStorage are available
+      if (!isUserLoggedIn()) {
+        router.replace('/login?redirect=/admin');
+        return;
+      } else if (!isUserAdmin()) {
+        toast({ title: "Access Denied", description: "You do not have permission to view this page.", variant: "destructive" });
+        router.replace('/');
+        return;
+      }
+      // User is logged in and is an admin
+      const currentUser = getKathaExplorerUser();
+      setAdminUser(currentUser);
 
-    const loadedNovels = getNovelsFromStorage();
-    setNovels(loadedNovels);
-    loadPostComments();
-    loadChapterComments(loadedNovels);
+      const loadedNovels = getNovelsFromStorage();
+      setNovels(loadedNovels);
+      loadPostComments();
+      loadChapterComments(loadedNovels);
 
-    // Initialize users list after adminUser is set
-    let baseUsers = [...allMockUsers];
-    const adminIndex = baseUsers.findIndex(u => u.id === currentUser.id);
-    if (adminIndex !== -1) {
-      baseUsers[adminIndex] = currentUser; // Ensure admin's latest details are in the list
-    } else {
-      // This case should ideally not happen if allMockUsers contains an entry for CURRENT_USER_ID
-      baseUsers.push(currentUser);
+      let baseUsers = [...allMockUsers];
+      const adminIndex = baseUsers.findIndex(u => u.id === currentUser.id);
+      if (adminIndex !== -1) {
+        baseUsers[adminIndex] = currentUser;
+      } else {
+        if (!baseUsers.find(u => u.id === currentUser.id)) {
+           baseUsers.push(currentUser);
+        }
+      }
+      setUsers(baseUsers.filter((user, index, self) => index === self.findIndex(u => u.id === user.id)));
+      setIsLoadingPage(false); // Content can now be loaded
     }
-    setUsers(baseUsers.filter((user, index, self) => index === self.findIndex(u => u.id === user.id)));
+  }, [router, toast]);
 
-
-  }, []);
 
   const loadPostComments = () => {
     const posts = getSocialFeedPostsFromStorage();
@@ -203,23 +218,19 @@ export default function AdminPage() {
   };
 
   const filteredUsers = useMemo(() => {
-    // Users state is now populated in useEffect after adminUser is set
-    let results = [...users];
+    let results = [...users]; // Use the state `users` which is set after adminUser
 
-    if (adminUser) { // Ensure adminUser is populated
-        const adminIndex = results.findIndex(u => u.id === adminUser.id);
-        if (adminIndex !== -1) {
-            results[adminIndex] = adminUser; // Update the admin's details in the list
+    if (adminUser) { // Ensure adminUser is populated from state
+        const currentAdminInListIdx = results.findIndex(u => u.id === adminUser.id);
+        if (currentAdminInListIdx !== -1) {
+            results[currentAdminInListIdx] = adminUser; 
         } else {
-             // If adminUser (from localStorage after login) is not in the static allMockUsers list (e.g., new email),
-             // add them. This scenario implies allMockUsers might not have a placeholder for every possible admin email.
-             // For special admins (Kritika, KathaVault), their IDs *are* in allMockUsers.
-             // This primarily handles a generic katha_explorer changing email.
-            if (!results.find(u => u.id === adminUser.id)) {
+             if (!results.find(u => u.id === adminUser.id)) {
                  results.push(adminUser);
-            }
+             }
         }
     }
+    // Ensure unique users by ID
     results = results.filter((user, index, self) => index === self.findIndex(u => u.id === user.id));
 
 
@@ -244,27 +255,23 @@ export default function AdminPage() {
         toast({ title: "Action Denied", description: "This special admin account cannot be deactivated.", variant: "destructive"});
         return;
     }
-    if (userIdToToggle === CURRENT_USER_ID) {
-      toast({ title: "Action Denied", description: "Admin cannot change own status directly here. Use profile settings for general active status, or this account cannot be deactivated if special.", variant: "destructive" }); return;
+    if (targetUser.id === adminUser?.id) { // Use adminUser from state
+      toast({ title: "Action Denied", description: "Admin cannot change own status directly here.", variant: "destructive" }); return;
     }
 
     const updatedUsers = users.map(user =>
         user.id === userIdToToggle ? { ...user, isActive: !user.isActive } : user
     );
     setUsers(updatedUsers);
-    // This is a UI simulation for other users in the admin panel.
-    // For `kathaExplorerUser` (admin), `isActive` is persisted via `saveKathaExplorerUser` elsewhere.
-    // For other users, this change is local to the admin panel session unless persisted by a broader system.
+    
     const changedUser = updatedUsers.find(u => u.id === userIdToToggle);
     if (changedUser) {
-        const mockUserToUpdate = allMockUsers.find(u => u.id === userIdToToggle);
-        if (mockUserToUpdate) {
-            // This would be where you'd call a global update function if it existed
-            // For now, it's a visual change in the admin panel.
-            // To make it "persist" for other mock users for the session, one might update a shared state
-            // or modify a temporary in-memory version of allMockUsers if this panel was a central user manager.
-            // This mock doesn't have a global user state persistence beyond kathaExplorerUser.
-             toast({ title: "User Status Updated", description: `${changedUser.name} is now ${changedUser.isActive ? "Active" : "Deactivated"}. (This status change is for the current admin session view of this user).` });
+        const mockUserToUpdateInAll = allMockUsers.find(u => u.id === userIdToToggle);
+        if (mockUserToUpdateInAll) {
+            mockUserToUpdateInAll.isActive = changedUser.isActive; 
+            // This change to allMockUsers is for in-memory consistency for this session
+            // A proper backend would handle global user state.
+            toast({ title: "User Status Updated", description: `${changedUser.name} is now ${changedUser.isActive ? "Active" : "Deactivated"}.` });
         }
     }
   };
@@ -310,7 +317,7 @@ export default function AdminPage() {
     if(typeof window !== 'undefined') localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(updatedSocialPosts));
 
     const postAuthorId = allSocialPosts.find(p => p.id === postCommentToDelete.postId)?.authorId;
-    if (postAuthorId === CURRENT_USER_ID) {
+    if (postAuthorId === CURRENT_USER_ID) { // Should be adminUser.id if admin deletes own post's comment
         const userPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
         if (userPostsRaw) {
             let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw);
@@ -375,11 +382,20 @@ export default function AdminPage() {
     const updatedStoredChapterComments = filterRecursively(currentAllChapterComments, chapterCommentToDelete.id);
 
     saveStoredChapterComments(updatedStoredChapterComments);
-    loadChapterComments(novels);
+    loadChapterComments(novels); // Reload with current novels
     toast({ title: "Chapter Comment Deleted", description: `Comment by ${chapterCommentToDelete.authorName} removed.`, variant: "destructive" });
     setChapterCommentToDelete(null);
     setIsDeleteChapterCommentDialogOpen(false);
   };
+
+
+  if (isLoadingPage) {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Verifying access...</div>;
+  }
+
+  if (!adminUser) { // Should not happen if isLoadingPage is false and checks pass
+    return <div className="flex justify-center items-center h-screen">Error: Admin user data not available.</div>;
+  }
 
 
   return (
@@ -544,7 +560,7 @@ export default function AdminPage() {
                     <TableBody>
                     {displayedUsers.map((user) => {
                         const isSpecialAdmin = user.email === KRITIKA_EMAIL || user.email === KATHAVAULT_OWNER_EMAIL;
-                        const cannotBeDeactivated = isSpecialAdmin || user.id === CURRENT_USER_ID;
+                        const cannotBeDeactivated = isSpecialAdmin || user.id === adminUser?.id;
                         return (
                         <TableRow key={user.id}>
                         <TableCell className="font-medium max-w-[200px] truncate" title={`${user.name} (${user.username || 'N/A'})`}>

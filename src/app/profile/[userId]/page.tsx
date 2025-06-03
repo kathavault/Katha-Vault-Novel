@@ -8,22 +8,21 @@ import { UserStats } from '@/components/profile/user-stats';
 import { FeedItemCard, type FeedItemCardProps, type FeedItemComment } from '@/components/forum-post-card';
 import { UserListModal, type ModalUser as ProfileModalUser } from '@/components/profile/user-list-modal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit2, Loader2 } from 'lucide-react';
+import { Edit2, Loader2, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 import { useToast } from "@/hooks/use-toast";
 import { 
   allMockUsers, 
   CURRENT_USER_ID, 
-  // CURRENT_USER_NAME, // Derived from getKathaExplorerUser
   getInitialFollowingIds, 
   updateFollowingIds, 
   type MockUser,
-  getKathaExplorerUser
+  getKathaExplorerUser,
+  isUserLoggedIn // Import isUserLoggedIn
 } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 
-const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts'; // For fetching posts
+const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts'; 
 
-// Convert MockUser to ProfileModalUser for the modal
 const mapMockUsersToProfileModalUsers = (mockUsers: MockUser[]): ProfileModalUser[] => {
   return mockUsers.map(u => ({
     id: u.id,
@@ -42,7 +41,7 @@ export default function UserProfilePage() {
   const { toast } = useToast();
   const viewedUserId = typeof params.userId === 'string' ? params.userId : '';
   
-  const [loggedInUser, setLoggedInUser] = useState(getKathaExplorerUser());
+  const [loggedInUser, setLoggedInUser] = useState<MockUser | null>(null); // Initialize as null
   const [viewedUser, setViewedUser] = useState<MockUser | null>(null);
   const [userPosts, setUserPosts] = useState<FeedItemCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,9 +52,14 @@ export default function UserProfilePage() {
   const [modalOpenFor, setModalOpenFor] = useState<'followers' | 'following' | null>(null);
   const [modalUsers, setModalUsers] = useState<ProfileModalUser[]>([]);
 
-
   useEffect(() => {
-    setLoggedInUser(getKathaExplorerUser()); // Refresh logged-in user data
+    if (typeof window !== 'undefined' && !isUserLoggedIn()) {
+      router.replace(`/login?redirect=/profile/${viewedUserId}`);
+      return;
+    }
+    
+    const currentLoggedInUser = getKathaExplorerUser();
+    setLoggedInUser(currentLoggedInUser);
 
     if (viewedUserId === CURRENT_USER_ID) {
       router.replace('/profile'); 
@@ -69,13 +73,13 @@ export default function UserProfilePage() {
       setIsFollowing(currentFollowingIds.includes(viewedUserId));
 
       try {
-        const allPostsRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
+        const allPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY) : null;
         if (allPostsRaw) {
           const allPosts: FeedItemCardProps[] = JSON.parse(allPostsRaw);
           const postsByThisUser = allPosts.filter(p => 
             p.authorId === viewedUserId && 
             (p.privacy === 'public' || 
-             (p.privacy === 'custom' && p.customAudienceUserIds?.includes(loggedInUser.id))) // Check against loggedInUser.id
+             (p.privacy === 'custom' && p.customAudienceUserIds?.includes(currentLoggedInUser.id)))
           );
           setUserPosts(postsByThisUser);
         }
@@ -84,7 +88,6 @@ export default function UserProfilePage() {
         setUserPosts([]);
       }
 
-      // Simulate followers/following lists for the viewed user
       const simulatedFollowers = allMockUsers.filter(u => u.id !== viewedUserId && Math.random() > 0.5).slice(0, Math.floor(Math.random() * 5) + 1);
       setFollowersList(mapMockUsersToProfileModalUsers(simulatedFollowers));
       
@@ -95,10 +98,14 @@ export default function UserProfilePage() {
       toast({ title: "User Not Found", description: "This profile could not be loaded.", variant: "destructive" });
     }
     setIsLoading(false);
-  }, [viewedUserId, router, toast, loggedInUser.id]); // Add loggedInUser.id dependency
+  }, [viewedUserId, router, toast]);
 
   const handleFollowToggle = () => {
-    if (!viewedUser) return;
+    if (!viewedUser || !isUserLoggedIn()) { // Check if logged in
+        toast({ title: "Login Required", description: "Please login to follow users.", variant: "destructive" });
+        router.push(`/login?redirect=/profile/${viewedUserId}`);
+        return;
+    }
     const currentFollowingIds = getInitialFollowingIds();
     let updatedFollowingIds: string[];
 
@@ -126,7 +133,6 @@ export default function UserProfilePage() {
     if (modalOpenFor === 'followers') {
       router.push(`/profile/${userIdToListAction}`);
     } else if (modalOpenFor === 'following') {
-       // If the list shows users the *viewedUser* is following, action is to view their profile
       router.push(`/profile/${userIdToListAction}`);
     }
     setModalOpenFor(null);
@@ -139,13 +145,19 @@ export default function UserProfilePage() {
 
   if (!viewedUser) {
     return (
-      <div className="text-center py-10">
+      <div className="text-center py-10 flex flex-col items-center">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
         <h1 className="text-2xl font-bold">User Not Found</h1>
         <p className="text-muted-foreground">The profile you are looking for does not exist or could not be loaded.</p>
-        <Button onClick={() => router.push('/forum')} className="mt-4">Go to Feed</Button>
+        <Button onClick={() => router.push('/forum')} className="mt-6">Go to Feed</Button>
       </div>
     );
   }
+  
+  if (!loggedInUser) { // Should be caught by useEffect, but as a fallback
+      return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> Redirecting to login...</div>;
+  }
+
 
   return (
     <div className="space-y-8">
@@ -186,8 +198,8 @@ export default function UserProfilePage() {
                   onDeletePost={() => toast({ title: "Action Not Allowed", description: "You cannot delete another user's post."})}
                   onUpdateComments={() => { /* Placeholder, or disallow */ }}
                   isFullView={true} 
-                  currentUserName={loggedInUser.name} // Logged in user's name
-                  currentUserId={loggedInUser.id}   // Logged in user's ID
+                  currentUserName={loggedInUser.name} 
+                  currentUserId={loggedInUser.id}   
                 />
               )) 
             ) : (

@@ -2,41 +2,59 @@
 "use client";
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // Import useSearchParams
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogIn, UserPlus, Mail, KeyRound, ShieldCheck } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { updateCurrentLoggedInUser } from '@/lib/mock-data'; // Import the new function
+import { updateCurrentLoggedInUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL, setLoggedInStatus } from '@/lib/mock-data';
+import { useState, useEffect } from 'react'; // Import useState
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // For redirect
   const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState(""); // Manage password state
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const email = formData.get('email') as string;
-    // const password = formData.get('password') as string; // Password not used in this mock
+    // const formData = new FormData(event.currentTarget);
+    // const emailFromForm = formData.get('email') as string; // Now using state
+    // const passwordFromForm = formData.get('password') as string;
 
     if (!email) {
         toast({ title: "Login Failed", description: "Please enter an email address.", variant: "destructive"});
         return;
     }
+    if (!password) { // Basic check, real validation would be more complex
+        toast({ title: "Login Failed", description: "Please enter a password.", variant: "destructive"});
+        return;
+    }
 
     updateCurrentLoggedInUser(email);
-    toast({ title: "Login Successful!", description: `Welcome back! Your profile has been updated with email: ${email}` });
-    router.push('/profile'); // Redirect to profile page
+    // setLoggedInStatus(true); // Moved to updateCurrentLoggedInUser
+    toast({ title: "Login Successful!", description: `Welcome back! Your profile has been updated.` });
+    
+    const redirectUrl = searchParams.get('redirect');
+    if (redirectUrl) {
+      router.push(redirectUrl);
+    } else {
+      router.push('/profile');
+    }
   };
 
   const handleGoogleSignIn = () => {
-    // Simulate Google Sign-In with Kritika's email for demonstration
-    const googleUserEmail = "rajputkritika510@gmail.com";
-    updateCurrentLoggedInUser(googleUserEmail);
-    toast({ title: "Google Sign-In Successful!", description: "Welcome, Kritika! Your profile is updated." });
-    router.push('/profile'); // Redirect to profile page
+    const adminGoogleEmail = KRITIKA_EMAIL; // Simulate Kritika logging in via Google
+    setEmail(adminGoogleEmail); // Pre-fill the email field
+    toast({ 
+        title: "Admin Email Selected", 
+        description: "Kritika's email has been selected. Please enter the site password below to complete login.",
+        duration: 5000 
+    });
+    // Do NOT log in yet. User needs to enter password and click the main login button.
   };
 
   return (
@@ -55,14 +73,32 @@ export default function LoginPage() {
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="email" name="email" type="email" placeholder="you@example.com" required className="pl-10" />
+                <Input 
+                    id="email" 
+                    name="email" 
+                    type="email" 
+                    placeholder="you@example.com" 
+                    required 
+                    className="pl-10" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="password" name="password" type="password" placeholder="••••••••" required className="pl-10" />
+                <Input 
+                    id="password" 
+                    name="password" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    required 
+                    className="pl-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
             </div>
             <div className="flex items-center justify-between">

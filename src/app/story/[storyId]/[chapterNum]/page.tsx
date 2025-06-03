@@ -12,10 +12,9 @@ import {
   saveStoredChapterComments, 
   type StoredChapterComment, 
   CURRENT_USER_ID, 
-  // CURRENT_USER_NAME, // Use getKathaExplorerUser().name instead
   getKathaExplorerUser,
-  allMockUsers, 
-  isUserActive 
+  isUserActive,
+  isUserLoggedIn // Import isUserLoggedIn
 } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChevronLeft, ChevronRight, MessageSquare, ThumbsUp, Send, CornerDownRight, MoreVertical, Trash2, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, ThumbsUp, Send, CornerDownRight, MoreVertical, Trash2, Loader2, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const ChapterReadingPage = () => {
@@ -33,7 +32,7 @@ const ChapterReadingPage = () => {
 
   const storyId = typeof params.storyId === 'string' ? params.storyId : '';
   const chapterNumParam = typeof params.chapterNum === 'string' ? params.chapterNum : '';
-  const currentChapterIndex = parseInt(chapterNumParam, 10) - 1; // 0-indexed
+  const currentChapterIndex = parseInt(chapterNumParam, 10) - 1; 
 
   const [novel, setNovel] = useState<Novel | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
@@ -44,12 +43,22 @@ const ChapterReadingPage = () => {
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   
-  const [currentUser, setCurrentUser] = useState(getKathaExplorerUser());
-
-  const currentUserIsActive = isUserActive(currentUser.id);
+  const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    setCurrentUser(getKathaExplorerUser()); // Refresh current user data
+    if (typeof window !== 'undefined') {
+      const userIsLoggedIn = isUserLoggedIn();
+      setLoggedIn(userIsLoggedIn);
+      if (!userIsLoggedIn) {
+        // Store current path to redirect back after login
+        const currentPath = `/story/${storyId}/${chapterNumParam}`;
+        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        return;
+      }
+      setCurrentUser(getKathaExplorerUser());
+    }
+
     if (storyId) {
       const allNovels = getNovelsFromStorage();
       const foundNovel = allNovels.find(n => n.id === storyId);
@@ -57,14 +66,16 @@ const ChapterReadingPage = () => {
       if (foundNovel && !isNaN(currentChapterIndex) && currentChapterIndex >= 0 && currentChapterIndex < foundNovel.chapters.length) {
         const chapter = foundNovel.chapters[currentChapterIndex];
         setCurrentChapter(chapter);
-        loadChapterComments(storyId, chapter.id);
+        if (loggedIn) loadChapterComments(storyId, chapter.id); // Load comments only if logged in
       } else {
         setCurrentChapter(null);
         setChapterComments([]);
       }
     }
     setIsLoading(false);
-  }, [storyId, currentChapterIndex]);
+  }, [storyId, currentChapterIndex, router, chapterNumParam, loggedIn]); // Add loggedIn to dependency array
+
+  const currentUserIsActive = currentUser ? isUserActive(currentUser.id) : false;
 
   const loadChapterComments = (novelId: string, chapterId: string) => {
     const allComments = getStoredChapterComments();
@@ -82,8 +93,12 @@ const ChapterReadingPage = () => {
 
   const handlePostNewComment = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const freshCurrentUser = getKathaExplorerUser();
-    if (!isUserActive(freshCurrentUser.id)) {
+    if (!loggedIn || !currentUser) {
+      toast({ title: "Login Required", description: "Please login to post comments.", variant: "destructive" });
+      router.push(`/login?redirect=/story/${storyId}/${chapterNumParam}`);
+      return;
+    }
+    if (!currentUserIsActive) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -93,10 +108,10 @@ const ChapterReadingPage = () => {
       id: `chapcomment-${Date.now()}`,
       novelId: storyId,
       chapterId: currentChapter.id,
-      authorId: freshCurrentUser.id,
-      authorName: freshCurrentUser.name,
-      authorAvatarUrl: freshCurrentUser.avatarUrl,
-      authorInitials: freshCurrentUser.avatarFallback,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorAvatarUrl: currentUser.avatarUrl,
+      authorInitials: currentUser.avatarFallback,
       text: newCommentText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       commentLikes: 0,
@@ -109,7 +124,12 @@ const ChapterReadingPage = () => {
   };
 
   const handleCommentLike = (targetCommentId: string) => {
-    if (!isUserActive(currentUser.id)) {
+     if (!loggedIn || !currentUser) {
+      toast({ title: "Login Required", description: "Please login to like comments.", variant: "destructive" });
+      router.push(`/login?redirect=/story/${storyId}/${chapterNumParam}`);
+      return;
+    }
+    if (!currentUserIsActive) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -132,7 +152,12 @@ const ChapterReadingPage = () => {
   };
   
   const handleToggleReplyInput = (commentId: string) => {
-    if (!isUserActive(currentUser.id)) {
+     if (!loggedIn || !currentUser) {
+      toast({ title: "Login Required", description: "Please login to reply.", variant: "destructive" });
+      router.push(`/login?redirect=/story/${storyId}/${chapterNumParam}`);
+      return;
+    }
+    if (!currentUserIsActive) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -142,8 +167,12 @@ const ChapterReadingPage = () => {
 
   const handlePostReply = (e: FormEvent<HTMLFormElement>, parentCommentId: string) => {
     e.preventDefault();
-    const freshCurrentUser = getKathaExplorerUser();
-    if (!isUserActive(freshCurrentUser.id)) {
+    if (!loggedIn || !currentUser) {
+      toast({ title: "Login Required", description: "Please login to post replies.", variant: "destructive" });
+      router.push(`/login?redirect=/story/${storyId}/${chapterNumParam}`);
+      return;
+    }
+    if (!currentUserIsActive) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated.", variant: "destructive"});
       return;
     }
@@ -153,10 +182,10 @@ const ChapterReadingPage = () => {
       id: `chapreply-${Date.now()}`,
       novelId: storyId,
       chapterId: currentChapter.id,
-      authorId: freshCurrentUser.id,
-      authorName: freshCurrentUser.name,
-      authorAvatarUrl: freshCurrentUser.avatarUrl,
-      authorInitials: freshCurrentUser.avatarFallback,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorAvatarUrl: currentUser.avatarUrl,
+      authorInitials: currentUser.avatarFallback,
       text: replyText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       commentLikes: 0,
@@ -167,7 +196,7 @@ const ChapterReadingPage = () => {
     const addReplyRecursively = (comments: StoredChapterComment[]): StoredChapterComment[] => {
       return comments.map(comment => {
         if (comment.id === parentCommentId) {
-          return { ...comment, replies: [newReply, ...(comment.replies || [])] }; // Ensure replies is an array
+          return { ...comment, replies: [newReply, ...(comment.replies || [])] }; 
         }
         if (comment.replies && comment.replies.length > 0) {
           return { ...comment, replies: addReplyRecursively(comment.replies) };
@@ -182,10 +211,12 @@ const ChapterReadingPage = () => {
   };
 
   const handleDeleteComment = (targetCommentId: string) => {
-    const freshCurrentUser = getKathaExplorerUser();
-    // Check if current user is active and has permission to delete
-    // This check is also implicitly inside CommentItem for UI enabling/disabling delete
-    if (!isUserActive(freshCurrentUser.id)) {
+    if (!loggedIn || !currentUser) {
+      toast({ title: "Login Required", description: "Please login to delete comments.", variant: "destructive" });
+      router.push(`/login?redirect=/story/${storyId}/${chapterNumParam}`);
+      return;
+    }
+    if (!currentUserIsActive) {
         toast({ title: "Action Denied", description: "Your account is deactivated.", variant: "destructive"});
         return;
     }
@@ -193,14 +224,13 @@ const ChapterReadingPage = () => {
     const deleteCommentRecursively = (comments: StoredChapterComment[]): StoredChapterComment[] => {
       return comments.filter(comment => {
         if (comment.id === targetCommentId) {
-          // Additional check: only allow deletion if current user is author OR admin
-          return !(comment.authorId === freshCurrentUser.id || freshCurrentUser.id === CURRENT_USER_ID);
+          return !(comment.authorId === currentUser.id || currentUser.id === CURRENT_USER_ID); // CURRENT_USER_ID for admin
         }
         if (comment.replies && comment.replies.length > 0) {
           comment.replies = deleteCommentRecursively(comment.replies);
         }
-        return true; // Keep the comment if it's not the target
-      }).map(comment => { // Ensure the mapping for replies is correct
+        return true; 
+      }).map(comment => { 
           if (comment.replies) {
               comment.replies = deleteCommentRecursively(comment.replies);
           }
@@ -221,8 +251,8 @@ const ChapterReadingPage = () => {
     };
     commentToDelete = findComment(chapterComments);
 
-    if (commentToDelete && (commentToDelete.authorId === freshCurrentUser.id || freshCurrentUser.id === CURRENT_USER_ID)) {
-        updateAndSaveComments(deleteCommentRecursively(chapterComments).filter(c => c.id !== targetCommentId)); // Final filter for top-level
+    if (commentToDelete && (commentToDelete.authorId === currentUser.id || currentUser.id === CURRENT_USER_ID)) {
+        updateAndSaveComments(deleteCommentRecursively(chapterComments).filter(c => c.id !== targetCommentId)); 
         toast({ title: "Comment Deleted", description: "The comment has been removed." });
     } else {
         toast({ title: "Deletion Failed", description: "You do not have permission to delete this comment or it was not found.", variant: "destructive" });
@@ -230,8 +260,8 @@ const ChapterReadingPage = () => {
   };
 
 
-  if (isLoading) {
-    return <div className="flex justify-center items-center min-h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading chapter...</div>;
+  if (isLoading || !loggedIn) { // Show loading if still loading or if redirecting due to not logged in
+    return <div className="flex justify-center items-center min-h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading chapter or redirecting...</div>;
   }
 
   if (!novel || !currentChapter) {
@@ -250,13 +280,12 @@ const ChapterReadingPage = () => {
   const currentChapterNumberForDisplay = currentChapterIndex + 1;
 
   const CommentItem = ({ comment, depth = 0 }: { comment: StoredChapterComment; depth?: number }) => {
-    const freshCurrentUser = getKathaExplorerUser();
-    const isCommentByCurrentUser = comment.authorId === freshCurrentUser.id;
-    const canCurrentUserDeleteThisComment = isUserActive(freshCurrentUser.id) && (isCommentByCurrentUser || freshCurrentUser.id === CURRENT_USER_ID);
+    const isCommentByCurrentUser = currentUser && comment.authorId === currentUser.id;
+    const canCurrentUserDeleteThisComment = loggedIn && currentUserIsActive && currentUser && (isCommentByCurrentUser || currentUser.id === CURRENT_USER_ID);
 
     return (
       <div className={`flex space-x-3 mt-4 ${depth > 0 ? 'ml-6 sm:ml-8' : ''}`}>
-        <Link href={`/profile/${comment.authorId || ''}`} className="flex-shrink-0">
+        <Link href={currentUser && comment.authorId ? `/profile/${comment.authorId}`: '#'} className="flex-shrink-0">
           <Avatar className="h-8 w-8">
             <AvatarImage src={comment.authorAvatarUrl} alt={comment.authorName} data-ai-hint="person avatar" />
             <AvatarFallback>{comment.authorInitials}</AvatarFallback>
@@ -265,7 +294,7 @@ const ChapterReadingPage = () => {
         <div className="flex-1 space-y-1">
           <div className="flex items-center justify-between">
             <div>
-              <Link href={`/profile/${comment.authorId || ''}`} className="hover:underline">
+              <Link href={currentUser && comment.authorId ? `/profile/${comment.authorId}`: '#'} className="hover:underline">
                 <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
               </Link>
               <span className="text-xs text-muted-foreground ml-2">{comment.timestamp}</span>
@@ -290,11 +319,11 @@ const ChapterReadingPage = () => {
           </div>
           <p className="text-sm text-foreground/90 whitespace-pre-wrap">{comment.text}</p>
           <div className="flex items-center space-x-2 text-xs">
-            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)} disabled={!currentUserIsActive}>
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleCommentLike(comment.id)} disabled={!loggedIn || !currentUserIsActive}>
               <ThumbsUp className={`h-3.5 w-3.5 mr-1 ${comment.isCommentLikedByUser ? 'fill-primary text-primary' : ''}`} />
               {comment.commentLikes > 0 ? comment.commentLikes : 'Like'}
             </Button>
-            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)} disabled={!currentUserIsActive}>
+            <Button variant="ghost" size="sm" className="p-1 h-auto text-muted-foreground hover:text-primary" onClick={() => handleToggleReplyInput(comment.id)} disabled={!loggedIn || !currentUserIsActive}>
               <CornerDownRight className="h-3.5 w-3.5 mr-1" /> Reply
             </Button>
           </div>
@@ -307,9 +336,9 @@ const ChapterReadingPage = () => {
                 onChange={(e) => setReplyText(e.target.value)}
                 className="h-8 text-sm flex-grow"
                 autoFocus
-                disabled={!currentUserIsActive}
+                disabled={!loggedIn || !currentUserIsActive}
               />
-              <Button type="submit" size="sm" variant="ghost" className="h-8 px-2" disabled={!currentUserIsActive || !replyText.trim()}>
+              <Button type="submit" size="sm" variant="ghost" className="h-8 px-2" disabled={!loggedIn || !currentUserIsActive || !replyText.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
             </form>
@@ -370,31 +399,44 @@ const ChapterReadingPage = () => {
           <CardDescription>Share your thoughts on {currentChapter.title || `Chapter ${currentChapterNumberForDisplay}`}.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-3">
-            {chapterComments.length === 0 && <p className="text-sm text-muted-foreground">No comments yet for this chapter. Be the first!</p>}
-            {chapterComments.map((comment) => (
-              <CommentItem key={comment.id} comment={comment} />
-            ))}
-          </div>
-          <form onSubmit={handlePostNewComment} className="w-full mt-6 pt-4 border-t border-border/50 flex items-start space-x-2">
-            <Avatar className="h-10 w-10 mt-1">
-              <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} data-ai-hint="person avatar" />
-              <AvatarFallback>{currentUser.avatarFallback}</AvatarFallback>
-            </Avatar>
-            <div className="flex-grow space-y-2">
-              <Textarea
-                placeholder={currentUserIsActive ? `Write a comment for ${currentChapter.title || `Chapter ${currentChapterNumberForDisplay}`}...` : "Your account is deactivated. You cannot comment."}
-                value={newCommentText}
-                onChange={(e) => setNewCommentText(e.target.value)}
-                rows={3}
-                className="font-body"
-                disabled={!currentUserIsActive}
-              />
-              <Button type="submit" disabled={!currentUserIsActive || !newCommentText.trim()}>
-                <Send className="mr-2 h-4 w-4" /> Post Comment
+          {loggedIn && currentUser ? (
+            <>
+              <div className="space-y-3">
+                {chapterComments.length === 0 && <p className="text-sm text-muted-foreground">No comments yet for this chapter. Be the first!</p>}
+                {chapterComments.map((comment) => (
+                  <CommentItem key={comment.id} comment={comment} />
+                ))}
+              </div>
+              <form onSubmit={handlePostNewComment} className="w-full mt-6 pt-4 border-t border-border/50 flex items-start space-x-2">
+                <Avatar className="h-10 w-10 mt-1">
+                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} data-ai-hint="person avatar" />
+                  <AvatarFallback>{currentUser.avatarFallback}</AvatarFallback>
+                </Avatar>
+                <div className="flex-grow space-y-2">
+                  <Textarea
+                    placeholder={currentUserIsActive ? `Write a comment for ${currentChapter.title || `Chapter ${currentChapterNumberForDisplay}`}...` : "Your account is deactivated. You cannot comment."}
+                    value={newCommentText}
+                    onChange={(e) => setNewCommentText(e.target.value)}
+                    rows={3}
+                    className="font-body"
+                    disabled={!currentUserIsActive}
+                  />
+                  <Button type="submit" disabled={!currentUserIsActive || !newCommentText.trim()}>
+                    <Send className="mr-2 h-4 w-4" /> Post Comment
+                  </Button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-muted-foreground mb-4">Please log in to view and post comments.</p>
+              <Button asChild>
+                <Link href={`/login?redirect=${encodeURIComponent(`/story/${storyId}/${chapterNumParam}`)}`}>
+                  <LogIn className="mr-2 h-4 w-4" /> Login to Comment
+                </Link>
               </Button>
             </div>
-          </form>
+          )}
         </CardContent>
       </Card>
 

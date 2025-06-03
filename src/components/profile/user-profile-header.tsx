@@ -13,10 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare, Settings, LogOut, MoreVertical } from 'lucide-react';
+import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare, Settings, LogOut, MoreVertical, Shield } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { EditableUserProfileData } from '@/app/profile/page';
-import { getKathaExplorerUser } from '@/lib/mock-data';
+import { getKathaExplorerUser, isUserLoggedIn } from '@/lib/mock-data';
 
 interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
   userId: string;
@@ -32,6 +32,7 @@ interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
   onAvatarChange?: (newAvatarUrl: string) => void;
   onProfileSave?: (updatedProfile: EditableUserProfileData) => void;
   onFollowToggle?: () => void;
+  onLogout?: () => void; // Added for logout functionality
 }
 
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
@@ -50,6 +51,7 @@ export function UserProfileHeader({
   onAvatarChange,
   onProfileSave,
   onFollowToggle,
+  onLogout, // Added for logout
 }: UserProfileHeaderProps) {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -59,15 +61,20 @@ export function UserProfileHeader({
   const [editableName, setEditableName] = useState(initialName);
   const [editableUsername, setEditableUsername] = useState(initialUsername);
   const [editableBio, setEditableBio] = useState(initialBio);
-  // Email itself is managed on Account Settings page, only visibility here
   const [editableEmailVisible, setEditableEmailVisible] = useState(initialEmailVisible);
   const [editableGender, setEditableGender] = useState(initialGender);
   const [editableAvatarUrl, setEditableAvatarUrl] = useState(initialAvatarUrl);
   
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    // When initial props change (e.g., after login and profile data updates),
-    // or when toggling edit mode, reset editable fields.
+    if (typeof window !== 'undefined') {
+      setLoggedIn(isUserLoggedIn());
+    }
+  }, []);
+
+
+  useEffect(() => {
     setEditableName(initialName);
     setEditableUsername(initialUsername);
     setEditableBio(initialBio);
@@ -81,7 +88,7 @@ export function UserProfileHeader({
     if (!isViewingOwnProfile || !onAvatarChange) return;
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
         toast({ title: "Image Too Large", description: "Please select an image smaller than 2MB.", variant: "destructive" });
         return;
       }
@@ -92,11 +99,11 @@ export function UserProfileHeader({
       const reader = new FileReader();
       reader.onloadend = () => {
         const newAvatarDataUrl = reader.result as string;
-        setEditableAvatarUrl(newAvatarDataUrl); // Preview change
+        setEditableAvatarUrl(newAvatarDataUrl); 
       };
       reader.readAsDataURL(file);
     }
-    if (event.target) event.target.value = '';
+    if (event.target) event.target.value = ''; 
   };
   
   const handleSaveChanges = () => {
@@ -106,7 +113,7 @@ export function UserProfileHeader({
         name: editableName, 
         username: editableUsername,
         bio: editableBio,
-        email: initialEmail, // Email itself is not changed here, but its visibility is
+        email: initialEmail, 
         emailVisible: editableEmailVisible,
         gender: editableGender,
     };
@@ -120,7 +127,6 @@ export function UserProfileHeader({
   };
 
   const handleCancelEdit = () => {
-    // Reset to initial props
     setEditableName(initialName); 
     setEditableUsername(initialUsername);
     setEditableBio(initialBio);
@@ -130,17 +136,21 @@ export function UserProfileHeader({
     setIsEditing(false);
   };
 
-  const handleLogout = () => {
-    toast({ title: "Logged Out", description: "You have been successfully logged out (simulation)." });
-    router.push('/login');
+  const handleLocalLogout = () => {
+    if (onLogout) {
+        onLogout();
+    } else {
+        // Fallback if onLogout is not provided (e.g., for non-own profile header)
+        toast({ title: "Logout action not configured for this view."});
+    }
   };
 
-  // Determine displayed values based on edit mode
+
   const currentName = isViewingOwnProfile && isEditing ? editableName : initialName;
   const currentUsername = isViewingOwnProfile && isEditing ? editableUsername : initialUsername;
   const currentAvatarUrl = isViewingOwnProfile && isEditing ? editableAvatarUrl : initialAvatarUrl;
   const currentBio = isViewingOwnProfile && isEditing ? editableBio : initialBio;
-  const currentEmailDisplay = initialEmail; // Email itself is not edited here directly
+  const currentEmailDisplay = initialEmail; 
   const currentEmailVisibleDisplay = isViewingOwnProfile && isEditing ? editableEmailVisible : initialEmailVisible;
   const currentGenderDisplay = isViewingOwnProfile && isEditing ? editableGender : initialGender;
 
@@ -219,7 +229,7 @@ export function UserProfileHeader({
                 <h1 className="text-2xl md:text-3xl font-headline text-foreground">{currentName}</h1>
                 <p className="text-md md:text-lg text-muted-foreground font-body">@{currentUsername}</p>
               </div>
-              {!isEditing && isViewingOwnProfile && (
+              {!isEditing && isViewingOwnProfile && loggedIn && (
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="w-full md:w-auto md:hidden mt-3">
                     <Edit className="mr-2 h-4 w-4" /> Edit Profile
                 </Button>
@@ -242,7 +252,7 @@ export function UserProfileHeader({
         </div>
         
         <div className="md:ml-auto flex-shrink-0 self-start">
-            {isViewingOwnProfile && !isEditing && (
+            {isViewingOwnProfile && !isEditing && loggedIn && (
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -259,7 +269,7 @@ export function UserProfileHeader({
                             Account Settings
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                        <DropdownMenuItem onSelect={handleLocalLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                             <LogOut className="mr-2 h-4 w-4" />
                             Logout
                         </DropdownMenuItem>
@@ -269,7 +279,7 @@ export function UserProfileHeader({
         </div>
 
 
-        {!isViewingOwnProfile && onFollowToggle && (
+        {!isViewingOwnProfile && onFollowToggle && loggedIn && (
           <div className="flex flex-col sm:flex-row gap-2 self-start md:self-center mt-3 md:mt-0">
             <Button onClick={onFollowToggle} variant={isFollowing ? "outline" : "default"} size="sm">
               {isFollowing ? <UserMinus className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
@@ -286,7 +296,7 @@ export function UserProfileHeader({
         )}
       </div>
 
-      {isViewingOwnProfile && isEditing && (
+      {isViewingOwnProfile && isEditing && loggedIn && (
         <div className="flex gap-3 mt-6 justify-end">
           <Button variant="ghost" onClick={handleCancelEdit}>
             <XCircle className="mr-2 h-4 w-4" /> Cancel
