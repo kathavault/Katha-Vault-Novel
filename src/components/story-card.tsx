@@ -16,17 +16,17 @@ interface StoryCardProps {
   aiHint?: string;
   views?: number;
   chapters?: number;
-  rating?: number; 
-  isTrending?: boolean; 
+  rating?: number;
+  isTrending?: boolean;
 }
 
-export function StoryCard({ 
-  id, 
-  title, 
-  author, 
-  genres, 
-  snippet, 
-  coverImageUrl, 
+export function StoryCard({
+  id,
+  title,
+  author,
+  genres,
+  snippet,
+  coverImageUrl,
   aiHint = "book story",
   views,
   chapters,
@@ -37,7 +37,7 @@ export function StoryCard({
   return (
     <Card className="relative flex flex-col overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-xl bg-card border-border h-full">
       {isTrending && (
-        <Badge 
+        <Badge
           variant="default"
           className="absolute top-3 right-3 text-xs px-2 py-1 z-10"
           style={{ backgroundColor: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}
@@ -46,20 +46,22 @@ export function StoryCard({
         </Badge>
       )}
       <CardHeader className="p-4">
-        
+
           <Link href={`/story/${id}`} passHref className="block">
-            <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden cursor-pointer">
-              <Image 
-                src={coverImageUrl || placeholderUrl} 
-                alt={title} 
-                layout="fill" 
-                objectFit="cover" 
+            {/* Changed: Removed h-48, added aspect-[12/17] */}
+            <div className="relative w-full aspect-[12/17] mb-4 rounded-lg overflow-hidden cursor-pointer">
+              <Image
+                src={coverImageUrl || placeholderUrl}
+                alt={title}
+                layout="fill"
+                objectFit="cover"
                 data-ai-hint={aiHint}
                 className="rounded-lg"
+                sizes="(max-width: 640px) 90vw, (max-width: 768px) 45vw, (max-width: 1024px) 30vw, 25vw" // Adjusted sizes for potentially taller cards
               />
             </div>
           </Link>
-        
+
         <Link href={`/story/${id}`} className="hover:text-primary transition-colors">
           <CardTitle className="font-headline text-xl md:text-2xl text-primary-foreground hover:text-primary line-clamp-2">{title}</CardTitle>
         </Link>
@@ -70,11 +72,11 @@ export function StoryCard({
       <CardContent className="flex-grow p-4 space-y-3">
         <div className="flex flex-wrap gap-2">
           {genres.map((genre, index) => (
-            <Badge key={index} variant="secondary" className="text-xs">{genre}</Badge> 
+            <Badge key={index} variant="secondary" className="text-xs">{genre}</Badge>
           ))}
         </div>
         <p className="font-body text-sm text-foreground/80 line-clamp-3 flex-grow">{snippet}</p>
-        
+
         {(rating !== undefined || views !== undefined) && (
           <div className="flex items-center space-x-1 text-xs text-muted-foreground pt-2">
             {rating !== undefined && rating > 0 && (
@@ -102,7 +104,7 @@ export function StoryCard({
           </div>
         )}
       </CardContent>
-      <CardFooter className="p-4 mt-auto"> 
+      <CardFooter className="p-4 mt-auto">
         <Button asChild variant="link" className="text-primary hover:text-primary/80 p-0 text-sm">
           <Link href={`/story/${id}`} className="flex items-center">
             Read Story <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -112,4 +114,3 @@ export function StoryCard({
     </Card>
   );
 }
-
