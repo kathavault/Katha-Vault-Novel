@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useMemo } from 'react';
 import { FeedItemCard, type FeedItemComment, type FeedItemCardProps } from '@/components/forum-post-card';
 import { CustomAudienceModal } from '@/components/profile/custom-audience-modal'; 
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus } from 'lucide-react'; 
+import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus, Loader2 } from 'lucide-react'; 
 import { useToast } from "@/hooks/use-toast";
-import { allMockUsers, getKathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID, isUserActive } from '@/lib/mock-data'; 
+import { allMockUsers, getKathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID, isUserActive, type MockUser } from '@/lib/mock-data'; 
 
 const sampleCommentsLevel2: FeedItemComment[] = [
   { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', authorId: 'user_dt', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
@@ -29,13 +29,13 @@ const sampleCommentsTopLevel: FeedItemComment[] = [
 ];
 
 const initialTrendingPosts: FeedItemCardProps[] = [
-  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', authorId: 'user_gx', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true, discussionGroupName: "Last Nebula Leveling", privacy: 'public' },
-  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', authorId: 'user_pl', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false, privacy: 'public' },
+  { id: 'trend-1', postType: 'social', mainText: 'Just achieved a new milestone in "The Last Nebula" game! Level 50, here I come! 🚀 #Gaming #SciFiAdventure', authorName: 'GamerXtreme', authorInitials: 'GX', authorId: 'user_gx', timestamp: '1 hour ago', likesCount: 1255, authorAvatarUrl: 'https://placehold.co/40x40.png?text=GX', imageUrl: 'https://placehold.co/600x338.png', aiHint: 'gaming achievement', comments: sampleCommentsTopLevel.slice(0,1), includeDiscussionGroup: true, discussionGroupName: "Last Nebula Leveling", privacy: 'public', currentUserName: "", currentUserId: "" },
+  { id: 'trend-2', postType: 'forum', title: 'Deep Dive: Thematic Parallels in Modern Fantasy', authorName: 'ProfessorLore', authorInitials: 'PL', authorId: 'user_pl', timestamp: '3 hours ago', mainText: 'Exploring the recurring themes of sacrifice and redemption in popular fantasy series. What are your thoughts? Join the discussion!', likesCount: 972, viewsCount: 5500, authorAvatarUrl: 'https://placehold.co/40x40.png?text=PL', comments: sampleCommentsTopLevel, includeDiscussionGroup: false, privacy: 'public', currentUserName: "", currentUserId: "" },
 ];
 
 const initialSocialFeedPosts: FeedItemCardProps[] = [
-  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorId: 'user_ka', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true, discussionGroupName: "Introductions", privacy: 'public' },
-  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorId: 'user_em', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false, privacy: 'public' },
+  { id: 'social-1', postType: 'forum', title: 'Welcome to Katha Vault! Introduce Yourself!', authorName: 'KathaAdmin', authorId: 'user_ka', authorInitials: 'KA', timestamp: '2 days ago', mainText: 'Hello writers and readers! We\'re thrilled to have you here. Tell us a bit about yourself and what kind of stories you love.', likesCount: 32, viewsCount: 120, authorAvatarUrl: 'https://placehold.co/40x40.png?text=KA', comments: sampleCommentsTopLevel.slice(0,2), includeDiscussionGroup: true, discussionGroupName: "Introductions", privacy: 'public', currentUserName: "", currentUserId: "" },
+  { id: 'social-2', postType: 'social', mainText: 'Working on a new chapter for my fantasy novel. The magic system is tricky but fun to develop! 📚✨ #amwriting #fantasywriter (Heard @Marcus Writes is doing the same!)', authorName: 'Elara Moonwhisper', authorId: 'user_em', authorInitials: 'EM', timestamp: '1 day ago', likesCount: 45, authorAvatarUrl: 'https://placehold.co/40x40.png?text=EM', comments: sampleCommentsTopLevel.slice(1,3), includeDiscussionGroup: false, privacy: 'public', currentUserName: "", currentUserId: "" },
 ];
 
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
@@ -43,7 +43,8 @@ const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 
 export default function FeedPage() {
   const { toast } = useToast();
-  const [currentUser, setCurrentUser] = useState(getKathaExplorerUser()); // Load current user data
+  const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [newPostContent, setNewPostContent] = useState("");
   const [includeDiscussion, setIncludeDiscussion] = useState(false);
   const [discussionGroupName, setDiscussionGroupName] = useState("");
@@ -55,17 +56,22 @@ export default function FeedPage() {
   const [trendingPosts, setTrendingPosts] = useState<FeedItemCardProps[]>(initialTrendingPosts); 
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
 
-  // Get current user status for disabling actions
-  const currentUserIsActive = isUserActive(currentUser.id); 
 
-  const kathaExplorerFollowingIds = getInitialFollowingIds(); 
-
-  useEffect(() => {
-    setCurrentUser(getKathaExplorerUser()); // Refresh user data on mount or if it changes elsewhere
+  const kathaExplorerFollowingIds = useMemo(() => {
+      if (typeof window !== 'undefined') return getInitialFollowingIds();
+      return [];
   }, []);
 
 
   useEffect(() => {
+    const user = getKathaExplorerUser();
+    setCurrentUser(user);
+    setAuthChecked(true);
+  }, []);
+
+  useEffect(() => {
+    if (!authChecked) return; // Don't load feed until auth is checked
+
     setIsLoadingFeed(true);
     try {
       const storedSocialFeedPostsRaw = localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY);
@@ -81,22 +87,27 @@ export default function FeedPage() {
       setSocialFeedPosts(initialSocialFeedPosts); 
     }
     setIsLoadingFeed(false);
-  }, []);
+  }, [authChecked]);
 
   useEffect(() => {
-    if (!isLoadingFeed && socialFeedPosts.length >= 0) { 
+    if (!isLoadingFeed && socialFeedPosts.length >= 0 && authChecked) { 
       try {
         localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(socialFeedPosts));
       } catch (error) {
         console.error("Error saving social feed posts to localStorage:", error);
       }
     }
-  }, [socialFeedPosts, isLoadingFeed]);
+  }, [socialFeedPosts, isLoadingFeed, authChecked]);
+
+  const currentUserIsActive = useMemo(() => currentUser ? isUserActive(currentUser.id) : false, [currentUser]);
 
   const handleCreatePost = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const freshCurrentUser = getKathaExplorerUser(); // Get latest user data
-    if (!isUserActive(freshCurrentUser.id)) { // Check with fresh data
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "You must be logged in to create a post.", variant: "destructive" });
+      return;
+    }
+    if (!currentUserIsActive) {
       toast({ title: "Account Deactivated", description: "Your account is currently deactivated. You cannot create posts.", variant: "destructive"});
       return;
     }
@@ -117,10 +128,10 @@ export default function FeedPage() {
       id: `social-${Date.now()}`,
       postType: 'social',
       mainText: newPostContent,
-      authorName: freshCurrentUser.name,
-      authorInitials: freshCurrentUser.avatarFallback, 
-      authorAvatarUrl: freshCurrentUser.avatarUrl, 
-      authorId: freshCurrentUser.id,
+      authorName: currentUser.name,
+      authorInitials: currentUser.avatarFallback, 
+      authorAvatarUrl: currentUser.avatarUrl, 
+      authorId: currentUser.id,
       timestamp: 'Just now',
       likesCount: 0,
       comments: [],
@@ -128,12 +139,14 @@ export default function FeedPage() {
       discussionGroupName: includeDiscussion ? (discussionGroupName.trim() || `Discussion for: ${newPostContent.substring(0,30)}...`) : undefined,
       privacy: postPrivacy,
       customAudienceUserIds: postPrivacy === 'custom' ? customAudienceUserIds : undefined,
+      currentUserName: currentUser.name, // Ensure these are passed
+      currentUserId: currentUser.id,     // Ensure these are passed
     };
 
     const updatedSocialFeed = [newPost, ...socialFeedPosts];
     setSocialFeedPosts(updatedSocialFeed);
 
-    if (newPost.authorId === freshCurrentUser.id) {
+    if (newPost.authorId === currentUser.id) {
       try {
         const existingUserPostsRaw = localStorage.getItem(USER_POSTS_STORAGE_KEY);
         const existingUserPosts: FeedItemCardProps[] = existingUserPostsRaw ? JSON.parse(existingUserPostsRaw) : [];
@@ -192,16 +205,28 @@ export default function FeedPage() {
     }
   };
 
-  const filteredSocialFeedPosts = socialFeedPosts.filter(post => {
-    if (post.privacy === 'public') return true;
-    if (post.authorId === currentUser.id) return true; 
-    if (post.privacy === 'private') return false; 
-    if (post.privacy === 'custom') {
-      return post.customAudienceUserIds?.includes(currentUser.id) ?? false;
-    }
-    return true; 
-  });
+  const filteredSocialFeedPosts = useMemo(() => {
+    if (!currentUser || !authChecked) return []; // Don't filter until currentUser and auth status are set
+    
+    return socialFeedPosts.filter(post => {
+      if (post.privacy === 'public') return true;
+      if (post.authorId === currentUser.id) return true; 
+      if (post.privacy === 'private') return false; 
+      if (post.privacy === 'custom') {
+        return post.customAudienceUserIds?.includes(currentUser.id) ?? false;
+      }
+      return true; 
+    });
+  }, [socialFeedPosts, currentUser, authChecked]);
 
+
+  if (!authChecked || !currentUser) {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading feed data...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -352,7 +377,7 @@ export default function FeedPage() {
                 {...post} 
                 isFullView={true}
                 onDeletePost={() => { 
-                  if (isUserActive(currentUser.id) && currentUser.id === CURRENT_USER_ID) { 
+                  if (currentUserIsActive && currentUser.id === CURRENT_USER_ID) { 
                     setTrendingPosts(prev => prev.filter(p => p.id !== post.id));
                     const updatedSocialFeed = socialFeedPosts.filter(sp => sp.id !== post.id);
                     setSocialFeedPosts(updatedSocialFeed);
