@@ -20,8 +20,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge"; // Added Badge import
 import { useToast } from "@/hooks/use-toast";
 import type { Novel } from "@/lib/mock-data";
+import { getHomeSectionsConfig } from "@/lib/mock-data"; // Import for home config
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
@@ -48,6 +50,7 @@ interface NovelFormProps {
 export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submit Novel", onCancel }: NovelFormProps) {
   const { toast } = useToast();
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.coverImageUrl || null);
+  const [featuredHomeGenres, setFeaturedHomeGenres] = useState<string[]>([]);
 
   const form = useForm<NovelFormValues>({
     resolver: zodResolver(novelFormSchema),
@@ -63,6 +66,9 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
   });
 
   useEffect(() => {
+    const homeConfig = getHomeSectionsConfig();
+    setFeaturedHomeGenres(homeConfig.selectedGenres);
+
     if (initialData) {
       form.reset({
         title: initialData.title || "",
@@ -128,7 +134,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
   function processSubmit(data: NovelFormValues) {
     const finalCoverImageUrl = data.coverImageUrl || (imagePreview && imagePreview.startsWith('data:') ? imagePreview : (initialData?.coverImageUrl || ""));
 
-    if (finalCoverImageUrl && finalCoverImageUrl.startsWith('data:') && finalCoverImageUrl.length > 1024 * 1024 * 1.5) {
+    if (finalCoverImageUrl && finalCoverImageUrl.startsWith('data:') && finalCoverImageUrl.length > 1024 * 1024 * 1.5) { // Approx 1.5MB check for data URI
        toast({
         title: "Warning: Large Image",
         description: "The uploaded image is large and might impact performance or storage. Consider optimizing it.",
@@ -153,7 +159,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       title: initialData ? "Novel Details Updated!" : "Novel Added!",
       description: `"${data.title}" details have been saved. Manage chapters separately.`,
     });
-    if (!initialData) {
+    if (!initialData) { // Only reset if it's a new novel form
         form.reset();
         setImagePreview(null);
     }
@@ -191,11 +197,26 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
             <FormItem>
               <FormLabel>Genres</FormLabel>
               <FormControl><Input placeholder="Sci-Fi, Fantasy, Romance" {...field} /></FormControl>
-              <FormDescription>Comma-separated list of genres.</FormDescription>
+              <FormDescription>Comma-separated list of genres for this novel.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
+        
+        {featuredHomeGenres.length > 0 && (
+          <div className="space-y-2 rounded-md border border-dashed border-border p-3 bg-muted/30">
+            <p className="text-sm font-medium text-muted-foreground">Featured Home Page Genres (for reference):</p>
+            <div className="flex flex-wrap gap-2">
+              {featuredHomeGenres.map(genre => (
+                <Badge key={genre} variant="secondary" className="cursor-default">{genre}</Badge>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              To include this novel in one of these featured sections on the Home Page, ensure its "Genres" (above) contains the respective genre name and the novel is "Published".
+            </p>
+          </div>
+        )}
+
         <FormField
           control={form.control}
           name="snippet"
@@ -244,7 +265,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
           </FormControl>
           <FormField
             control={form.control}
-            name="coverImageUrl"
+            name="coverImageUrl" // Hidden field to store the Data URI or URL
             render={({ field }) => (
               <>
                 <input type="hidden" {...field} /> 
@@ -283,6 +304,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         <div className="flex justify-end space-x-3">
           {onCancel && <Button type="button" variant="outline" onClick={() => {
             onCancel();
+            // Reset form to initial data or empty if no initial data, including image preview
             form.reset(initialData ? {
                 title: initialData.title || "",
                 author: initialData.author || "",
