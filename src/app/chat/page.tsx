@@ -16,7 +16,7 @@ import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette,
 import { useToast } from "@/hooks/use-toast";
 import { chatWithKathaVaultAI, type KathaVaultAIChatInput } from '@/ai/flows/katha-vault-chat-flow';
 import Link from 'next/link';
-import { allMockUsers, CURRENT_USER_ID, isUserLoggedIn, getKathaExplorerUser } from '@/lib/mock-data';
+import { allMockUsers, CURRENT_USER_ID, isUserLoggedIn, getKathaExplorerUser, type MockUser } from '@/lib/mock-data';
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -118,7 +118,7 @@ function ChatPageContent() {
   const userIdToOpen = searchParams.get('userId');
   const discussionIdToOpen = searchParams.get('discussionId');
   
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [authStatus, setAuthStatus] = useState<'loading' | 'loggedIn' | 'loggedOut'>('loading');
   const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
 
   const [activeMainTab, setActiveMainTab] = useState<'direct' | 'discussions'>(initialSection);
@@ -136,26 +136,28 @@ function ChatPageContent() {
   const [joinedDiscussions, setJoinedDiscussions] = useState<JoinedDiscussion[]>([]);
   const [selectedDiscussionGroup, setSelectedDiscussionGroup] = useState<JoinedDiscussion | null>(null);
 
-  const [displayedUserChats, setDisplayedUserChats] = useState(initialPlaceholderUserChats);
+  const [displayedUserChats, setDisplayedUserChats] = useState(
+    initialPlaceholderUserChats.map(chat => ({...chat, unreadCount: 0, isOnline: false }))
+  );
+
 
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userIsLoggedIn = isUserLoggedIn();
-      setLoggedIn(userIsLoggedIn);
-      if (!userIsLoggedIn) {
-        router.replace('/login?redirect=/chat');
-        return;
-      }
+    const userIsLoggedIn = isUserLoggedIn();
+    if (userIsLoggedIn) {
       setCurrentUser(getKathaExplorerUser());
+      setAuthStatus('loggedIn');
+    } else {
+      router.replace('/login?redirect=/chat');
+      setAuthStatus('loggedOut');
     }
   }, [router]);
 
-
   useEffect(() => {
-    if (!loggedIn) return; // Don't run if not logged in
+    if (authStatus !== 'loggedIn') return; 
 
     setDisplayedUserChats(
       initialPlaceholderUserChats.map(chat => ({
@@ -164,10 +166,10 @@ function ChatPageContent() {
         isOnline: Math.random() > 0.5,
       }))
     );
-  }, [loggedIn]); 
+  }, [authStatus]); 
 
   useEffect(() => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     try {
       const storedDiscussionsRaw = localStorage.getItem(JOINED_DISCUSSIONS_STORAGE_KEY);
       if (storedDiscussionsRaw) {
@@ -182,10 +184,10 @@ function ChatPageContent() {
       console.error("Error loading joined discussions from localStorage:", error);
       toast({ title: "Error", description: "Could not load your joined discussions.", variant: "destructive"});
     }
-  }, [discussionIdToOpen, toast, loggedIn]);
+  }, [discussionIdToOpen, toast, authStatus]);
 
   useEffect(() => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     if (userIdToOpen) {
       const userToChat = displayedUserChats.find(u => u.id === userIdToOpen); 
       if (userToChat) {
@@ -204,10 +206,10 @@ function ChatPageContent() {
          setActiveMainTab('direct');
       }
     }
-  }, [userIdToOpen, displayedUserChats, loggedIn]); 
+  }, [userIdToOpen, displayedUserChats, authStatus]); 
   
   useEffect(() => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen) { 
       setMessages([
           {
@@ -238,20 +240,20 @@ function ChatPageContent() {
     } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup && !discussionIdToOpen) {
         setMessages([]); 
     }
-  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, userIdToOpen, discussionIdToOpen, loggedIn]);
+  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, userIdToOpen, discussionIdToOpen, authStatus]);
 
   useEffect(() => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     if (chatScrollAreaRef.current) {
       const scrollViewport = chatScrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollViewport) {
         scrollViewport.scrollTop = scrollViewport.scrollHeight;
       }
     }
-  }, [messages, loggedIn]);
+  }, [messages, authStatus]);
 
   const handleSendMessage = async () => {
-    if (!loggedIn || !currentUser) return;
+    if (authStatus !== 'loggedIn' || !currentUser) return;
     if (!currentMessage.trim()) return;
     const userMessageText = currentMessage;
     
@@ -315,7 +317,7 @@ function ChatPageContent() {
   };
   
   const handleNicknameChange = () => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     const newNick = prompt("Enter new nickname for AI:", aiNickname);
     if (newNick && newNick.trim() !== "") {
       setAiNickname(newNick.trim());
@@ -326,12 +328,12 @@ function ChatPageContent() {
   };
 
   const handleAvatarChangeClick = () => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     aiAvatarInputRef.current?.click()
   };
 
   const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -345,19 +347,19 @@ function ChatPageContent() {
   };
   
   const handleEmojiSelect = (emoji: string) => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     setCurrentMessage(prev => prev + emoji);
     setIsEmojiPickerOpen(false);
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     setMessages(prev => prev.filter(msg => msg.id !== messageId));
     toast({ title: "Message Deleted", description: "The message has been removed from your view." });
   };
 
   const handleClearChat = () => {
-    if (!loggedIn) return;
+    if (authStatus !== 'loggedIn') return;
     if (activeMainTab === 'direct' && !selectedDirectChatUser) { 
         setMessages([{
             id: 'initial-ai-cleared-' + Date.now(),
@@ -422,7 +424,7 @@ function ChatPageContent() {
         <div className="ml-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={chatContext === 'none' || !loggedIn}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={chatContext === 'none' || authStatus !== 'loggedIn'}>
                 <MoreVertical className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -503,7 +505,7 @@ function ChatPageContent() {
       <div className="border-t p-4 flex items-center space-x-2 bg-background flex-shrink-0">
         <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={isAiResponding || chatContext === 'none' || !loggedIn}>
+            <Button variant="ghost" size="icon" disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn'}>
               <Smile className="h-5 w-5" />
             </Button>
           </PopoverTrigger>
@@ -528,11 +530,11 @@ function ChatPageContent() {
           placeholder={chatContext === 'none' ? "Select a chat or discussion" : "Type a message..."}
           value={currentMessage}
           onChange={(e) => setCurrentMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && !isAiResponding && chatContext !== 'none' && loggedIn && handleSendMessage()}
+          onKeyPress={(e) => e.key === 'Enter' && !isAiResponding && chatContext !== 'none' && authStatus === 'loggedIn' && handleSendMessage()}
           className="flex-grow font-body"
-          disabled={isAiResponding || chatContext === 'none' || !loggedIn}
+          disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn'}
         />
-        <Button onClick={handleSendMessage} size="icon" disabled={isAiResponding || chatContext === 'none' || !loggedIn || !currentMessage.trim()}>
+        <Button onClick={handleSendMessage} size="icon" disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn' || !currentMessage.trim()}>
           {isAiResponding && chatContext === 'ai' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </Button>
       </div>
@@ -623,7 +625,11 @@ function ChatPageContent() {
     </Card>
   );
 
-  if (!loggedIn && typeof window !== 'undefined') { // Check window to avoid SSR issues with router
+  if (authStatus === 'loading') {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Verifying authentication...</div>;
+  }
+
+  if (authStatus === 'loggedOut') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] py-12">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4"/>
@@ -632,7 +638,7 @@ function ChatPageContent() {
     );
   }
   
-  if (!currentUser && loggedIn) { // Still loading current user data after login check
+  if (authStatus === 'loggedIn' && !currentUser) { 
      return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading user data...</div>;
   }
 
@@ -683,3 +689,5 @@ export default function ChatPage() {
     </Suspense>
   )
 }
+
+      
