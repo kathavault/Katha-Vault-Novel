@@ -155,12 +155,12 @@ const StoryDetailPage = () => {
                   {chapterList.map((chapterNum) => (
                     <Link key={chapterNum} href={`/story/${storyId}/${chapterNum}`} passHref>
                       <div className="flex items-center p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors cursor-pointer space-x-3">
-                        <div className="flex-shrink-0 h-16 w-12 relative rounded overflow-hidden">
+                        <div className="flex-shrink-0 h-[68px] w-[48px] relative rounded overflow-hidden">
                            <Image
-                            src={novel.coverImageUrl || `https://placehold.co/48x64.png?text=C${chapterNum}`}
+                            src={novel.coverImageUrl || `https://placehold.co/48x68.png?text=C${chapterNum}`}
                             alt={`Chapter ${chapterNum} thumbnail`}
                             width={48}
-                            height={64}
+                            height={68}
                             objectFit="cover"
                             data-ai-hint={novel.aiHint || "book chapter"}
                           />
@@ -186,3 +186,4 @@ const StoryDetailPage = () => {
 };
 
 export default StoryDetailPage;
+

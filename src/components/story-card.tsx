@@ -33,6 +33,7 @@ export function StoryCard({
   rating,
   isTrending
 }: StoryCardProps) {
+  const placeholderUrl = `https://placehold.co/480x680.png?text=${encodeURIComponent(title.substring(0,10))}`; // 12:17 ratio
   return (
     <Card className="relative flex flex-col overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-xl bg-card border-border h-full">
       {isTrending && (
@@ -45,11 +46,11 @@ export function StoryCard({
         </Badge>
       )}
       <CardHeader className="p-4">
-        {coverImageUrl && (
+        
           <Link href={`/story/${id}`} passHref className="block">
             <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden cursor-pointer">
               <Image 
-                src={coverImageUrl} 
+                src={coverImageUrl || placeholderUrl} 
                 alt={title} 
                 layout="fill" 
                 objectFit="cover" 
@@ -58,7 +59,7 @@ export function StoryCard({
               />
             </div>
           </Link>
-        )}
+        
         <Link href={`/story/${id}`} className="hover:text-primary transition-colors">
           <CardTitle className="font-headline text-xl md:text-2xl text-primary-foreground hover:text-primary line-clamp-2">{title}</CardTitle>
         </Link>
@@ -111,3 +112,4 @@ export function StoryCard({
     </Card>
   );
 }
+
