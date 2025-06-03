@@ -1,6 +1,7 @@
 
 "use client";
 
+import React from 'react'; // Added React import
 import Link from 'next/link';
 import { StoryCard } from '@/components/story-card';
 import { Button } from '@/components/ui/button';
@@ -176,7 +177,9 @@ export default function HomePage() {
       {trendingNovels.length > 0 && renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingNovels, "/library?filter=trending", "horizontal")}
       
       {genreSections.map(section => 
-         renderSection(section.title, section.icon, section.stories, section.seeAllLink, "horizontal")
+        <React.Fragment key={section.title}>
+         {renderSection(section.title, section.icon, section.stories, section.seeAllLink, "horizontal")}
+        </React.Fragment>
       )}
       
       {homeConfig.showMoreNovelsSection && moreStories.length > 0 && renderSection("More Stories to Explore", <Grid className="h-7 w-7 text-primary" />, moreStories, "/library", "horizontal")}
