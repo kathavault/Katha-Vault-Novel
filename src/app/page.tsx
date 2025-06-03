@@ -4,9 +4,9 @@
 import Link from 'next/link';
 import { StoryCard } from '@/components/story-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, BookText, Clock, Heart, Rocket, Grid, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowRight, TrendingUp, Grid, ChevronRight, Sparkles } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { getNovelsFromStorage, getHomeSectionsConfig, type Novel } from '@/lib/mock-data';
+import { getNovelsFromStorage, getHomeSectionsConfig, type Novel, type HomeLayoutConfig } from '@/lib/mock-data';
 
 const SectionHeader = ({ title, icon, seeAllLink }: { title: string; icon: React.ReactNode; seeAllLink?: string }) => (
   <div className="flex items-center justify-between mb-6">
@@ -24,11 +24,11 @@ const SectionHeader = ({ title, icon, seeAllLink }: { title: string; icon: React
 
 export default function HomePage() {
   const [allNovels, setAllNovels] = useState<Novel[]>([]);
-  const [homeSections, setHomeSections] = useState<string[]>([]);
+  const [homeConfig, setHomeConfig] = useState<HomeLayoutConfig>({ selectedGenres: [], showMoreNovelsSection: true });
 
   useEffect(() => {
     setAllNovels(getNovelsFromStorage());
-    setHomeSections(getHomeSectionsConfig());
+    setHomeConfig(getHomeSectionsConfig());
   }, []);
 
   const publishedNovels = useMemo(() => allNovels.filter(novel => novel.status === 'published'), [allNovels]);
@@ -40,10 +40,10 @@ export default function HomePage() {
     icon: React.ReactNode,
     stories: Novel[],
     seeAllLink?: string,
-    layout: "grid" | "horizontal" = "horizontal", // Default to horizontal
-    gridCols: string = "md:grid-cols-2 lg:grid-cols-3" // Keep for grid layout
+    layout: "grid" | "horizontal" = "horizontal",
+    gridCols: string = "md:grid-cols-2 lg:grid-cols-3"
   ) => (
-    <section>
+    <section className="mb-12"> {/* Added margin-bottom for spacing between sections */}
       <SectionHeader title={title} icon={icon} seeAllLink={seeAllLink} />
       {stories.length > 0 ? (
         layout === "horizontal" ? (
@@ -77,18 +77,17 @@ export default function HomePage() {
     </section>
   );
 
-  // Create a set of IDs for novels already displayed in trending or genre sections
   const displayedNovelIds = new Set<string>();
   trendingNovels.forEach(n => displayedNovelIds.add(n.id));
 
-  const genreSections = homeSections.map(genre => {
+  const genreSections = homeConfig.selectedGenres.map(genre => {
     const storiesForGenre = publishedNovels.filter(
       novel => novel.genres.includes(genre) && !displayedNovelIds.has(novel.id)
     ).slice(0, 5);
-    storiesForGenre.forEach(n => displayedNovelIds.add(n.id)); // Add to displayed set
+    storiesForGenre.forEach(n => displayedNovelIds.add(n.id));
     return {
       title: `${genre} Stories`,
-      icon: <Sparkles className="h-7 w-7 text-primary" />, // Generic icon for now
+      icon: <Sparkles className="h-7 w-7 text-primary" />,
       stories: storiesForGenre,
       seeAllLink: `/library?genre=${encodeURIComponent(genre)}`
     };
@@ -115,13 +114,16 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* 1. Trending Section (Always at the top) */}
       {renderSection("Trending Now", <TrendingUp className="h-7 w-7 text-primary" />, trendingNovels, "/library?filter=trending", "horizontal")}
       
+      {/* 2. Admin-configured Genre Sections */}
       {genreSections.map(section => 
         section.stories.length > 0 && renderSection(section.title, section.icon, section.stories, section.seeAllLink, "horizontal")
       )}
       
-      {moreStories.length > 0 && renderSection("More Stories to Explore", <Grid className="h-7 w-7 text-primary" />, moreStories, "/library", "horizontal")}
+      {/* 3. "More Stories to Explore" Section (If enabled and at the bottom) */}
+      {homeConfig.showMoreNovelsSection && moreStories.length > 0 && renderSection("More Stories to Explore", <Grid className="h-7 w-7 text-primary" />, moreStories, "/library", "horizontal")}
     </div>
   );
 }

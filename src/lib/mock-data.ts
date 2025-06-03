@@ -24,13 +24,18 @@ export interface Novel {
   author: string;
   genres: string[];
   snippet: string;
-  status: 'draft' | 'published'; // Added status
+  status: 'draft' | 'published';
   coverImageUrl?: string;
   aiHint?: string;
   views?: number;
   chapters: Chapter[];
   rating?: number;
   isTrending?: boolean;
+}
+
+export interface HomeLayoutConfig {
+  selectedGenres: string[];
+  showMoreNovelsSection: boolean;
 }
 
 export const CURRENT_USER_ID = 'user_ke';
@@ -148,7 +153,7 @@ export const getNovelsFromStorage = (): Novel[] => {
 
   const processedNovels = novelsFromStorage.map(novel => ({
     ...novel,
-    status: novel.status || 'draft', // Default to draft if status is missing
+    status: novel.status || 'draft',
     views: novel.views ?? 0,
     rating: novel.rating ?? 0,
     chapters: Array.isArray(novel.chapters) ? novel.chapters.map(ch => ({
@@ -178,33 +183,42 @@ export const saveNovelsToStorage = (novels: Novel[]): void => {
   }
 };
 
-export const getHomeSectionsConfig = (): string[] => {
+const defaultHomeConfig: HomeLayoutConfig = {
+  selectedGenres: ['Sci-Fi', 'Fantasy', 'Romance'],
+  showMoreNovelsSection: true,
+};
+
+export const getHomeSectionsConfig = (): HomeLayoutConfig => {
   if (typeof window !== 'undefined') {
     const storedConfig = localStorage.getItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY);
     if (storedConfig) {
       try {
         const parsed = JSON.parse(storedConfig);
-        return Array.isArray(parsed) ? parsed : ['Sci-Fi', 'Fantasy', 'Romance']; // Default if not an array
+        // Basic validation to ensure it matches the expected structure
+        if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.selectedGenres) && typeof parsed.showMoreNovelsSection === 'boolean') {
+          return parsed as HomeLayoutConfig;
+        }
+        console.warn("Home sections config in localStorage is malformed. Reverting to default.");
+        localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(defaultHomeConfig));
+        return defaultHomeConfig;
       } catch (e) {
         console.error("Error parsing home sections config from localStorage", e);
-        return ['Sci-Fi', 'Fantasy', 'Romance']; // Default on error
+        localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(defaultHomeConfig));
+        return defaultHomeConfig;
       }
     }
-    // Set default if not found
-    const defaultConfig = ['Sci-Fi', 'Fantasy', 'Romance'];
-    localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(defaultConfig));
-    return defaultConfig;
+    localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(defaultHomeConfig));
+    return defaultHomeConfig;
   }
-  return ['Sci-Fi', 'Fantasy', 'Romance']; // Default for SSR or if window is undefined
+  return defaultHomeConfig;
 };
 
-export const saveHomeSectionsConfig = (genres: string[]): void => {
+export const saveHomeSectionsConfig = (config: HomeLayoutConfig): void => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(genres));
+    localStorage.setItem(KATHA_VAULT_HOME_SECTIONS_CONFIG_KEY, JSON.stringify(config));
   }
 };
 
-// Helper to get all unique genres from novels
 export const getAllUniqueGenres = (novels: Novel[]): string[] => {
     const allGenres = new Set<string>();
     novels.forEach(novel => novel.genres.forEach(genre => allGenres.add(genre)));
