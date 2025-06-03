@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import React from 'react'; // Added explicit React import
+import React from 'react';
 
 export function Navbar() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -50,8 +50,15 @@ export function Navbar() {
             </div>
             <div className="flex-grow"></div>
             <div className="flex items-center space-x-3 sm:space-x-4">
-              <Button variant="ghost" size="icon" aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
-                <Moon size={22} />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                aria-label="Loading theme preference" 
+                title="Loading theme preference"
+                className="text-foreground hover:text-primary transition-colors cursor-default"
+                disabled
+              >
+                <Moon size={22} /> {/* Placeholder icon */}
               </Button>
               <Button asChild size="sm" className="px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
                 <Link href="/signup">
@@ -171,7 +178,14 @@ export function Navbar() {
           <div className="flex-grow lg:hidden"></div>
 
           <div className="flex items-center space-x-3 sm:space-x-4">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme" className="text-foreground hover:text-primary transition-colors">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleTheme} 
+              aria-label={theme === 'dark' ? "Switch to light theme" : "Switch to dark theme"}
+              title={theme === 'dark' ? "Switch to light theme" : "Switch to dark theme"}
+              className="text-foreground hover:text-primary transition-colors"
+            >
               {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
             </Button>
             <Button asChild size="sm" className="hidden sm:inline-flex px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
