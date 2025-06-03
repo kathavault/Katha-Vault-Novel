@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Edit, Save, XCircle, Mail, UserSquare2, Camera, UserPlus, UserMinus, MessageSquare, Settings, LogOut, MoreVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import type { EditableUserProfileData } from '@/app/profile/page';
-import { getKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data'; // Import special emails
+import { getKathaExplorerUser } from '@/lib/mock-data';
 
 interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
   userId: string;
@@ -59,53 +59,23 @@ export function UserProfileHeader({
   const [editableName, setEditableName] = useState(initialName);
   const [editableUsername, setEditableUsername] = useState(initialUsername);
   const [editableBio, setEditableBio] = useState(initialBio);
-  const [editableEmail, setEditableEmail] = useState(initialEmail); // Email is handled by Account Settings page
+  // Email itself is managed on Account Settings page, only visibility here
   const [editableEmailVisible, setEditableEmailVisible] = useState(initialEmailVisible);
   const [editableGender, setEditableGender] = useState(initialGender);
   const [editableAvatarUrl, setEditableAvatarUrl] = useState(initialAvatarUrl);
   
-  const [isSpecialAdminAccount, setIsSpecialAdminAccount] = useState(false);
 
   useEffect(() => {
-    if (isViewingOwnProfile) {
-        const currentUser = getKathaExplorerUser();
-        const isSpecial = currentUser.email === KRITIKA_EMAIL || currentUser.email === KATHAVAULT_OWNER_EMAIL;
-        setIsSpecialAdminAccount(isSpecial);
-        
-        // If special admin, always use their fixed name/username from the source of truth
-        // and ensure the local editable state reflects this correctly, especially when entering edit mode.
-        setEditableName(isSpecial ? currentUser.name : initialName);
-        setEditableUsername(isSpecial ? currentUser.username : initialUsername);
-    }
-  }, [isViewingOwnProfile, initialName, initialUsername]);
+    // When initial props change (e.g., after login and profile data updates),
+    // or when toggling edit mode, reset editable fields.
+    setEditableName(initialName);
+    setEditableUsername(initialUsername);
+    setEditableBio(initialBio);
+    setEditableEmailVisible(initialEmailVisible);
+    setEditableGender(initialGender);
+    setEditableAvatarUrl(initialAvatarUrl);
+  }, [initialName, initialUsername, initialBio, initialEmailVisible, initialGender, initialAvatarUrl, isEditing, isViewingOwnProfile]);
 
-
-  useEffect(() => {
-    if (!isEditing || !isViewingOwnProfile) {
-      // When not editing, or viewing someone else's profile, always reflect initial props
-      // For special admins viewing their own, initialName/initialUsername are already fixed by getKathaExplorerUser
-      setEditableName(initialName);
-      setEditableUsername(initialUsername);
-      setEditableBio(initialBio);
-      setEditableEmail(initialEmail);
-      setEditableEmailVisible(initialEmailVisible);
-      setEditableGender(initialGender);
-      setEditableAvatarUrl(initialAvatarUrl);
-    } else {
-      // When entering edit mode for own profile
-      const currentUser = getKathaExplorerUser();
-      const isSpecial = currentUser.email === KRITIKA_EMAIL || currentUser.email === KATHAVAULT_OWNER_EMAIL;
-      setIsSpecialAdminAccount(isSpecial);
-
-      setEditableName(isSpecial ? currentUser.name : initialName);
-      setEditableUsername(isSpecial ? currentUser.username : initialUsername);
-      setEditableBio(initialBio);
-      setEditableEmail(initialEmail); // Email is actually changed on settings page
-      setEditableEmailVisible(initialEmailVisible);
-      setEditableGender(initialGender);
-      setEditableAvatarUrl(initialAvatarUrl);
-    }
-  }, [initialName, initialUsername, initialBio, initialEmail, initialEmailVisible, initialGender, initialAvatarUrl, isEditing, isViewingOwnProfile]);
 
   const handleAvatarInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!isViewingOwnProfile || !onAvatarChange) return;
@@ -133,11 +103,10 @@ export function UserProfileHeader({
     if (!isViewingOwnProfile || !onProfileSave) return;
 
     const profileDataToSave: EditableUserProfileData = {
-        // Name and username are only passed if not a special admin
-        name: isSpecialAdminAccount ? initialName : editableName, 
-        username: isSpecialAdminAccount ? initialUsername : editableUsername,
+        name: editableName, 
+        username: editableUsername,
         bio: editableBio,
-        email: editableEmail, // Email itself is not changed here, but its visibility is
+        email: initialEmail, // Email itself is not changed here, but its visibility is
         emailVisible: editableEmailVisible,
         gender: editableGender,
     };
@@ -145,17 +114,16 @@ export function UserProfileHeader({
     onProfileSave(profileDataToSave);
 
     if (editableAvatarUrl !== initialAvatarUrl && onAvatarChange) {
-        onAvatarChange(editableAvatarUrl); // This should trigger saveKathaExplorerUser in parent
+        onAvatarChange(editableAvatarUrl);
     }
     setIsEditing(false);
   };
 
   const handleCancelEdit = () => {
-    // Reset to initial props (which for special admins, are already their fixed values)
+    // Reset to initial props
     setEditableName(initialName); 
     setEditableUsername(initialUsername);
     setEditableBio(initialBio);
-    setEditableEmail(initialEmail);
     setEditableEmailVisible(initialEmailVisible);
     setEditableGender(initialGender);
     setEditableAvatarUrl(initialAvatarUrl);
@@ -167,14 +135,14 @@ export function UserProfileHeader({
     router.push('/login');
   };
 
-  // Determine displayed values based on edit mode and profile type
+  // Determine displayed values based on edit mode
   const currentName = isViewingOwnProfile && isEditing ? editableName : initialName;
   const currentUsername = isViewingOwnProfile && isEditing ? editableUsername : initialUsername;
   const currentAvatarUrl = isViewingOwnProfile && isEditing ? editableAvatarUrl : initialAvatarUrl;
   const currentBio = isViewingOwnProfile && isEditing ? editableBio : initialBio;
-  const currentEmail = initialEmail; // Email itself is not edited here
-  const currentEmailVisible = isViewingOwnProfile && isEditing ? editableEmailVisible : initialEmailVisible;
-  const currentGender = isViewingOwnProfile && isEditing ? editableGender : initialGender;
+  const currentEmailDisplay = initialEmail; // Email itself is not edited here directly
+  const currentEmailVisibleDisplay = isViewingOwnProfile && isEditing ? editableEmailVisible : initialEmailVisible;
+  const currentGenderDisplay = isViewingOwnProfile && isEditing ? editableGender : initialGender;
 
   return (
     <div className="p-4 md:p-6 rounded-lg bg-card shadow-md">
@@ -209,10 +177,7 @@ export function UserProfileHeader({
                     id="profileName" 
                     value={editableName} 
                     onChange={(e) => setEditableName(e.target.value)} 
-                    disabled={isSpecialAdminAccount} 
-                    title={isSpecialAdminAccount ? "This name is fixed for this special account." : undefined}
                 />
-                 {isSpecialAdminAccount && <p className="text-xs text-muted-foreground">Display name for this account is fixed.</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="profileUsername" className="font-semibold">Username</Label>
@@ -220,10 +185,7 @@ export function UserProfileHeader({
                     id="profileUsername" 
                     value={editableUsername} 
                     onChange={(e) => setEditableUsername(e.target.value)} 
-                    disabled={isSpecialAdminAccount}
-                    title={isSpecialAdminAccount ? "Username is fixed for this special account." : undefined}
                 />
-                {isSpecialAdminAccount && <p className="text-xs text-muted-foreground">Username for this account is fixed.</p>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="profileBio" className="font-semibold">Bio</Label>
@@ -231,7 +193,7 @@ export function UserProfileHeader({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="profileEmailDisplay" className="font-semibold">Email (manage in Account Settings)</Label>
-                <Input id="profileEmailDisplay" type="email" value={currentEmail} disabled />
+                <Input id="profileEmailDisplay" type="email" value={currentEmailDisplay} disabled />
               </div>
               <div className="flex items-center space-x-2 pt-1">
                 <Switch id="emailVisible" checked={editableEmailVisible} onCheckedChange={setEditableEmailVisible} />
@@ -263,16 +225,16 @@ export function UserProfileHeader({
                 </Button>
               )}
               <p className="font-body text-foreground/90 max-w-md whitespace-pre-wrap pt-1">{currentBio}</p>
-              {currentEmail && (
+              {currentEmailDisplay && (
                 <div className="flex items-center text-sm text-muted-foreground font-body pt-2 gap-1">
                   <Mail className="h-4 w-4" />
-                  <span>{currentEmailVisible ? currentEmail : "Email hidden"}</span>
+                  <span>{currentEmailVisibleDisplay ? currentEmailDisplay : "Email hidden"}</span>
                 </div>
               )}
-              {currentGender && (
+              {currentGenderDisplay && (
                 <div className="flex items-center text-sm text-muted-foreground font-body gap-1">
                   <UserSquare2 className="h-4 w-4" />
-                  <span>Gender: {currentGender}</span>
+                  <span>Gender: {currentGenderDisplay}</span>
                 </div>
               )}
             </div>
