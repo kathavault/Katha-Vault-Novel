@@ -14,18 +14,18 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus } from 'lucide-react'; // Added UserCog, UserPlus
 import { useToast } from "@/hooks/use-toast";
-import { allMockUsers, kathaExplorerUser, kathaExplorerFollowingIds, CURRENT_USER_ID } from '@/lib/mock-data'; // Import mock data
+import { allMockUsers, kathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID } from '@/lib/mock-data'; // Import mock data
 
 const sampleCommentsLevel2: FeedItemComment[] = [
-  { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
+  { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', authorId: 'user_dt', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
 ];
 const sampleCommentsLevel1: FeedItemComment[] = [
-  { id: 'reply-1-1', authorName: 'OriginalPoster', authorInitials: 'OP', text: 'Thanks for the feedback!', timestamp: '15m ago', commentLikes: 2, isCommentLikedByUser: false, replies: sampleCommentsLevel2 },
-  { id: 'reply-1-2', authorName: 'SupportiveSam', authorInitials: 'SS', text: 'Great discussion!', timestamp: '10m ago', commentLikes: 1, isCommentLikedByUser: true, replies: [] },
+  { id: 'reply-1-1', authorName: 'OriginalPoster', authorInitials: 'OP', authorId: 'user_op', text: 'Thanks for the feedback!', timestamp: '15m ago', commentLikes: 2, isCommentLikedByUser: false, replies: sampleCommentsLevel2 },
+  { id: 'reply-1-2', authorName: 'SupportiveSam', authorInitials: 'SS', authorId: 'user_ss', text: 'Great discussion!', timestamp: '10m ago', commentLikes: 1, isCommentLikedByUser: true, replies: [] },
 ];
 const sampleCommentsTopLevel: FeedItemComment[] = [
-  { id: 'comment-1', authorName: 'ReaderReply', authorInitials: 'RR', text: 'This is a great point!', timestamp: '20m ago', commentLikes: 5, isCommentLikedByUser: false, replies: sampleCommentsLevel1, authorAvatarUrl: 'https://placehold.co/40x40.png?text=RR' },
-  { id: 'comment-2', authorName: 'CriticalThinker', authorInitials: 'CT', text: 'I have a different perspective.', timestamp: '18m ago', commentLikes: 3, isCommentLikedByUser: true, replies: [], authorAvatarUrl: 'https://placehold.co/40x40.png?text=CT' },
+  { id: 'comment-1', authorName: 'ReaderReply', authorInitials: 'RR', authorId: 'user_rr', text: 'This is a great point!', timestamp: '20m ago', commentLikes: 5, isCommentLikedByUser: false, replies: sampleCommentsLevel1, authorAvatarUrl: 'https://placehold.co/40x40.png?text=RR' },
+  { id: 'comment-2', authorName: 'CriticalThinker', authorInitials: 'CT', authorId: 'user_ct', text: 'I have a different perspective.', timestamp: '18m ago', commentLikes: 3, isCommentLikedByUser: true, replies: [], authorAvatarUrl: 'https://placehold.co/40x40.png?text=CT' },
 ];
 
 const initialTrendingPosts: FeedItemCardProps[] = [
@@ -53,6 +53,8 @@ export default function FeedPage() {
   const [socialFeedPosts, setSocialFeedPosts] = useState<FeedItemCardProps[]>([]);
   const [trendingPosts, setTrendingPosts] = useState<FeedItemCardProps[]>(initialTrendingPosts); 
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
+
+  const kathaExplorerFollowingIds = getInitialFollowingIds(); // Call the function
 
   useEffect(() => {
     setIsLoadingFeed(true);
@@ -362,3 +364,4 @@ export default function FeedPage() {
     </div>
   );
 }
+

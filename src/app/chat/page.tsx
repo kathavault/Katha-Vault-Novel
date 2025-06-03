@@ -75,7 +75,8 @@ interface JoinedDiscussion {
   postId: string;
 }
 
-const OnlineFriendsBar = () => (
+const OnlineFriendsBar = () => {
+ return (
   <Card className="mb-6 flex-shrink-0">
     <CardHeader>
       <CardTitle className="text-lg font-headline text-primary">Online Now</CardTitle>
@@ -104,10 +105,11 @@ const OnlineFriendsBar = () => (
           ))}
         </div>
         <ScrollBar orientation="horizontal" />
-      </ScrollArea
+      </ScrollArea>
     </CardContent>
   </Card>
-);
+ );
+};
 
 function ChatPageContent() {
   const { toast } = useToast();
