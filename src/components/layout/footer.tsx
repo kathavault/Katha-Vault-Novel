@@ -1,12 +1,12 @@
 
 import Link from 'next/link';
-import { Home, Library, PlusSquare, MessageCircle, UserCircle, MessageSquareText } from 'lucide-react'; // Added MessageSquareText
+import { Home, Library, PlusSquare, MessageCircle, UserCircle, MessageSquareText, FileText } from 'lucide-react'; // Added FileText for Forum
 
 export function Footer() {
   const footerNavItems = [
     { href: '/', label: 'Home', icon: <Home size={24} /> },
     { href: '/library', label: 'Library', icon: <Library size={24} /> },
-    { href: '/posts/new', label: 'Post', icon: <PlusSquare size={24} /> }, // Leads to create post page
+    { href: '/forum', label: 'Post', icon: <PlusSquare size={24} /> }, // Changed from /posts/new to /forum
     { href: '/chat', label: 'Chat', icon: <MessageCircle size={24} /> },
     { href: '/profile', label: 'Account', icon: <UserCircle size={24} /> },
   ];
@@ -32,3 +32,4 @@ export function Footer() {
     </footer>
   );
 }
+
