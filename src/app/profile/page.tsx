@@ -1,13 +1,17 @@
 
+"use client";
+
+import { useState } from 'react';
 import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
 import { UserPostItem } from '@/components/profile/user-post-item';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpenText, Edit2 } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 // Placeholder data - this would come from your backend/auth
-const userProfile = {
+const initialUserProfile = {
   name: 'Katha Explorer',
   username: '@katha_explorer',
   avatarUrl: 'https://placehold.co/128x128.png',
@@ -28,6 +32,17 @@ const userPosts = [
 ];
 
 export default function ProfilePage() {
+  const { toast } = useToast();
+  const [userProfile, setUserProfile] = useState(initialUserProfile);
+
+  const handleAvatarChange = (newAvatarUrl: string) => {
+    setUserProfile(prevProfile => ({ ...prevProfile, avatarUrl: newAvatarUrl }));
+    toast({
+      title: "Profile Picture Updated",
+      description: "Your new avatar is now displayed. This is a local change.",
+    });
+  };
+
   return (
     <div className="space-y-8">
       <UserProfileHeader
@@ -35,6 +50,7 @@ export default function ProfilePage() {
         username={userProfile.username}
         avatarUrl={userProfile.avatarUrl}
         bio={userProfile.bio}
+        onAvatarChange={handleAvatarChange}
       />
       <UserStats
         postsCount={userProfile.postsCount}
