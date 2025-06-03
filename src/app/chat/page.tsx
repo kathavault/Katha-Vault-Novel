@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation'; 
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,8 +38,8 @@ const initialPlaceholderUserChats = allMockUsers
     username: user.username,
     avatarUrl: user.avatarUrl || 'https://placehold.co/40x40.png',
     avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
-    lastMessage: `Chat with ${user.name}`, 
-    timestamp: '10:30 AM', 
+    lastMessage: `Chat with ${user.name}`,
+    timestamp: '10:30 AM',
     unreadCount: 0, // Initial static value
     isOnline: false, // Initial static value
     dataAiHint: user.dataAiHint || 'person chat',
@@ -48,7 +48,7 @@ const initialPlaceholderUserChats = allMockUsers
 
 const placeholderOnlineFriends = allMockUsers
   .filter(user => user.id !== CURRENT_USER_ID)
-  .slice(0, 6) 
+  .slice(0, 6)
   .map(user => ({
     id: user.id,
     name: user.name,
@@ -63,15 +63,15 @@ const EMOJIS = ['😊', '😂', '❤️', '👍', '🤔', '🎉', '📚', '✨',
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'ai' | 'discussion'; 
+  sender: 'user' | 'ai' | 'discussion';
   timestamp: string;
-  userName?: string; 
-  userId?: string; 
+  userName?: string;
+  userId?: string;
 }
 
 interface JoinedDiscussion {
-  id: string; 
-  name: string; 
+  id: string;
+  name: string;
   postId: string;
 }
 
@@ -118,18 +118,18 @@ function ChatPageContent() {
   const initialSection = searchParams.get('section') === 'discussions' ? 'discussions' : 'direct';
   const userIdToOpen = searchParams.get('userId');
   const discussionIdToOpen = searchParams.get('discussionId');
-  
+
   const [authStatus, setAuthStatus] = useState<'loading' | 'loggedIn' | 'loggedOut'>('loading');
   const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
 
   const [activeMainTab, setActiveMainTab] = useState<'direct' | 'discussions'>(initialSection);
-  
+
   const [aiNickname, setAiNickname] = useState(aiChatUser.nickname);
   const [aiAvatar, setAiAvatar] = useState(aiChatUser.avatarUrl);
   const [currentMessage, setCurrentMessage] = useState("");
-  
-  const [messages, setMessages] = useState<Message[]>([]); 
-  
+
+  const [messages, setMessages] = useState<Message[]>([]);
+
   const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<typeof initialPlaceholderUserChats[0] | null>(null);
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -156,7 +156,7 @@ function ChatPageContent() {
   }, [router]);
 
   useEffect(() => {
-    if (authStatus !== 'loggedIn') return; 
+    if (authStatus !== 'loggedIn') return;
 
     // Set initial random-like values for unreadCount and isOnline only on client-side after mount
     setDisplayedUserChats(
@@ -166,7 +166,7 @@ function ChatPageContent() {
         isOnline: Math.random() > 0.5,
       }))
     );
-  }, [authStatus]); 
+  }, [authStatus]);
 
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
@@ -189,8 +189,12 @@ function ChatPageContent() {
 
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
+
     if (userIdToOpen) {
-      const userToChat = displayedUserChats.find(u => u.id === userIdToOpen); 
+      // Read current displayedUserChats.
+      const currentChats = displayedUserChats;
+      const userToChat = currentChats.find(u => u.id === userIdToOpen);
+
       if (userToChat) {
         setSelectedDirectChatUser(userToChat);
         setActiveMainTab('direct');
@@ -198,26 +202,30 @@ function ChatPageContent() {
             {
                 id: 'initial-user-chat-' + Date.now(),
                 text: `You are now chatting with ${userToChat.name}. Say hello!`,
-                sender: 'ai', 
+                sender: 'ai',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             }
         ]);
-        // Clear unread count for this chat
-        setDisplayedUserChats(prevChats => prevChats.map(chat => 
-            chat.id === userIdToOpen ? { ...chat, unreadCount: 0 } : chat
-        ));
+        // Functional update to setDisplayedUserChats to avoid dependency loop
+        // Only update if the unread count actually needs to be cleared.
+        if (userToChat.unreadCount !== 0) {
+            setDisplayedUserChats(prevChats =>
+                prevChats.map(chat =>
+                    chat.id === userIdToOpen ? { ...chat, unreadCount: 0 } : chat
+                )
+            );
+        }
       } else if (userIdToOpen === aiChatUser.id) {
-         setSelectedDirectChatUser(null); 
+         setSelectedDirectChatUser(null);
          setActiveMainTab('direct');
       }
     }
-  }, [userIdToOpen, displayedUserChats, authStatus]); 
-  
+  }, [userIdToOpen, authStatus]); // REMOVED displayedUserChats from dependencies
+
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
-    // This effect manages initial messages based on selection, but should not reset unread counts
-    // Unread counts are managed by the selection handlers and the effect above for userIdToOpen.
-    if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen) { 
+    // This effect manages initial messages based on selection
+    if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen) {
       setMessages([
           {
               id: 'initial-ai-' + Date.now(),
@@ -226,28 +234,38 @@ function ChatPageContent() {
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
           }
       ]);
-    } else if (activeMainTab === 'direct' && selectedDirectChatUser && !userIdToOpen) { 
-        setMessages([
-            {
-                id: 'initial-user-chat-' + Date.now(),
-                text: `You are now chatting with ${selectedDirectChatUser.name}. Say hello!`,
-                sender: 'ai', 
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-            }
-        ]);
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup && !discussionIdToOpen) { 
+    } else if (activeMainTab === 'direct' && selectedDirectChatUser && !userIdToOpen) {
+        // This case is largely handled by the userIdToOpen effect if a specific user is pre-selected.
+        // However, if a user is selected via sidebar click *without* a URL change (e.g. if router.replace was removed), this would kick in.
+        // For now, assuming userIdToOpen effect handles most direct user chat initial messages.
+        // To prevent setting messages twice if userIdToOpen effect also runs, we can add a check or ensure distinct conditions.
+        // If messages are already set by userIdToOpen effect, this might be redundant.
+        // Let's keep it but be mindful. If userIdToOpen is present, that effect takes precedence for setting initial message for THAT user.
+        if (messages.length === 0 || (messages[0] && !messages[0].id.startsWith('initial-user-chat-'))) {
+             setMessages([
+                {
+                    id: 'initial-user-chat-from-selection-' + Date.now(),
+                    text: `You are now chatting with ${selectedDirectChatUser.name}. Say hello!`,
+                    sender: 'ai',
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+                }
+            ]);
+        }
+
+    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup && !discussionIdToOpen) {
         setMessages([
             {
                 id: 'initial-discussion-' + Date.now(),
                 text: `Welcome to the discussion: "${selectedDiscussionGroup.name}". Start chatting!`,
-                sender: 'ai', 
+                sender: 'ai',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             }
         ]);
     } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup && !discussionIdToOpen) {
-        setMessages([]); 
+        setMessages([]);
     }
-  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, userIdToOpen, discussionIdToOpen, authStatus]);
+  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, userIdToOpen, discussionIdToOpen, authStatus, messages]);
+
 
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
@@ -263,19 +281,19 @@ function ChatPageContent() {
     if (authStatus !== 'loggedIn' || !currentUser) return;
     if (!currentMessage.trim()) return;
     const userMessageText = currentMessage;
-    
+
     const newMessage: Message = {
       id: 'msg-' + Date.now(),
       text: userMessageText,
       sender: 'user',
-      userName: currentUser.name, 
+      userName: currentUser.name,
       userId: currentUser.id,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
     setMessages(prev => [...prev, newMessage]);
     setCurrentMessage("");
 
-    if (activeMainTab === 'direct' && !selectedDirectChatUser) { 
+    if (activeMainTab === 'direct' && !selectedDirectChatUser) {
       setIsAiResponding(true);
       try {
         const input: KathaVaultAIChatInput = { userInput: userMessageText };
@@ -300,7 +318,7 @@ function ChatPageContent() {
       } finally {
         setIsAiResponding(false);
       }
-    } else if (activeMainTab === 'direct' && selectedDirectChatUser) { 
+    } else if (activeMainTab === 'direct' && selectedDirectChatUser) {
       // Simulate receiving a message from the other user
       // This is where you would increment unread count if the chat wasn't active
       const otherUserResponse: Message = {
@@ -311,21 +329,21 @@ function ChatPageContent() {
         userId: selectedDirectChatUser.id,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
-      setTimeout(() => setMessages(prev => [...prev, otherUserResponse]), 500); 
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { 
+      setTimeout(() => setMessages(prev => [...prev, otherUserResponse]), 500);
+    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) {
       // Simulate receiving a message in the discussion group
       const discussionReply: Message = {
         id: 'discussion-reply-' + Date.now(),
         text: `Someone in "${selectedDiscussionGroup.name}" might reply to: "${userMessageText}". (Simulated)`,
-        sender: 'discussion', 
-        userName: 'Another User', 
-        userId: 'user_another', 
+        sender: 'discussion',
+        userName: 'Another User',
+        userId: 'user_another',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
-      setTimeout(() => setMessages(prev => [...prev, discussionReply]), 700); 
+      setTimeout(() => setMessages(prev => [...prev, discussionReply]), 700);
     }
   };
-  
+
   const handleNicknameChange = () => {
     if (authStatus !== 'loggedIn') return;
     const newNick = prompt("Enter new nickname for AI:", aiNickname);
@@ -355,7 +373,7 @@ function ChatPageContent() {
       reader.readAsDataURL(file);
     }
   };
-  
+
   const handleEmojiSelect = (emoji: string) => {
     if (authStatus !== 'loggedIn') return;
     setCurrentMessage(prev => prev + emoji);
@@ -370,7 +388,7 @@ function ChatPageContent() {
 
   const handleClearChat = () => {
     if (authStatus !== 'loggedIn') return;
-    if (activeMainTab === 'direct' && !selectedDirectChatUser) { 
+    if (activeMainTab === 'direct' && !selectedDirectChatUser) {
         setMessages([{
             id: 'initial-ai-cleared-' + Date.now(),
             text: 'Hello! How can I help you with your stories today? 😊',
@@ -378,25 +396,25 @@ function ChatPageContent() {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         }]);
         toast({ title: "AI Chat Cleared", description: "Your conversation with the AI has been reset." });
-    } else if (activeMainTab === 'direct' && selectedDirectChatUser) { 
+    } else if (activeMainTab === 'direct' && selectedDirectChatUser) {
         setMessages([{
             id: 'cleared-user-chat-' + Date.now(),
             text: `Chat with ${selectedDirectChatUser.name} cleared.`,
-            sender: 'ai', 
+            sender: 'ai',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         }]);
         toast({ title: "Chat Cleared", description: "The conversation has been cleared." });
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) { 
+    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) {
          setMessages([{
             id: 'cleared-discussion-' + Date.now(),
             text: `Discussion in "${selectedDiscussionGroup.name}" cleared.`,
-            sender: 'ai', 
+            sender: 'ai',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         }]);
         toast({ title: "Discussion Cleared", description: `The discussion in "${selectedDiscussionGroup.name}" has been cleared.` });
     }
   };
-  
+
   const ChatPartnerDetails = () => {
     if (activeMainTab === 'direct' && !selectedDirectChatUser) {
       return { id: aiChatUser.id, name: aiNickname, avatar: aiAvatar, fallback: aiChatUser.avatarFallback, isOnline: undefined, context: 'ai' as const };
@@ -559,7 +577,7 @@ function ChatPageContent() {
     setActiveMainTab('direct');
     router.replace(`/chat?section=direct&userId=${chatUser.id}`, undefined);
     // Clear unread count for this chat
-    setDisplayedUserChats(prevChats => prevChats.map(chat => 
+    setDisplayedUserChats(prevChats => prevChats.map(chat =>
         chat.id === chatUser.id ? { ...chat, unreadCount: 0 } : chat
     ));
   };
@@ -572,7 +590,7 @@ function ChatPageContent() {
     router.replace('/chat?section=direct', undefined);
     // AI chat doesn't have an unread count in displayedUserChats
   };
-  
+
   const handleDiscussionSelection = (discussion: JoinedDiscussion) => {
     setSelectedDiscussionGroup(discussion);
     setSelectedDirectChatUser(null);
@@ -603,7 +621,7 @@ function ChatPageContent() {
               <p className="text-xs text-muted-foreground truncate">AI Assistant for stories...</p>
             </div>
           </div>
-          {displayedUserChats.map(chat => ( 
+          {displayedUserChats.map(chat => (
             <div key={chat.id}
               className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${selectedDirectChatUser?.id === chat.id ? 'bg-muted': ''}`}
               onClick={() => handleDirectChatSelection(chat)}
@@ -679,8 +697,8 @@ function ChatPageContent() {
       </div>
     );
   }
-  
-  if (authStatus === 'loggedIn' && !currentUser) { 
+
+  if (authStatus === 'loggedIn' && !currentUser) {
      return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading user data...</div>;
   }
 
@@ -694,7 +712,7 @@ function ChatPageContent() {
           Engage in direct messages and group discussions.
         </p>
       </header>
-      
+
       <Tabs value={activeMainTab} onValueChange={(value) => {
         const newTab = value as 'direct' | 'discussions';
         setActiveMainTab(newTab);
@@ -741,5 +759,3 @@ export default function ChatPage() {
     </Suspense>
   )
 }
-
-      
