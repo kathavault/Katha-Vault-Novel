@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ const aiChatUser = {
   avatarUrl: "https://placehold.co/40x40.png?text=AI",
   username: "katha_ai",
   nickname: "Katha AI (Default)",
-  email: "ai@kathavault.com" // Added for consistency if needed by verification logic
+  email: "ai@kathavault.com"
 };
 
 const initialPlaceholderUserChats = allMockUsers
@@ -40,10 +40,10 @@ const initialPlaceholderUserChats = allMockUsers
     avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
     lastMessage: `Chat with ${user.name}`,
     timestamp: '10:30 AM',
-    unreadCount: 0, 
-    isOnline: false, 
+    unreadCount: 0,
+    isOnline: false,
     dataAiHint: user.dataAiHint || 'person chat',
-    email: user.email, // Added for verification badge
+    email: user.email,
   }));
 
 
@@ -56,7 +56,7 @@ const placeholderOnlineFriends = allMockUsers
     avatarUrl: user.avatarUrl || 'https://placehold.co/48x48.png',
     avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
     dataAiHint: user.dataAiHint || 'person active',
-    email: user.email, // Added for verification badge
+    email: user.email,
 }));
 
 
@@ -69,8 +69,8 @@ interface Message {
   timestamp: string;
   userName?: string;
   userId?: string;
-  userAvatarUrl?: string; // Added for discussion messages
-  userAvatarFallback?: string; // Added for discussion messages
+  userAvatarUrl?: string;
+  userAvatarFallback?: string;
 }
 
 interface JoinedDiscussion {
@@ -79,6 +79,7 @@ interface JoinedDiscussion {
   postId: string;
 }
 
+// Moved OnlineFriendsBar to be a top-level component
 const OnlineFriendsBar = () => {
  return (
   <Card className="mb-6 flex-shrink-0">
@@ -125,6 +126,258 @@ const OnlineFriendsBar = () => {
  );
 };
 
+// Moved CurrentChatInterface to be a top-level component
+interface CurrentChatInterfaceProps {
+  chatPartnerDetails: {
+    id: string;
+    name: string;
+    avatar: string;
+    fallback: string;
+    isOnline?: boolean;
+    context: 'ai' | 'user' | 'discussion' | 'none';
+    email?: string;
+  };
+  messages: Message[];
+  isAiResponding: boolean;
+  aiAvatar: string;
+  aiAvatarFallback: string;
+  aiNickname: string;
+  currentUser: MockUser | null;
+  currentMessage: string;
+  setCurrentMessage: (value: string) => void;
+  isEmojiPickerOpen: boolean;
+  setIsEmojiPickerOpen: (value: boolean) => void;
+  handleNicknameChange: () => void;
+  handleAvatarChangeClick: () => void;
+  handleClearChat: () => void;
+  handleSendMessage: () => void;
+  handleDeleteMessage: (messageId: string) => void;
+  authStatus: 'loading' | 'loggedIn' | 'loggedOut';
+  joinedDiscussions: JoinedDiscussion[];
+  setJoinedDiscussions: (value: JoinedDiscussion[]) => void;
+  setSelectedDiscussionGroup: (value: JoinedDiscussion | null) => void;
+  setMessages: (value: Message[] | ((prev: Message[]) => Message[])) => void;
+}
+
+const CurrentChatInterface: React.FC<CurrentChatInterfaceProps> = ({
+  chatPartnerDetails,
+  messages,
+  isAiResponding,
+  aiAvatar,
+  aiAvatarFallback,
+  aiNickname,
+  currentUser,
+  currentMessage,
+  setCurrentMessage,
+  isEmojiPickerOpen,
+  setIsEmojiPickerOpen,
+  handleNicknameChange,
+  handleAvatarChangeClick,
+  handleClearChat,
+  handleSendMessage,
+  handleDeleteMessage,
+  authStatus,
+  joinedDiscussions,
+  setJoinedDiscussions,
+  setSelectedDiscussionGroup,
+  setMessages
+}) => {
+  const { toast } = useToast();
+  const router = useRouter();
+  const { id: chatPartnerId, name: chatPartnerName, avatar: chatPartnerAvatar, fallback: chatPartnerFallback, isOnline: chatPartnerIsOnline, context: chatContext } = chatPartnerDetails;
+  const isChatPartnerSpecialAdmin = chatPartnerId === KRITIKA_USER_ID || chatPartnerId === KATHAVAULT_OWNER_USER_ID;
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatScrollAreaRef.current) {
+      const scrollViewport = chatScrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollViewport) {
+        scrollViewport.scrollTop = scrollViewport.scrollHeight;
+      }
+    }
+  }, [messages]);
+
+  return (
+    <Card className="flex flex-col h-full shadow-xl">
+      <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4 flex-shrink-0">
+        <div className="flex items-center space-x-3">
+          <Avatar>
+            <AvatarImage src={chatPartnerAvatar} alt={chatPartnerName} data-ai-hint={chatContext === 'ai' ? "robot ai" : chatContext === 'user' ? "person avatar" : "group discussion"} />
+            <AvatarFallback>{chatPartnerFallback}</AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="flex items-center">
+                {chatContext === 'user' ? (
+                    <Link href={`/profile/${chatPartnerId}`} className="hover:underline">
+                        <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+                    </Link>
+                ) : (
+                    <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+                )}
+                {isChatPartnerSpecialAdmin && chatContext === 'user' && (
+                    <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 flex-shrink-0" title="Verified Admin" />
+                )}
+            </div>
+            {chatContext === 'user' && chatPartnerIsOnline && <CardDescription className="text-xs text-green-500">Online</CardDescription>}
+            {chatContext === 'discussion' && <CardDescription className="text-xs text-blue-500">Discussion Group</CardDescription>}
+          </div>
+        </div>
+        <div className="ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={chatContext === 'none' || authStatus !== 'loggedIn'}>
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {chatContext === 'user' ? (
+                <>
+                  <DropdownMenuItem onSelect={() => router.push(`/profile/${chatPartnerId}`)}> <ExternalLink className="mr-2 h-4 w-4" /> View Profile</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => toast({ title: "Block User", description: "This feature is coming soon!"})}>Block User</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleClearChat}>Clear Chat</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => toast({ title: "Report User", description: "This feature is coming soon!"})}>Report User</DropdownMenuItem>
+                </>
+              ) : chatContext === 'ai' ? (
+                 <>
+                  <DropdownMenuItem onSelect={handleNicknameChange}>Change AI Nickname</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleAvatarChangeClick}>Change AI Avatar</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleClearChat}>Clear Chat History</DropdownMenuItem>
+                </>
+              ) : chatContext === 'discussion' ? (
+                <>
+                  <DropdownMenuItem onSelect={() => toast({title: "Discussion Info", description: `Post ID: ${chatPartnerId.replace('discussion-', '')}. Feature coming soon!`})}>View Discussion Info</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleClearChat}>Clear Discussion History</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => {
+                    if (authStatus !== 'loggedIn' || chatContext !== 'discussion') return;
+                    const currentSelectedDiscussion = joinedDiscussions.find(d => d.id === chatPartnerId);
+                    if (!currentSelectedDiscussion) return;
+
+                    const newJoinedDiscussions = joinedDiscussions.filter(d => d.id !== chatPartnerId);
+                    setJoinedDiscussions(newJoinedDiscussions);
+                    if (typeof window !== 'undefined') localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(newJoinedDiscussions));
+                    
+                    setSelectedDiscussionGroup(null);
+                    setMessages([]);
+                    toast({title: "Left Discussion", description: `You have left "${currentSelectedDiscussion.name}".`});
+                  }}>Leave Discussion</DropdownMenuItem>
+                </>
+              ) : null }
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-grow p-0 overflow-hidden" ref={chatScrollAreaRef}>
+        <ScrollArea className="h-full p-4 space-y-4">
+          {messages.map((msg) => {
+            const isMsgSenderSpecialAdmin = msg.sender !== 'ai' && (msg.userId === KRITIKA_USER_ID || msg.userId === KATHAVAULT_OWNER_USER_ID);
+            return (
+            <div key={msg.id} className={`flex group ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.sender !== 'user' && (msg.sender === 'ai' || msg.sender === 'discussion') && (
+                <Link href={msg.userId && msg.sender !== 'ai' ? `/profile/${msg.userId}` : '#'} className="flex-shrink-0 mr-2 mt-1 self-start">
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={msg.sender === 'ai' ? aiAvatar : msg.userAvatarUrl} alt={msg.userName || aiNickname} data-ai-hint="person avatar" />
+                        <AvatarFallback>{msg.sender === 'ai' ? aiAvatarFallback : msg.userAvatarFallback}</AvatarFallback>
+                    </Avatar>
+                </Link>
+              )}
+              <div className={`max-w-[70%] p-3 rounded-lg shadow relative ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
+                {msg.sender !== 'user' && msg.userName && (
+                  <div className="flex items-center mb-1">
+                    <Link href={msg.userId && msg.sender !== 'ai' ? `/profile/${msg.userId}`: '#'} className="hover:underline">
+                        <p className="text-xs font-semibold text-primary">{msg.userName}</p>
+                    </Link>
+                    {isMsgSenderSpecialAdmin && (
+                        <CheckCircle className="ml-1 h-3 w-3 text-blue-500 flex-shrink-0" title="Verified Admin" />
+                    )}
+                  </div>
+                )}
+                <p className="text-sm font-body whitespace-pre-wrap">{msg.text}</p>
+                {msg.timestamp && <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>}
+                {msg.sender === 'user' && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() => handleDeleteMessage(msg.id)}
+                        className="text-red-500 hover:!text-red-500 focus:!text-red-500 focus:!bg-destructive/10"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete message
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+              {msg.sender === 'user' && currentUser && (
+                 <Avatar className="h-8 w-8 ml-2 mt-1 self-start flex-shrink-0">
+                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} data-ai-hint="person avatar" />
+                    <AvatarFallback>{currentUser.avatarFallback}</AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+            );
+        })}
+           {isAiResponding && chatContext === 'ai' && (
+            <div className="flex justify-start">
+               <Avatar className="h-8 w-8 mr-2 mt-1 self-start flex-shrink-0">
+                  <AvatarImage src={aiAvatar} alt={aiNickname} data-ai-hint="robot ai" />
+                  <AvatarFallback>{aiAvatarFallback}</AvatarFallback>
+              </Avatar>
+              <div className="max-w-[70%] p-3 rounded-lg shadow bg-muted text-foreground">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
+      <div className="border-t p-2 sm:p-4 flex items-center space-x-1 sm:space-x-2 bg-background flex-shrink-0">
+        <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn'}>
+              <Smile className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2">
+            <div className="grid grid-cols-6 gap-1">
+              {EMOJIS.map(emoji => (
+                <Button
+                  key={emoji}
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                     if (authStatus !== 'loggedIn') return;
+                     setCurrentMessage(currentMessage + emoji);
+                     setIsEmojiPickerOpen(false);
+                  }}
+                  className="text-xl"
+                >
+                  {emoji}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        <Input
+          type="text"
+          placeholder={chatContext === 'none' ? "Select a chat or discussion" : "Type a message..."}
+          value={currentMessage}
+          onChange={(e) => setCurrentMessage(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && !isAiResponding && chatContext !== 'none' && authStatus === 'loggedIn' && handleSendMessage()}
+          className="flex-grow font-body h-10"
+          disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn'}
+        />
+        <Button onClick={handleSendMessage} size="icon" disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn' || !currentMessage.trim()}>
+          {isAiResponding && chatContext === 'ai' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+
 function ChatPageContent() {
   const { toast } = useToast();
   const router = useRouter();
@@ -153,11 +406,8 @@ function ChatPageContent() {
 
   const [displayedUserChats, setDisplayedUserChats] = useState(initialPlaceholderUserChats);
 
-
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
-  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
-
-
+  
   useEffect(() => {
     const userIsLoggedIn = isUserLoggedIn();
     if (userIsLoggedIn) {
@@ -176,7 +426,8 @@ function ChatPageContent() {
     setDisplayedUserChats(
       initialPlaceholderUserChats.map(chat => ({
         ...chat,
-        unreadCount: Math.random() > 0.7 ? Math.floor(Math.random() * 5) + 1 : 0,
+        // Set some initial unread counts for demo, clear on click later
+        unreadCount: (chat.id === 'user_er' || chat.id === 'user_mw') ? Math.floor(Math.random() * 3) + 1 : 0,
         isOnline: Math.random() > 0.5,
       }))
     );
@@ -205,7 +456,7 @@ function ChatPageContent() {
     if (authStatus !== 'loggedIn') return;
 
     if (userIdToOpen) {
-      const userToChat = displayedUserChats.find(u => u.id === userIdToOpen);
+      const userToChat = initialPlaceholderUserChats.find(u => u.id === userIdToOpen); // Use initial list to find
 
       if (userToChat) {
         setSelectedDirectChatUser(userToChat);
@@ -218,19 +469,18 @@ function ChatPageContent() {
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             }
         ]);
-        if (userToChat.unreadCount !== 0) {
-            setDisplayedUserChats(prevChats =>
-                prevChats.map(chat =>
-                    chat.id === userIdToOpen ? { ...chat, unreadCount: 0 } : chat
-                )
-            );
-        }
+        setDisplayedUserChats(prevChats =>
+            prevChats.map(chat =>
+                chat.id === userIdToOpen ? { ...chat, unreadCount: 0 } : chat
+            )
+        );
       } else if (userIdToOpen === aiChatUser.id) {
          setSelectedDirectChatUser(null);
          setActiveMainTab('direct');
       }
     }
-  }, [userIdToOpen, authStatus]); 
+  // Removed displayedUserChats from dependencies to prevent loop
+  }, [userIdToOpen, authStatus, router]); 
 
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
@@ -264,18 +514,9 @@ function ChatPageContent() {
     } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup && !discussionIdToOpen) {
         setMessages([]);
     }
+  // Removed messages from dependencies to prevent loop
   }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, authStatus, userIdToOpen, discussionIdToOpen]);
 
-
-  useEffect(() => {
-    if (authStatus !== 'loggedIn') return;
-    if (chatScrollAreaRef.current) {
-      const scrollViewport = chatScrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollViewport) {
-        scrollViewport.scrollTop = scrollViewport.scrollHeight;
-      }
-    }
-  }, [messages, authStatus]);
 
   const handleSendMessage = async () => {
     if (authStatus !== 'loggedIn' || !currentUser) return;
@@ -378,12 +619,6 @@ function ChatPageContent() {
     }
   };
 
-  const handleEmojiSelect = (emoji: string) => {
-    if (authStatus !== 'loggedIn') return;
-    setCurrentMessage(prev => prev + emoji);
-    setIsEmojiPickerOpen(false);
-  };
-
   const handleDeleteMessage = (messageId: string) => {
     if (authStatus !== 'loggedIn') return;
     setMessages(prev => prev.filter(msg => msg.id !== messageId));
@@ -431,180 +666,8 @@ function ChatPageContent() {
     }
     return { id: '', name: "Select a chat or discussion", avatar: "", fallback: "?", isOnline: undefined, context: 'none' as const, email: undefined };
   };
-  const { id: chatPartnerId, name: chatPartnerName, avatar: chatPartnerAvatar, fallback: chatPartnerFallback, isOnline: chatPartnerIsOnline, context: chatContext, email: chatPartnerEmail } = ChatPartnerDetails();
-  const isChatPartnerSpecialAdmin = chatPartnerId === KRITIKA_USER_ID || chatPartnerId === KATHAVAULT_OWNER_USER_ID;
-
-  const CurrentChatInterface = () => (
-    <Card className="flex flex-col h-full shadow-xl">
-      <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4 flex-shrink-0">
-        <div className="flex items-center space-x-3">
-          <Avatar>
-            <AvatarImage src={chatPartnerAvatar} alt={chatPartnerName} data-ai-hint={chatContext === 'ai' ? "robot ai" : chatContext === 'user' ? "person avatar" : "group discussion"} />
-            <AvatarFallback>{chatPartnerFallback}</AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="flex items-center">
-                {chatContext === 'user' ? (
-                    <Link href={`/profile/${chatPartnerId}`} className="hover:underline">
-                        <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
-                    </Link>
-                ) : (
-                    <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
-                )}
-                {isChatPartnerSpecialAdmin && chatContext === 'user' && (
-                    <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 flex-shrink-0" title="Verified Admin" />
-                )}
-            </div>
-            {chatContext === 'user' && chatPartnerIsOnline && <CardDescription className="text-xs text-green-500">Online</CardDescription>}
-            {chatContext === 'discussion' && <CardDescription className="text-xs text-blue-500">Discussion Group</CardDescription>}
-          </div>
-        </div>
-        <div className="ml-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={chatContext === 'none' || authStatus !== 'loggedIn'}>
-                <MoreVertical className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {chatContext === 'user' ? (
-                <>
-                  <DropdownMenuItem onSelect={() => router.push(`/profile/${chatPartnerId}`)}> <ExternalLink className="mr-2 h-4 w-4" /> View Profile</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => toast({ title: "Block User", description: "This feature is coming soon!"})}>Block User</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={handleClearChat}>Clear Chat</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => toast({ title: "Report User", description: "This feature is coming soon!"})}>Report User</DropdownMenuItem>
-                </>
-              ) : chatContext === 'ai' ? (
-                 <>
-                  <DropdownMenuItem onSelect={handleNicknameChange}>Change AI Nickname</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={handleAvatarChangeClick}>Change AI Avatar</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={handleClearChat}>Clear Chat History</DropdownMenuItem>
-                </>
-              ) : chatContext === 'discussion' ? (
-                <>
-                  <DropdownMenuItem onSelect={() => toast({title: "Discussion Info", description: `Post ID: ${selectedDiscussionGroup?.postId}. Feature coming soon!`})}>View Discussion Info</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={handleClearChat}>Clear Discussion History</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => {
-                    if (authStatus !== 'loggedIn' || !selectedDiscussionGroup) return;
-                    const newJoinedDiscussions = joinedDiscussions.filter(d => d.id !== selectedDiscussionGroup?.id);
-                    setJoinedDiscussions(newJoinedDiscussions);
-                    if (typeof window !== 'undefined') localStorage.setItem(JOINED_DISCUSSIONS_STORAGE_KEY, JSON.stringify(newJoinedDiscussions));
-                    const oldGroupName = selectedDiscussionGroup?.name;
-                    setSelectedDiscussionGroup(null);
-                    setMessages([]);
-                    toast({title: "Left Discussion", description: `You have left "${oldGroupName}".`});
-                  }}>Leave Discussion</DropdownMenuItem>
-                </>
-              ) : null }
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow p-0 overflow-hidden" ref={chatScrollAreaRef}>
-        <ScrollArea className="h-full p-4 space-y-4">
-          {messages.map((msg) => {
-            const isMsgSenderSpecialAdmin = msg.sender !== 'ai' && (msg.userId === KRITIKA_USER_ID || msg.userId === KATHAVAULT_OWNER_USER_ID);
-            return (
-            <div key={msg.id} className={`flex group ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {msg.sender !== 'user' && (msg.sender === 'ai' || msg.sender === 'discussion') && (
-                <Link href={msg.userId && msg.sender !== 'ai' ? `/profile/${msg.userId}` : '#'} className="flex-shrink-0 mr-2 mt-1 self-start">
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage src={msg.sender === 'ai' ? aiAvatar : msg.userAvatarUrl} alt={msg.userName || aiNickname} data-ai-hint="person avatar" />
-                        <AvatarFallback>{msg.sender === 'ai' ? aiChatUser.avatarFallback : msg.userAvatarFallback}</AvatarFallback>
-                    </Avatar>
-                </Link>
-              )}
-              <div className={`max-w-[70%] p-3 rounded-lg shadow relative ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
-                {msg.sender !== 'user' && msg.userName && (
-                  <div className="flex items-center mb-1">
-                    <Link href={msg.userId && msg.sender !== 'ai' ? `/profile/${msg.userId}`: '#'} className="hover:underline">
-                        <p className="text-xs font-semibold text-primary">{msg.userName}</p>
-                    </Link>
-                    {isMsgSenderSpecialAdmin && (
-                        <CheckCircle className="ml-1 h-3 w-3 text-blue-500 flex-shrink-0" title="Verified Admin" />
-                    )}
-                  </div>
-                )}
-                <p className="text-sm font-body whitespace-pre-wrap">{msg.text}</p>
-                {msg.timestamp && <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>}
-                {msg.sender === 'user' && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onSelect={() => handleDeleteMessage(msg.id)}
-                        className="text-red-500 hover:!text-red-500 focus:!text-red-500 focus:!bg-destructive/10"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete message
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-              {msg.sender === 'user' && currentUser && (
-                 <Avatar className="h-8 w-8 ml-2 mt-1 self-start flex-shrink-0">
-                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} data-ai-hint="person avatar" />
-                    <AvatarFallback>{currentUser.avatarFallback}</AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-            );
-        })}
-           {isAiResponding && chatContext === 'ai' && (
-            <div className="flex justify-start">
-               <Avatar className="h-8 w-8 mr-2 mt-1 self-start flex-shrink-0">
-                  <AvatarImage src={aiAvatar} alt={aiNickname} data-ai-hint="robot ai" />
-                  <AvatarFallback>{aiChatUser.avatarFallback}</AvatarFallback>
-              </Avatar>
-              <div className="max-w-[70%] p-3 rounded-lg shadow bg-muted text-foreground">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
-            </div>
-          )}
-        </ScrollArea>
-      </CardContent>
-      <div className="border-t p-2 sm:p-4 flex items-center space-x-1 sm:space-x-2 bg-background flex-shrink-0">
-        <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn'}>
-              <Smile className="h-5 w-5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2">
-            <div className="grid grid-cols-6 gap-1">
-              {EMOJIS.map(emoji => (
-                <Button
-                  key={emoji}
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleEmojiSelect(emoji)}
-                  className="text-xl"
-                >
-                  {emoji}
-                </Button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-        <Input
-          type="text"
-          placeholder={chatContext === 'none' ? "Select a chat or discussion" : "Type a message..."}
-          value={currentMessage}
-          onChange={(e) => setCurrentMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && !isAiResponding && chatContext !== 'none' && authStatus === 'loggedIn' && handleSendMessage()}
-          className="flex-grow font-body h-10"
-          disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn'}
-        />
-        <Button onClick={handleSendMessage} size="icon" disabled={isAiResponding || chatContext === 'none' || authStatus !== 'loggedIn' || !currentMessage.trim()}>
-          {isAiResponding && chatContext === 'ai' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-        </Button>
-      </div>
-    </Card>
-  );
+  
+  const currentChatPartnerDetails = ChatPartnerDetails();
 
   const handleDirectChatSelection = (chatUser: typeof initialPlaceholderUserChats[0]) => {
     setSelectedDirectChatUser(chatUser);
@@ -642,7 +705,7 @@ function ChatPageContent() {
       <CardContent className="p-0 flex-grow overflow-hidden">
         <ScrollArea className="h-full">
           <div
-            className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${chatContext === 'ai' && !selectedDirectChatUser ? 'bg-muted' : ''}`}
+            className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${currentChatPartnerDetails.context === 'ai' && !selectedDirectChatUser ? 'bg-muted' : ''}`}
             onClick={handleAiChatSelection}
           >
             <Avatar>
@@ -741,7 +804,6 @@ function ChatPageContent() {
      return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading user data...</div>;
   }
 
-
   return (
     <div className="flex flex-col h-full space-y-6">
       <header className="text-center space-y-2 flex-shrink-0">
@@ -764,7 +826,7 @@ function ChatPageContent() {
                 setSelectedDiscussionGroup(null);
                 setSelectedDirectChatUser(null);
                  router.replace('/chat?section=discussions', undefined);
-                 setMessages([]); // Clear messages when switching to empty discussion tab
+                 setMessages([]); 
             }
         }
       }} className="w-full">
@@ -782,7 +844,29 @@ function ChatPageContent() {
         </div>
 
         <div className="md:col-span-3 h-full min-h-[500px] md:min-h-0">
-          <CurrentChatInterface />
+          <CurrentChatInterface
+            chatPartnerDetails={currentChatPartnerDetails}
+            messages={messages}
+            isAiResponding={isAiResponding}
+            aiAvatar={aiAvatar}
+            aiAvatarFallback={aiChatUser.avatarFallback}
+            aiNickname={aiNickname}
+            currentUser={currentUser}
+            currentMessage={currentMessage}
+            setCurrentMessage={setCurrentMessage}
+            isEmojiPickerOpen={isEmojiPickerOpen}
+            setIsEmojiPickerOpen={setIsEmojiPickerOpen}
+            handleNicknameChange={handleNicknameChange}
+            handleAvatarChangeClick={handleAvatarChangeClick}
+            handleClearChat={handleClearChat}
+            handleSendMessage={handleSendMessage}
+            handleDeleteMessage={handleDeleteMessage}
+            authStatus={authStatus}
+            joinedDiscussions={joinedDiscussions}
+            setJoinedDiscussions={setJoinedDiscussions}
+            setSelectedDiscussionGroup={setSelectedDiscussionGroup}
+            setMessages={setMessages}
+          />
         </div>
       </div>
     </div>
