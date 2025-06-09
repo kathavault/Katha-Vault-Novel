@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, BookHeart, Target, PenTool, Library } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // Added this import
+import { Button } from '@/components/ui/button';
 
 export default function AboutPage() {
   return (
@@ -22,7 +22,7 @@ export default function AboutPage() {
           Where every story finds its voice, and every reader discovers a new world.
         </p>
         <p className="max-w-2xl mx-auto text-md text-muted-foreground font-body">
-          Katha Vault is a vibrant sanctuary dedicated to the art of storytelling. We are a platform built for authors to weave their original tales, from sweeping novels to captivating short stories, and for readers to immerse themselves in an ever-expanding universe of narratives.
+          Katha Vault is a vibrant sanctuary dedicated to the art of storytelling. We are a platform built for authors to weave their original tales, from sweeping novels to captivating short stories, and for readers to immerse themselves in an ever-expanding universe of narratives. Our core belief is in the boundless power of stories to connect, inspire, and transform.
         </p>
       </header>
 
@@ -33,7 +33,7 @@ export default function AboutPage() {
         </CardHeader>
         <CardContent className="pb-8">
           <p className="text-center text-lg text-foreground/90 font-body leading-relaxed max-w-2xl mx-auto">
-            At Katha Vault, we believe in the boundless power of stories. Our mission is to cultivate a nurturing space where writers can confidently share their original novels and narratives with a global audience. We strive to connect readers with a diverse tapestry of voices, fostering a community where imagination thrives, creativity is celebrated, and the magic of storytelling unites us all.
+            At Katha Vault, we are driven by a singular, passionate mission: to cultivate a nurturing and dynamic space where writers can confidently share their original novels and narratives with a global audience. We strive to connect readers with a diverse tapestry of voices and genres, fostering a community where imagination thrives, creativity is celebrated, and the magic of storytelling unites us all in shared wonder.
           </p>
         </CardContent>
       </Card>
@@ -62,7 +62,7 @@ export default function AboutPage() {
               <AvatarFallback>K</AvatarFallback>
             </Avatar>
             <h3 className="text-2xl font-semibold font-headline text-foreground">Kritika</h3>
-            <p className="text-md text-accent font-medium">CEO</p>
+            <p className="text-md text-accent font-medium">Founder, Owner & CEO</p>
             <p className="mt-4 text-sm text-muted-foreground font-body leading-relaxed">
               Kritika leads Katha Vault with strategic insight and an unwavering commitment to nurturing a vibrant and supportive community. Her dedication to empowering authors in sharing their unique novels and delighting readers with endless discovery fuels the platform's continuous growth and its mission to celebrate the storyteller in everyone.
             </p>
