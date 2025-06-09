@@ -2,7 +2,7 @@
 "use client"; 
 
 import Link from 'next/link';
-import { Menu, Moon, UserPlus, Home, Library, Edit3, Bot, LogIn, Sun, MessageSquareText, Shield, LayoutGrid } from 'lucide-react';
+import { Menu, Moon, UserPlus, Home, Library, Edit3, Bot, LogIn, Sun, MessageSquareText, Shield, LayoutGrid, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
@@ -66,6 +66,7 @@ export function Navbar() {
     { href: '/create', label: 'Create Story', icon: <Edit3 size={20} /> },
     { href: '/forum', label: 'Community Feed', icon: <MessageSquareText size={20} /> },
     { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
+    { href: '/about', label: 'About Us', icon: <Info size={20} /> },
   ];
   // Admin link is handled conditionally
 

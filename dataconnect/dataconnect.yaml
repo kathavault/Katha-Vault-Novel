@@ -1,0 +1,12 @@
+specVersion: "v1"
+serviceId: "studio"
+location: "asia-southeast1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "fdcbd"
+      cloudSql:
+        instanceId: "studio-fcd"
+      # schemaValidation: "COMPATIBLE"
+connectorDirs: ["./connector"]
