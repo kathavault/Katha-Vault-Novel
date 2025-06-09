@@ -1,7 +1,7 @@
 
 import { auth, db } from '@/lib/firebase'; 
 import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 
 export interface Chapter {
@@ -175,29 +175,32 @@ export const isUserLoggedIn = (): boolean => {
   return loggedInStatus === 'true' && auth?.currentUser !== null;
 };
 
-export const setLoggedInStatus = (status: boolean, user?: { uid: string; email: string | null; displayName?: string | null; photoURL?: string | null }): void => {
+export const setLoggedInStatus = (
+  status: boolean, 
+  user?: { uid: string; email: string | null; displayName?: string | null; photoURL?: string | null },
+  source: 'login' | 'signup' | 'google' | 'logout' = 'login' // Add source parameter
+): void => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, String(status));
+
   if (status && user) {
+    // Construct a base profile. Name comes from form on signup, or Firebase on Google/login.
     let profileToStore: MockUser = {
       ...defaultKathaExplorerUser,
       id: user.uid,
       email: user.email,
-      name: user.displayName || user.email?.split('@')[0] || defaultKathaExplorerUser.name,
-      username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || defaultKathaExplorerUser.username,
+      name: user.displayName || user.email?.split('@')[0] || defaultKathaExplorerUser.name, // displayName passed from signup/google, or generated
+      username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || defaultKathaExplorerUser.username, // Generate username similarly
       avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
       avatarFallback: (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase(),
-      isActive: true, // Default to active on new login/signup
-      signInMethod: user.photoURL ? "google" : "email",
+      isActive: true,
+      signInMethod: source === 'google' ? 'google' : 'email',
     };
-    const lowerCaseUserEmail = user.email?.toLowerCase();
-    if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-      const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-      profileToStore.name = specialInfo.fixedName;
-      profileToStore.username = specialInfo.fixedUsername;
-      profileToStore.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-      profileToStore.isActive = true; // Special accounts always active
-    }
+    
+    // The application of SPECIAL_ACCOUNT_DETAILS (fixedName, fixedUsername) should be handled by getKathaExplorerUser
+    // when an existing admin logs in, not directly when setLoggedInStatus is called on a new signup.
+    // This function just ensures the basic profile from auth is stored.
+
     localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(profileToStore));
   } else if (!status) {
     if (auth) {
@@ -208,14 +211,15 @@ export const setLoggedInStatus = (status: boolean, user?: { uid: string; email: 
   }
 };
 
+
 export const isUserAdmin = (): boolean => {
   if (typeof window === 'undefined') return false;
   if (!isUserLoggedIn()) return false;
   const currentUser = auth?.currentUser;
   if (!currentUser || !currentUser.email) return false;
-  return currentUser.email.toLowerCase() === KRITIKA_EMAIL.toLowerCase() || currentUser.email.toLowerCase() === KATHAVAULT_OWNER_EMAIL.toLowerCase();
+  const userEmail = currentUser.email.toLowerCase();
+  return userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase();
 };
-
 
 export const getKathaExplorerUser = (): MockUser => {
   if (typeof window === 'undefined') {
@@ -234,33 +238,44 @@ export const getKathaExplorerUser = (): MockUser => {
       }
     }
 
+    // Base profile construction
     let finalProfile: MockUser = {
-      ...defaultKathaExplorerUser, 
-      ...profileFromStorage,       
-      id: firebaseUser.uid,        
-      email: firebaseUser.email,   
-      name: firebaseUser.displayName || profileFromStorage.name || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name,
+      ...defaultKathaExplorerUser,
+      id: firebaseUser.uid,
+      email: firebaseUser.email,
+      name: profileFromStorage.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name,
       username: profileFromStorage.username || firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username,
-      avatarUrl: firebaseUser.photoURL || profileFromStorage.avatarUrl || defaultKathaExplorerUser.avatarUrl,
-      avatarFallback: (firebaseUser.displayName || profileFromStorage.name || firebaseUser.email || 'KU').substring(0, 2).toUpperCase(),
-      isActive: profileFromStorage.isActive !== undefined ? profileFromStorage.isActive : true, 
+      avatarUrl: profileFromStorage.avatarUrl || firebaseUser.photoURL || defaultKathaExplorerUser.avatarUrl,
+      avatarFallback: (profileFromStorage.name || firebaseUser.displayName || firebaseUser.email || 'KU').substring(0, 2).toUpperCase(),
+      bio: profileFromStorage.bio || defaultKathaExplorerUser.bio,
+      emailVisible: profileFromStorage.emailVisible !== undefined ? profileFromStorage.emailVisible : defaultKathaExplorerUser.emailVisible,
+      gender: profileFromStorage.gender || defaultKathaExplorerUser.gender,
+      isActive: profileFromStorage.isActive !== undefined ? profileFromStorage.isActive : true,
+      createdAt: profileFromStorage.createdAt || defaultKathaExplorerUser.createdAt,
       signInMethod: profileFromStorage.signInMethod || (firebaseUser.providerData.some(p => p.providerId === 'google.com') ? 'google' : 'email'),
     };
     
+    // Apply special admin overrides if the email matches an existing admin
     const lowerCaseUserEmail = firebaseUser.email?.toLowerCase();
     if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
       const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+      // Only override if the UID from Firebase Auth matches the known ID for these special users,
+      // or if we are sure this is the intended admin account.
+      // For simplicity now, if email matches, we apply the special name.
+      // A more robust check would involve Firestore roles or custom claims.
       finalProfile.name = specialInfo.fixedName;
       finalProfile.username = specialInfo.fixedUsername;
       finalProfile.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
       finalProfile.isActive = true; 
     }
     
+    // Update localStorage with the most consistent profile.
     localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(finalProfile));
     localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, 'true');
     return finalProfile;
   }
 
+  // If no Firebase user, ensure local state reflects logged out.
   localStorage.removeItem(KATHA_VAULT_IS_LOGGED_IN_KEY);
   localStorage.removeItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY);
   return { ...defaultKathaExplorerUser };
@@ -271,20 +286,34 @@ export const saveKathaExplorerUser = async (userData: MockUser): Promise<void> =
   if (typeof window !== 'undefined') {
     const firebaseUser = auth?.currentUser;
     if (firebaseUser && userData.id === firebaseUser.uid) {
-      let dataToSave = { ...userData };
-      dataToSave.email = firebaseUser.email; 
-      dataToSave.id = firebaseUser.uid;     
+      let dataToSaveInLocalStorage = { ...userData };
+      let dataToSaveInFirestore: Partial<MockUser> = { ...userData };
 
-      if (dataToSave.email?.toLowerCase() === KRITIKA_EMAIL.toLowerCase() || dataToSave.email?.toLowerCase() === KATHAVAULT_OWNER_EMAIL.toLowerCase()) {
-          dataToSave.isActive = true; 
+      // Ensure email and id are from Firebase Auth and not changed by client
+      dataToSaveInLocalStorage.email = firebaseUser.email;
+      dataToSaveInLocalStorage.id = firebaseUser.uid;
+      
+      delete dataToSaveInFirestore.id; // UID is document ID, not a field
+      // email should generally not be changed by user directly in profile edit
+      // createdAt and signInMethod should ideally not be client-editable after initial set.
+
+      // Handle special admin accounts: prevent deactivation
+      if (dataToSaveInLocalStorage.email?.toLowerCase() === KRITIKA_EMAIL.toLowerCase() || dataToSaveInLocalStorage.email?.toLowerCase() === KATHAVAULT_OWNER_EMAIL.toLowerCase()) {
+          dataToSaveInLocalStorage.isActive = true; 
+          if (dataToSaveInFirestore.hasOwnProperty('isActive')) {
+            dataToSaveInFirestore.isActive = true;
+          }
       }
       
-      localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(dataToSave));
+      localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(dataToSaveInLocalStorage));
       
       try {
         const userDocRef = doc(db, "users", firebaseUser.uid);
-        const { id, email, createdAt, signInMethod, ...profileUpdates } = dataToSave;
-        await setDoc(userDocRef, profileUpdates, { merge: true });
+        // Only save fields that are typically user-editable in a profile form
+        const { name, username, bio, avatarUrl, avatarFallback, emailVisible, gender, isActive } = dataToSaveInFirestore;
+        const profileUpdatesForFirestore = { name, username, bio, avatarUrl, avatarFallback, emailVisible, gender, isActive };
+        
+        await setDoc(userDocRef, profileUpdatesForFirestore, { merge: true });
       } catch (error) {
         console.error("Error saving user profile to Firestore:", error);
       }
@@ -690,3 +719,4 @@ export const saveAboutUsContent = (content: AboutPageContent): void => {
     localStorage.setItem(ABOUT_US_CONTENT_STORAGE_KEY, JSON.stringify(content));
   }
 };
+

@@ -11,9 +11,9 @@ import { UserPlus, LogIn, Mail, KeyRound, User as UserIcon, Loader2 } from 'luci
 import { useToast } from "@/hooks/use-toast";
 import { useState, type FormEvent, Suspense } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { setLoggedInStatus, defaultKathaExplorerUser, SPECIAL_ACCOUNT_DETAILS } from '@/lib/mock-data';
+import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser } from '@/lib/mock-data';
 
 // Google Icon SVG as a React component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -33,8 +33,8 @@ function SignupPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
+  const [name, setName] = useState(""); // User's actual full name
+  const [username, setUsername] = useState(""); // User's chosen username
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
@@ -62,18 +62,14 @@ function SignupPageContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Send email verification
-      // await sendEmailVerification(user);
-      // toast({ title: "Verification Email Sent", description: "Please check your email to verify your account before logging in." });
-
-
-      const userProfileData: any = {
+      // Create user profile in Firestore with form-provided name and username
+      const userProfileData = {
         uid: user.uid,
         email: user.email,
-        name: name,
-        username: username,
-        avatarUrl: defaultKathaExplorerUser.avatarUrl,
-        avatarFallback: name.substring(0, 2).toUpperCase() || defaultKathaExplorerUser.avatarFallback,
+        name: name, // Use name from form
+        username: username, // Use username from form
+        avatarUrl: defaultKathaExplorerUser.avatarUrl, // Default avatar
+        avatarFallback: name.substring(0, 2).toUpperCase() || "KV", // Fallback from form name
         bio: defaultKathaExplorerUser.bio,
         emailVisible: defaultKathaExplorerUser.emailVisible,
         gender: defaultKathaExplorerUser.gender,
@@ -81,18 +77,12 @@ function SignupPageContent() {
         createdAt: new Date().toISOString(),
         signInMethod: "email",
       };
-      const lowerCaseUserEmail = user.email?.toLowerCase();
-      if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-         const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-         userProfileData.name = specialInfo.fixedName;
-         userProfileData.username = specialInfo.fixedUsername;
-         userProfileData.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-      }
       await setDoc(doc(db, "users", user.uid), userProfileData);
       
-      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: name, photoURL: null });
+      // Set logged-in status using the name from the form
+      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: name, photoURL: null }, 'signup');
 
-      toast({ title: "Signup Successful!", description: "Welcome to Katha Vault! You're now logged in." });
+      toast({ title: "Signup Successful!", description: `Welcome to Katha Vault, ${name}! You're now logged in.` });
       
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
@@ -123,33 +113,42 @@ function SignupPageContent() {
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
+      // For Google Sign-In, name comes from Google profile
+      let profileName = user.displayName || user.email?.split('@')[0] || 'Katha User';
+
       if (!userDocSnap.exists()) {
-        const newProfileData: any = {
+        // User signed in with Google for the first time, create their Firestore profile
+        // Name and username come from Google or are generated.
+        await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
-          name: user.displayName || user.email?.split('@')[0] || 'Katha User',
+          name: profileName,
           username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
           avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
-          avatarFallback: (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase(),
+          avatarFallback: (profileName).substring(0, 2).toUpperCase(),
           bio: defaultKathaExplorerUser.bio,
           emailVisible: defaultKathaExplorerUser.emailVisible,
           gender: defaultKathaExplorerUser.gender,
           isActive: true,
           createdAt: new Date().toISOString(),
           signInMethod: "google",
-        };
-        const lowerCaseUserEmail = user.email?.toLowerCase();
-        if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-            const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-            newProfileData.name = specialInfo.fixedName;
-            newProfileData.username = specialInfo.fixedUsername;
-            newProfileData.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-        }
-        await setDoc(userDocRef, newProfileData);
+        });
+      } else {
+         // User exists, ensure name/avatar from Google are updated if they changed
+        const existingData = userDocSnap.data();
+        await setDoc(userDocRef, {
+            name: profileName, 
+            avatarUrl: user.photoURL || existingData.avatarUrl,
+            avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+            signInMethod: existingData.signInMethod || "google",
+        }, { merge: true });
       }
       
-      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL });
-      toast({ title: "Signed in with Google!", description: `Welcome, ${user.displayName || user.email}!` });
+      // getKathaExplorerUser will handle applying special names if email matches for display of existing admins.
+      const finalDisplayUser = getKathaExplorerUser(); 
+      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: finalDisplayUser.name, photoURL: user.photoURL }, 'google');
+
+      toast({ title: "Signed in with Google!", description: `Welcome, ${finalDisplayUser.name}!` });
       
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
@@ -256,3 +255,4 @@ export default function SignupPage() {
     </Suspense>
   )
 }
+

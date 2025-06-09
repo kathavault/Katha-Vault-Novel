@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogIn, UserPlus, Mail, KeyRound, Loader2, HelpCircle, Info } from 'lucide-react';
+import { LogIn, UserPlus, Mail, KeyRound, Loader2, HelpCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useState, type FormEvent, Suspense, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
@@ -59,25 +59,36 @@ function LoginPageContent() {
         displayNameForProfile = existingProfileData.name || displayNameForProfile;
         photoURLForProfile = existingProfileData.avatarUrl || photoURLForProfile;
       } else {
-         const specialAccountInfo = user.email ? SPECIAL_ACCOUNT_DETAILS[user.email.toLowerCase()] : undefined;
-         if (specialAccountInfo) {
-            displayNameForProfile = specialAccountInfo.fixedName;
+         // This case is for a user who authenticated via Firebase Auth but doesn't have a Firestore doc.
+         // We should create a basic profile in Firestore.
+         // The special account name logic is better handled by getKathaExplorerUser for consistency.
+         let profileName = user.displayName || user.email?.split('@')[0] || `User ${user.uid.substring(0,6)}`;
+         let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
+         
+         const lowerCaseUserEmail = user.email?.toLowerCase();
+         if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
+            const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+            // This override makes more sense if we confirm this UID is indeed for an admin.
+            // For now, if doc doesn't exist, we use Auth provided or generated names.
+            // The special name application will happen in getKathaExplorerUser based on email.
          }
-         // If user exists in Auth but not Firestore, create a basic profile
+
          await setDoc(userDocRef, {
             uid: user.uid,
             email: user.email,
-            name: displayNameForProfile,
-            username: existingProfileData.username || displayNameForProfile.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
-            avatarUrl: photoURLForProfile || defaultKathaExplorerUser.avatarUrl,
-            avatarFallback: (displayNameForProfile || user.email || 'KU').substring(0, 2).toUpperCase(),
-            bio: existingProfileData.bio || defaultKathaExplorerUser.bio,
-            emailVisible: existingProfileData.emailVisible !== undefined ? existingProfileData.emailVisible : defaultKathaExplorerUser.emailVisible,
-            gender: existingProfileData.gender || defaultKathaExplorerUser.gender,
-            isActive: existingProfileData.isActive !== undefined ? existingProfileData.isActive : true,
-            createdAt: existingProfileData.createdAt || new Date().toISOString(),
-            signInMethod: existingProfileData.signInMethod || "email",
+            name: profileName, // Use name from Auth or generated
+            username: profileUsername, // Use username from Auth or generated
+            avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
+            avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+            bio: defaultKathaExplorerUser.bio,
+            emailVisible: defaultKathaExplorerUser.emailVisible,
+            gender: defaultKathaExplorerUser.gender,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            signInMethod: "email",
          }, { merge: true });
+         displayNameForProfile = profileName; // Use the name that was set in Firestore
+         photoURLForProfile = user.photoURL;
       }
       
       setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: displayNameForProfile, photoURL: photoURLForProfile });
@@ -116,51 +127,44 @@ function LoginPageContent() {
       const userDocSnap = await getDoc(userDocRef);
 
       let profileName = user.displayName || user.email?.split('@')[0] || 'Katha User';
-      let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
-      let profileAvatarFallback = (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase();
-      let profileBio = defaultKathaExplorerUser.bio;
-      let profileEmailVisible = defaultKathaExplorerUser.emailVisible;
-      let profileGender = defaultKathaExplorerUser.gender;
-      let profileIsActive = true;
-      let profileCreatedAt = new Date().toISOString();
-      let profileSignInMethod = "google";
-
-      const lowerCaseUserEmail = user.email?.toLowerCase();
-      if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-          const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-          profileName = specialInfo.fixedName;
-          profileUsername = specialInfo.fixedUsername;
-          profileAvatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-      }
-
+      
       if (!userDocSnap.exists()) {
+         // User signed in with Google for the first time, create their Firestore profile.
+         // Name and username come from Google or are generated. NO special override here for a NEW user.
         await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
           name: profileName,
-          username: profileUsername,
+          username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
           avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
-          avatarFallback: profileAvatarFallback,
-          bio: profileBio,
-          emailVisible: profileEmailVisible,
-          gender: profileGender,
-          isActive: profileIsActive,
-          createdAt: profileCreatedAt,
-          signInMethod: profileSignInMethod,
+          avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+          bio: defaultKathaExplorerUser.bio,
+          emailVisible: defaultKathaExplorerUser.emailVisible,
+          gender: defaultKathaExplorerUser.gender,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          signInMethod: "google",
         });
       } else {
+        // User exists, ensure name/avatar from Google are updated if they changed,
+        // but preserve existing username unless it's a special account.
         const existingData = userDocSnap.data();
-        await setDoc(userDocRef, {
+        let updateData: any = {
             name: profileName, 
-            avatarUrl: user.photoURL || existingData.avatarUrl, 
-            avatarFallback: profileAvatarFallback, 
-            username: (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) ? profileUsername : existingData.username,
-            signInMethod: existingData.signInMethod || "google", // Preserve original or set if missing
-        }, { merge: true });
+            avatarUrl: user.photoURL || existingData.avatarUrl,
+            avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+            signInMethod: existingData.signInMethod || "google",
+        };
+        // Special admin name override for existing users is handled by getKathaExplorerUser based on email.
+        // Here we just update the base profile from Google.
+        await setDoc(userDocRef, updateData, { merge: true });
       }
       
-      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: profileName, photoURL: user.photoURL });
-      toast({ title: "Signed in with Google!", description: `Welcome, ${profileName}!` });
+      // getKathaExplorerUser will handle applying special names if email matches for display.
+      const finalDisplayUser = getKathaExplorerUser(); // This will fetch and apply special name if needed.
+      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: finalDisplayUser.name, photoURL: user.photoURL });
+
+      toast({ title: "Signed in with Google!", description: `Welcome, ${finalDisplayUser.name}!` });
       
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
@@ -192,7 +196,7 @@ function LoginPageContent() {
         emailToReset = promptedEmail.trim();
     }
 
-    setIsSubmitting(true); // Reuse submitting flag for visual feedback
+    setIsSubmitting(true); 
     try {
         await sendPasswordResetEmail(auth, emailToReset);
         toast({ title: "Password Reset Email Sent", description: `If an account exists for ${emailToReset}, you will receive an email with instructions.` });
@@ -281,10 +285,6 @@ function LoginPageContent() {
               {isGoogleSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <GoogleIcon className="mr-2" />}
               Sign in with Google
             </Button>
-             <div className="mt-4 text-xs text-muted-foreground text-center flex items-start justify-center">
-                <Info size={16} className="mr-1.5 mt-px flex-shrink-0"/>
-                <span>For special accounts (Kritika, Katha Vault Owner), please use their designated email and password for full admin privileges.</span>
-            </div>
         </CardContent>
         <CardFooter className="flex flex-col items-center space-y-2 mt-4">
           <p className="text-sm text-muted-foreground font-body">
