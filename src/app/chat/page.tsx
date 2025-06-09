@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette,
 import { useToast } from "@/hooks/use-toast";
 import { chatWithKathaVaultAI, type KathaVaultAIChatInput } from '@/ai/flows/katha-vault-chat-flow';
 import Link from 'next/link';
-import { allMockUsers, CURRENT_USER_ID, isUserLoggedIn, getKathaExplorerUser, type MockUser, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID } from '@/lib/mock-data';
+import { allMockUsers, isUserLoggedIn, getKathaExplorerUser, type MockUser, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID } from '@/lib/mock-data';
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -29,36 +29,6 @@ const aiChatUser = {
   nickname: "Katha AI (Default)",
   email: "ai@kathavault.com"
 };
-
-const initialPlaceholderUserChats = allMockUsers
-  .filter(user => user.id !== CURRENT_USER_ID && user.id !== aiChatUser.id)
-  .map(user => ({
-    id: user.id,
-    name: user.name,
-    username: user.username,
-    avatarUrl: user.avatarUrl || 'https://placehold.co/40x40.png',
-    avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
-    lastMessage: `Chat with ${user.name}`,
-    timestamp: '10:30 AM',
-    unreadCount: 0,
-    isOnline: false,
-    dataAiHint: user.dataAiHint || 'person chat',
-    email: user.email,
-  }));
-
-
-const placeholderOnlineFriends = allMockUsers
-  .filter(user => user.id !== CURRENT_USER_ID)
-  .slice(0, 6)
-  .map(user => ({
-    id: user.id,
-    name: user.name,
-    avatarUrl: user.avatarUrl || 'https://placehold.co/48x48.png',
-    avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
-    dataAiHint: user.dataAiHint || 'person active',
-    email: user.email,
-}));
-
 
 const EMOJIS = ['😊', '😂', '❤️', '👍', '🤔', '🎉', '📚', '✨', '✍️', '👀', '👋', '🙏'];
 
@@ -79,8 +49,16 @@ interface JoinedDiscussion {
   postId: string;
 }
 
-// Moved OnlineFriendsBar to be a top-level component
-const OnlineFriendsBar = () => {
+interface OnlineFriend {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  avatarFallback: string;
+  dataAiHint: string;
+  email?: string;
+}
+
+const OnlineFriendsBar: React.FC<{ onlineFriends: OnlineFriend[] }> = ({ onlineFriends }) => {
  return (
   <Card className="mb-6 flex-shrink-0">
     <CardHeader>
@@ -89,7 +67,7 @@ const OnlineFriendsBar = () => {
     <CardContent className="p-4">
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex space-x-4 pb-2">
-          {placeholderOnlineFriends.map(friend => (
+          {onlineFriends.map(friend => (
             <TooltipProvider key={friend.id}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -126,7 +104,6 @@ const OnlineFriendsBar = () => {
  );
 };
 
-// Moved CurrentChatInterface to be a top-level component
 interface CurrentChatInterfaceProps {
   chatPartnerDetails: {
     id: string;
@@ -397,15 +374,13 @@ function ChatPageContent() {
 
   const [messages, setMessages] = useState<Message[]>([]);
 
-  const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<typeof initialPlaceholderUserChats[0] | null>(null);
+  const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<any | null>(null); // Type will be derived
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const [joinedDiscussions, setJoinedDiscussions] = useState<JoinedDiscussion[]>([]);
   const [selectedDiscussionGroup, setSelectedDiscussionGroup] = useState<JoinedDiscussion | null>(null);
-
-  const [displayedUserChats, setDisplayedUserChats] = useState(initialPlaceholderUserChats);
-
+  
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -420,18 +395,54 @@ function ChatPageContent() {
     }
   }, [router]);
 
+  const derivedInitialPlaceholderUserChats = useMemo(() => {
+    if (!currentUser) return [];
+    return allMockUsers
+      .filter(user => user.id !== currentUser.id && user.id !== aiChatUser.id)
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        avatarUrl: user.avatarUrl || 'https://placehold.co/40x40.png',
+        avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
+        lastMessage: `Chat with ${user.name}`,
+        timestamp: '10:30 AM', // Placeholder
+        unreadCount: 0,
+        isOnline: false, // Placeholder
+        dataAiHint: user.dataAiHint || 'person chat',
+        email: user.email,
+      }));
+  }, [currentUser]);
+
+  const derivedPlaceholderOnlineFriends = useMemo(() => {
+    if (!currentUser) return [];
+    return allMockUsers
+      .filter(user => user.id !== currentUser.id)
+      .slice(0, 6)
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        avatarUrl: user.avatarUrl || 'https://placehold.co/48x48.png',
+        avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
+        dataAiHint: user.dataAiHint || 'person active',
+        email: user.email,
+    }));
+  }, [currentUser]);
+
+
+  const [displayedUserChats, setDisplayedUserChats] = useState<ReturnType<typeof derivedInitialPlaceholderUserChats>>([]);
+
   useEffect(() => {
-    if (authStatus !== 'loggedIn') return;
+    if (authStatus !== 'loggedIn' || !currentUser) return;
 
     setDisplayedUserChats(
-      initialPlaceholderUserChats.map(chat => ({
+      derivedInitialPlaceholderUserChats.map(chat => ({
         ...chat,
-        // Set some initial unread counts for demo, clear on click later
         unreadCount: (chat.id === 'user_er' || chat.id === 'user_mw') ? Math.floor(Math.random() * 3) + 1 : 0,
         isOnline: Math.random() > 0.5,
       }))
     );
-  }, [authStatus]);
+  }, [authStatus, currentUser, derivedInitialPlaceholderUserChats]);
 
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
@@ -453,10 +464,10 @@ function ChatPageContent() {
   }, [discussionIdToOpen, toast, authStatus]);
 
   useEffect(() => {
-    if (authStatus !== 'loggedIn') return;
+    if (authStatus !== 'loggedIn' || !currentUser) return;
 
     if (userIdToOpen) {
-      const userToChat = initialPlaceholderUserChats.find(u => u.id === userIdToOpen); // Use initial list to find
+      const userToChat = derivedInitialPlaceholderUserChats.find(u => u.id === userIdToOpen);
 
       if (userToChat) {
         setSelectedDirectChatUser(userToChat);
@@ -479,8 +490,7 @@ function ChatPageContent() {
          setActiveMainTab('direct');
       }
     }
-  // Removed displayedUserChats from dependencies to prevent loop
-  }, [userIdToOpen, authStatus, router]); 
+  }, [userIdToOpen, authStatus, currentUser, router, derivedInitialPlaceholderUserChats]); 
 
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
@@ -514,7 +524,6 @@ function ChatPageContent() {
     } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup && !discussionIdToOpen) {
         setMessages([]);
     }
-  // Removed messages from dependencies to prevent loop
   }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, authStatus, userIdToOpen, discussionIdToOpen]);
 
 
@@ -573,7 +582,7 @@ function ChatPageContent() {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       };
       setTimeout(() => setMessages(prev => [...prev, otherUserResponse]), 500);
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup) {
+    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup && currentUser) {
         const randomUser = allMockUsers.find(u => u.id !== currentUser.id && (u.id === KRITIKA_USER_ID || u.id === KATHAVAULT_OWNER_USER_ID || Math.random() > 0.5 )) || allMockUsers[1];
       const discussionReply: Message = {
         id: 'discussion-reply-' + Date.now(),
@@ -669,7 +678,7 @@ function ChatPageContent() {
   
   const currentChatPartnerDetails = ChatPartnerDetails();
 
-  const handleDirectChatSelection = (chatUser: typeof initialPlaceholderUserChats[0]) => {
+  const handleDirectChatSelection = (chatUser: ReturnType<typeof derivedInitialPlaceholderUserChats>[0]) => {
     setSelectedDirectChatUser(chatUser);
     setSelectedDiscussionGroup(null);
     setCurrentMessage('');
@@ -836,7 +845,7 @@ function ChatPageContent() {
         </TabsList>
       </Tabs>
 
-      {activeMainTab === 'direct' && <OnlineFriendsBar />}
+      {activeMainTab === 'direct' && <OnlineFriendsBar onlineFriends={derivedPlaceholderOnlineFriends} />}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 flex-grow min-h-0">
         <div className="md:col-span-1 flex flex-col h-full min-h-[300px] md:min-h-0">
@@ -880,5 +889,3 @@ export default function ChatPage() {
     </Suspense>
   )
 }
-
-    
