@@ -13,7 +13,7 @@ import { useState, type FormEvent, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { SharePostModal } from '@/components/share-post-modal';
-import { allMockUsers, CURRENT_USER_ID, getInitialFollowingIds, getKathaExplorerUser, isUserActive, isUserLoggedIn, isUserAdmin as checkIsUserAdmin, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID } from '@/lib/mock-data';
+import { allMockUsers, getInitialFollowingIds, getKathaExplorerUser, isUserActive, isUserLoggedIn, isUserAdmin as checkIsUserAdmin, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID } from '@/lib/mock-data';
 
 const JOINED_DISCUSSIONS_STORAGE_KEY = 'joinedKathaVaultDiscussions';
 
@@ -668,5 +668,3 @@ export function FeedItemCard({
     </>
   );
 }
-
-    

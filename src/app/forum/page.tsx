@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Users, TrendingUp, MessageSquareText, Send, Edit, Globe, Lock, UserCog, UserPlus, Loader2 } from 'lucide-react'; 
 import { useToast } from "@/hooks/use-toast";
-import { allMockUsers, getKathaExplorerUser, getInitialFollowingIds, CURRENT_USER_ID, isUserActive, type MockUser } from '@/lib/mock-data'; 
+import { allMockUsers, getKathaExplorerUser, getInitialFollowingIds, isUserActive, isUserAdmin, type MockUser } from '@/lib/mock-data'; 
 
 const sampleCommentsLevel2: FeedItemComment[] = [
   { id: 'reply-1-1-1', authorName: 'DeepThinker', authorInitials: 'DT', authorId: 'user_dt', text: 'Indeed, a very nuanced point!', timestamp: '5m ago', commentLikes: 1, isCommentLikedByUser: false, replies: [] },
@@ -377,7 +377,7 @@ export default function FeedPage() {
                 {...post} 
                 isFullView={true}
                 onDeletePost={() => { 
-                  if (currentUserIsActive && currentUser.id === CURRENT_USER_ID) { 
+                  if (currentUserIsActive && currentUser && (currentUser.id === post.authorId || isUserAdmin())) { 
                     setTrendingPosts(prev => prev.filter(p => p.id !== post.id));
                     const updatedSocialFeed = socialFeedPosts.filter(sp => sp.id !== post.id);
                     setSocialFeedPosts(updatedSocialFeed);
@@ -393,7 +393,7 @@ export default function FeedPage() {
 
                     toast({ title: "Post Deleted", description: `"${post.title || 'Post'}" removed from trending and feed.`});
                   } else {
-                    toast({ title: "Action Denied", description: "Trending posts cannot be deleted from this view by non-admins."});
+                    toast({ title: "Action Denied", description: "You do not have permission to delete this post."});
                   }
                 }}
                 onUpdateComments={(postId, comments) => {

@@ -50,17 +50,36 @@ function LoginPageContent() {
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
       let displayNameForProfile = user.displayName || email.split('@')[0] || defaultKathaExplorerUser.name;
+      let photoURLForProfile = user.photoURL;
 
       if (userDocSnap.exists()) {
-        displayNameForProfile = userDocSnap.data().name || displayNameForProfile;
+        const existingData = userDocSnap.data();
+        displayNameForProfile = existingData.name || displayNameForProfile;
+        photoURLForProfile = existingData.avatarUrl || photoURLForProfile;
       } else {
+         // This case should be rare for login, more common for first Google sign-in
+         // If user exists in Auth but not Firestore (e.g. imported user), create a basic profile
          const specialAccountInfo = SPECIAL_ACCOUNT_DETAILS[email.toLowerCase()];
          if (specialAccountInfo) {
             displayNameForProfile = specialAccountInfo.fixedName;
          }
+         await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            name: displayNameForProfile,
+            username: displayNameForProfile.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
+            avatarUrl: photoURLForProfile || defaultKathaExplorerUser.avatarUrl,
+            avatarFallback: (displayNameForProfile || user.email || 'KU').substring(0, 2).toUpperCase(),
+            bio: defaultKathaExplorerUser.bio,
+            emailVisible: defaultKathaExplorerUser.emailVisible,
+            gender: defaultKathaExplorerUser.gender,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            signInMethod: "email",
+         }, { merge: true });
       }
       
-      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: displayNameForProfile, photoURL: user.photoURL });
+      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: displayNameForProfile, photoURL: photoURLForProfile });
       
       toast({ title: "Login Successful!", description: `Welcome back, ${displayNameForProfile}!` });
       
@@ -94,35 +113,46 @@ function LoginPageContent() {
 
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
+      let profileName = user.displayName || user.email?.split('@')[0] || 'Katha User';
+      let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
+      let profileAvatarFallback = (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase();
+
+      const lowerCaseUserEmail = user.email?.toLowerCase();
+      if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
+          const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+          profileName = specialInfo.fixedName;
+          profileUsername = specialInfo.fixedUsername;
+          profileAvatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
+      }
 
       if (!userDocSnap.exists()) {
-        // New user via Google, create profile in Firestore
-        const newProfileData: any = {
+        await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
-          name: user.displayName || user.email?.split('@')[0] || 'Katha User',
-          username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
+          name: profileName,
+          username: profileUsername,
           avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
-          avatarFallback: (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase(),
+          avatarFallback: profileAvatarFallback,
           bio: defaultKathaExplorerUser.bio,
           emailVisible: defaultKathaExplorerUser.emailVisible,
           gender: defaultKathaExplorerUser.gender,
           isActive: true,
           createdAt: new Date().toISOString(),
           signInMethod: "google",
-        };
-         const lowerCaseUserEmail = user.email?.toLowerCase();
-         if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-            const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-            newProfileData.name = specialInfo.fixedName;
-            newProfileData.username = specialInfo.fixedUsername;
-            newProfileData.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-         }
-        await setDoc(userDocRef, newProfileData);
+        });
+      } else {
+        // If user doc exists, ensure name/avatar might be updated from Google if they changed it
+        await setDoc(userDocRef, {
+            name: profileName, // Use potentially special name
+            avatarUrl: user.photoURL || userDocSnap.data().avatarUrl, // Prefer Google's new photo, fallback to existing
+            avatarFallback: profileAvatarFallback, // Use potentially special fallback
+            // Optionally update username if it's a special account and needs fixing
+            ...(lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail] && { username: profileUsername }),
+        }, { merge: true });
       }
       
-      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL });
-      toast({ title: "Signed in with Google!", description: `Welcome, ${user.displayName || user.email}!` });
+      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: profileName, photoURL: user.photoURL });
+      toast({ title: "Signed in with Google!", description: `Welcome, ${profileName}!` });
       
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
@@ -142,33 +172,20 @@ function LoginPageContent() {
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim()) {
+    let emailToReset = email.trim();
+    if (!emailToReset) {
         const promptedEmail = prompt("Please enter your email address to reset your password:");
         if (!promptedEmail || !promptedEmail.trim()) {
             toast({ title: "Email Required", description: "Please enter an email address.", variant: "destructive" });
             return;
         }
-        setEmail(promptedEmail); // Update state for the function
-         try {
-            await sendPasswordResetEmail(auth, promptedEmail.trim());
-            toast({ title: "Password Reset Email Sent", description: `If an account exists for ${promptedEmail.trim()}, you will receive an email with instructions.` });
-        } catch (error: any) {
-            console.error("Forgot Password Error:", error);
-            let errorMessage = "Could not send password reset email. Please try again.";
-            if (error.code === 'auth/user-not-found') {
-                 errorMessage = "No user found with this email address.";
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = "The email address is not valid.";
-            }
-            toast({ title: "Password Reset Failed", description: errorMessage, variant: "destructive" });
-        }
-        return;
+        emailToReset = promptedEmail.trim();
     }
 
     try {
-        await sendPasswordResetEmail(auth, email);
-        toast({ title: "Password Reset Email Sent", description: `If an account exists for ${email}, you will receive an email with instructions.` });
-    } catch (error: any)
+        await sendPasswordResetEmail(auth, emailToReset);
+        toast({ title: "Password Reset Email Sent", description: `If an account exists for ${emailToReset}, you will receive an email with instructions.` });
+    } catch (error: any) {
         console.error("Forgot Password Error:", error);
         let errorMessage = "Could not send password reset email. Please try again.";
          if (error.code === 'auth/user-not-found') {

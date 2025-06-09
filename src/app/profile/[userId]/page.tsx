@@ -12,7 +12,6 @@ import { Edit2, Loader2, AlertTriangle } from 'lucide-react'; // Added AlertTria
 import { useToast } from "@/hooks/use-toast";
 import { 
   allMockUsers, 
-  CURRENT_USER_ID, 
   getInitialFollowingIds, 
   updateFollowingIds, 
   type MockUser,
@@ -41,7 +40,7 @@ export default function UserProfilePage() {
   const { toast } = useToast();
   const viewedUserId = typeof params.userId === 'string' ? params.userId : '';
   
-  const [loggedInUser, setLoggedInUser] = useState<MockUser | null>(null); // Initialize as null
+  const [loggedInUser, setLoggedInUser] = useState<MockUser | null>(null); 
   const [viewedUser, setViewedUser] = useState<MockUser | null>(null);
   const [userPosts, setUserPosts] = useState<FeedItemCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +60,7 @@ export default function UserProfilePage() {
     const currentLoggedInUser = getKathaExplorerUser();
     setLoggedInUser(currentLoggedInUser);
 
-    if (viewedUserId === CURRENT_USER_ID) {
+    if (viewedUserId === currentLoggedInUser.id) { // Use loggedInUser.id for comparison
       router.replace('/profile'); 
       return;
     }
@@ -101,7 +100,7 @@ export default function UserProfilePage() {
   }, [viewedUserId, router, toast]);
 
   const handleFollowToggle = () => {
-    if (!viewedUser || !isUserLoggedIn()) { // Check if logged in
+    if (!viewedUser || !isUserLoggedIn()) { 
         toast({ title: "Login Required", description: "Please login to follow users.", variant: "destructive" });
         router.push(`/login?redirect=/profile/${viewedUserId}`);
         return;
@@ -154,7 +153,7 @@ export default function UserProfilePage() {
     );
   }
   
-  if (!loggedInUser) { // Should be caught by useEffect, but as a fallback
+  if (!loggedInUser) { 
       return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> Redirecting to login...</div>;
   }
 

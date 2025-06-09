@@ -15,7 +15,6 @@ import {
   allMockUsers, 
   getInitialFollowingIds, 
   getKathaExplorerFollowersList, 
-  CURRENT_USER_ID, 
   updateFollowingIds, 
   type MockUser,
   getKathaExplorerUser,
@@ -97,7 +96,8 @@ export default function ProfilePage() {
 
   const refreshFollowCountsAndLists = () => {
      const currentFollowingIds = getInitialFollowingIds();
-     const actualFollowingUsers = allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== CURRENT_USER_ID);
+     const currentUser = getKathaExplorerUser(); // Get current user to exclude from following list
+     const actualFollowingUsers = allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== currentUser.id);
      setFollowing(mapMockUsersToProfileModalUsers(actualFollowingUsers));
      
      const simulatedFollowers = getKathaExplorerFollowersList(5); 
@@ -120,7 +120,7 @@ export default function ProfilePage() {
             followingCount: following.length,
         }): null);
     }
-  }, [myProfilePosts, followers, following, isLoadingProfile]);
+  }, [myProfilePosts, followers, following, isLoadingProfile, currentUserProfileData]);
 
 
   const handleAvatarChange = (newAvatarUrl: string) => {
@@ -228,7 +228,7 @@ const readingProgress = [
   return (
     <div className="space-y-8">
       <UserProfileHeader
-        userId={CURRENT_USER_ID}
+        userId={currentUserProfileData.id}
         name={currentUserProfileData.name}
         username={currentUserProfileData.username}
         avatarUrl={currentUserProfileData.avatarUrl}
@@ -270,7 +270,7 @@ const readingProgress = [
                   onUpdateComments={handleUpdateMyPostComments}
                   isFullView={true} 
                   currentUserName={currentUserProfileData.name} 
-                  currentUserId={CURRENT_USER_ID}
+                  currentUserId={currentUserProfileData.id}
                 />
               )) 
             ) : (
@@ -301,7 +301,7 @@ const readingProgress = [
           actionButtonLabel={modalActionButtonLabel}
           onActionButtonClick={handleModalActionClick}
           emptyStateMessage={modalOpenFor === 'followers' ? "You don't have any followers yet." : "You are not following anyone yet."}
-          currentUserId={CURRENT_USER_ID}
+          currentUserId={currentUserProfileData.id}
         />
       )}
     </div>
