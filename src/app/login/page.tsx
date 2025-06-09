@@ -13,7 +13,7 @@ import { useState, type FormEvent, Suspense, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { setLoggedInStatus, defaultKathaExplorerUser, SPECIAL_ACCOUNT_DETAILS } from '@/lib/mock-data';
+import { setLoggedInStatus, defaultKathaExplorerUser, SPECIAL_ACCOUNT_DETAILS, getKathaExplorerUser, isUserAdmin } from '@/lib/mock-data';
 
 // Google Icon SVG as a React component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -49,33 +49,34 @@ function LoginPageContent() {
       
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
+
       let displayNameForProfile = user.displayName || email.split('@')[0] || defaultKathaExplorerUser.name;
       let photoURLForProfile = user.photoURL;
+      let existingProfileData: Partial<MockUser> = {};
 
       if (userDocSnap.exists()) {
-        const existingData = userDocSnap.data();
-        displayNameForProfile = existingData.name || displayNameForProfile;
-        photoURLForProfile = existingData.avatarUrl || photoURLForProfile;
+        existingProfileData = userDocSnap.data() as MockUser;
+        displayNameForProfile = existingProfileData.name || displayNameForProfile;
+        photoURLForProfile = existingProfileData.avatarUrl || photoURLForProfile;
       } else {
-         // This case should be rare for login, more common for first Google sign-in
-         // If user exists in Auth but not Firestore (e.g. imported user), create a basic profile
-         const specialAccountInfo = SPECIAL_ACCOUNT_DETAILS[email.toLowerCase()];
+         const specialAccountInfo = user.email ? SPECIAL_ACCOUNT_DETAILS[user.email.toLowerCase()] : undefined;
          if (specialAccountInfo) {
             displayNameForProfile = specialAccountInfo.fixedName;
          }
+         // If user exists in Auth but not Firestore, create a basic profile
          await setDoc(userDocRef, {
             uid: user.uid,
             email: user.email,
             name: displayNameForProfile,
-            username: displayNameForProfile.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
+            username: existingProfileData.username || displayNameForProfile.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
             avatarUrl: photoURLForProfile || defaultKathaExplorerUser.avatarUrl,
             avatarFallback: (displayNameForProfile || user.email || 'KU').substring(0, 2).toUpperCase(),
-            bio: defaultKathaExplorerUser.bio,
-            emailVisible: defaultKathaExplorerUser.emailVisible,
-            gender: defaultKathaExplorerUser.gender,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            signInMethod: "email",
+            bio: existingProfileData.bio || defaultKathaExplorerUser.bio,
+            emailVisible: existingProfileData.emailVisible !== undefined ? existingProfileData.emailVisible : defaultKathaExplorerUser.emailVisible,
+            gender: existingProfileData.gender || defaultKathaExplorerUser.gender,
+            isActive: existingProfileData.isActive !== undefined ? existingProfileData.isActive : true,
+            createdAt: existingProfileData.createdAt || new Date().toISOString(),
+            signInMethod: existingProfileData.signInMethod || "email",
          }, { merge: true });
       }
       
@@ -113,9 +114,16 @@ function LoginPageContent() {
 
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
+
       let profileName = user.displayName || user.email?.split('@')[0] || 'Katha User';
       let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
       let profileAvatarFallback = (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase();
+      let profileBio = defaultKathaExplorerUser.bio;
+      let profileEmailVisible = defaultKathaExplorerUser.emailVisible;
+      let profileGender = defaultKathaExplorerUser.gender;
+      let profileIsActive = true;
+      let profileCreatedAt = new Date().toISOString();
+      let profileSignInMethod = "google";
 
       const lowerCaseUserEmail = user.email?.toLowerCase();
       if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
@@ -133,21 +141,21 @@ function LoginPageContent() {
           username: profileUsername,
           avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
           avatarFallback: profileAvatarFallback,
-          bio: defaultKathaExplorerUser.bio,
-          emailVisible: defaultKathaExplorerUser.emailVisible,
-          gender: defaultKathaExplorerUser.gender,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          signInMethod: "google",
+          bio: profileBio,
+          emailVisible: profileEmailVisible,
+          gender: profileGender,
+          isActive: profileIsActive,
+          createdAt: profileCreatedAt,
+          signInMethod: profileSignInMethod,
         });
       } else {
-        // If user doc exists, ensure name/avatar might be updated from Google if they changed it
+        const existingData = userDocSnap.data();
         await setDoc(userDocRef, {
-            name: profileName, // Use potentially special name
-            avatarUrl: user.photoURL || userDocSnap.data().avatarUrl, // Prefer Google's new photo, fallback to existing
-            avatarFallback: profileAvatarFallback, // Use potentially special fallback
-            // Optionally update username if it's a special account and needs fixing
-            ...(lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail] && { username: profileUsername }),
+            name: profileName, 
+            avatarUrl: user.photoURL || existingData.avatarUrl, 
+            avatarFallback: profileAvatarFallback, 
+            username: (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) ? profileUsername : existingData.username,
+            signInMethod: existingData.signInMethod || "google", // Preserve original or set if missing
         }, { merge: true });
       }
       
@@ -164,6 +172,8 @@ function LoginPageContent() {
         errorMessage = "Google Sign-In popup was closed. Please try again.";
       } else if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = "An account already exists with this email address using a different sign-in method.";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = "Network error. Please check your internet connection and try again.";
       }
       toast({ title: "Google Sign-In Failed", description: errorMessage, variant: "destructive" });
     } finally {
@@ -182,6 +192,7 @@ function LoginPageContent() {
         emailToReset = promptedEmail.trim();
     }
 
+    setIsSubmitting(true); // Reuse submitting flag for visual feedback
     try {
         await sendPasswordResetEmail(auth, emailToReset);
         toast({ title: "Password Reset Email Sent", description: `If an account exists for ${emailToReset}, you will receive an email with instructions.` });
@@ -192,8 +203,12 @@ function LoginPageContent() {
              errorMessage = "No user found with this email address.";
         } else if (error.code === 'auth/invalid-email') {
             errorMessage = "The email address is not valid.";
+        } else if (error.code === 'auth/network-request-failed') {
+            errorMessage = "Network error. Please check your internet connection and try again.";
         }
         toast({ title: "Password Reset Failed", description: errorMessage, variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -288,9 +303,9 @@ function LoginPageContent() {
 
 export default function LoginPage() {
   return (
-    // Suspense fallback for useSearchParams
     <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading Login Page...</div>}>
       <LoginPageContent />
     </Suspense>
   )
 }
+
