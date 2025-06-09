@@ -45,7 +45,7 @@ function LoginPageContent() {
     setIsSubmitting(true);
     try {
       if (!auth || !db) {
-        toast({ title: "Initialization Error", description: "Firebase services are not available. Please try again later.", variant: "destructive" });
+        toast({ title: "Initialization Error", description: "Firebase services are not available. Please check your setup or try again later.", variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
@@ -93,7 +93,7 @@ function LoginPageContent() {
     } catch (error: any) {
       console.error("Firebase Login Error:", error);
       let errorMessage = "Failed to login. Please check your credentials and try again.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         errorMessage = "Invalid email or password.";
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = "The email address is not valid.";
@@ -101,6 +101,10 @@ function LoginPageContent() {
         errorMessage = "Network error. Please check your internet connection and try again.";
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = "Access to this account has been temporarily disabled due to many failed login attempts. You can immediately restore it by resetting your password or you can try again later.";
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = "This user account has been disabled by an administrator.";
+      } else {
+        errorMessage = `Login Error: ${error.code || 'Unknown Error'} - ${error.message || 'An unexpected error occurred.'}`;
       }
       toast({ title: "Login Failed", description: errorMessage, variant: "destructive" });
     } finally {
@@ -113,7 +117,7 @@ function LoginPageContent() {
     const provider = new GoogleAuthProvider();
     try {
       if (!auth || !db) {
-        toast({ title: "Initialization Error", description: "Firebase services are not available. Please try again later.", variant: "destructive" });
+        toast({ title: "Initialization Error", description: "Firebase services are not available. Please check your setup or try again later.", variant: "destructive" });
         setIsGoogleSubmitting(false);
         return;
       }
@@ -186,6 +190,12 @@ function LoginPageContent() {
         errorMessage = "An account already exists with this email address using a different sign-in method.";
       } else if (error.code === 'auth/network-request-failed') {
         errorMessage = "Network error. Please check your internet connection and try again.";
+      } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-blocked') {
+        errorMessage = "Google Sign-In popup was blocked or cancelled. Please ensure popups are allowed and try again.";
+      } else if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = "This domain is not authorized for Google Sign-In. Please contact support.";
+      } else {
+        errorMessage = `Google Sign-In Error: ${error.code || 'Unknown Error'} - ${error.message || 'An unexpected error occurred.'}`;
       }
       toast({ title: "Google Sign-In Failed", description: errorMessage, variant: "destructive" });
     } finally {
@@ -222,6 +232,8 @@ function LoginPageContent() {
             errorMessage = "The email address is not valid.";
         } else if (error.code === 'auth/network-request-failed') {
             errorMessage = "Network error. Please check your internet connection and try again.";
+        } else {
+            errorMessage = `Password Reset Error: ${error.code || 'Unknown Error'} - ${error.message || 'An unexpected error occurred.'}`;
         }
         toast({ title: "Password Reset Failed", description: errorMessage, variant: "destructive" });
     } finally {

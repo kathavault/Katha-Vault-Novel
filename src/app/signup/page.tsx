@@ -11,7 +11,7 @@ import { UserPlus, LogIn, Mail, KeyRound, User as UserIcon, Loader2 } from 'luci
 import { useToast } from "@/hooks/use-toast";
 import { useState, type FormEvent, Suspense } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'; // Added signOut
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'; 
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data';
 
@@ -59,6 +59,11 @@ function SignupPageContent() {
 
     setIsSubmitting(true);
     try {
+      if (!auth || !db) {
+        toast({ title: "Initialization Error", description: "Firebase services are not available. Please check your setup or try again later.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
@@ -94,6 +99,10 @@ function SignupPageContent() {
         errorMessage = "The password is too weak. Please choose a stronger password.";
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = "The email address is not valid.";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+      } else {
+        errorMessage = `Signup Error: ${error.code || 'Unknown Error'} - ${error.message || 'An unexpected error occurred.'}`;
       }
       toast({ title: "Signup Failed", description: errorMessage, variant: "destructive" });
     } finally {
@@ -105,6 +114,11 @@ function SignupPageContent() {
     setIsGoogleSubmitting(true);
     const provider = new GoogleAuthProvider();
     try {
+      if (!auth || !db) {
+        toast({ title: "Initialization Error", description: "Firebase services are not available. Please check your setup or try again later.", variant: "destructive" });
+        setIsGoogleSubmitting(false);
+        return;
+      }
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const userEmail = user.email?.toLowerCase();
@@ -168,8 +182,16 @@ function SignupPageContent() {
         errorMessage = "Google Sign-In popup was closed. Please try again.";
       } else if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = "An account already exists with this email address using a different sign-in method.";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+      } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-blocked') {
+        errorMessage = "Google Sign-Up popup was blocked or cancelled. Please ensure popups are allowed and try again.";
+      } else if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = "This domain is not authorized for Google Sign-Up. Please contact support.";
+      } else {
+        errorMessage = `Google Sign-Up Error: ${error.code || 'Unknown Error'} - ${error.message || 'An unexpected error occurred.'}`;
       }
-      toast({ title: "Google Sign-In Failed", description: errorMessage, variant: "destructive" });
+      toast({ title: "Google Sign-Up Failed", description: errorMessage, variant: "destructive" });
     } finally {
       setIsGoogleSubmitting(false);
     }
@@ -223,7 +245,7 @@ function SignupPageContent() {
                 <Input id="confirm-password" type="password" placeholder="••••••••" required className="pl-10" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isSubmitting || isGoogleSubmitting}/>
               </div>
             </div>
-            <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting || isGoogleSubmitting}>
+            <Button type="submit" className="w-full text-lg py-3" disabled={isSubmitting || isGoogleSubmitting || !email || !password || !name || !username || password !== confirmPassword}>
               {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5" />}
               Create Account with Email
             </Button>
