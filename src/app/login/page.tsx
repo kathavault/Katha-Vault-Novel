@@ -61,6 +61,10 @@ function LoginPageContent() {
         errorMessage = "Invalid email or password.";
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = "The email address is not valid.";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Access to this account has been temporarily disabled due to many failed login attempts. You can immediately restore it by resetting your password or you can try again later.";
       }
       toast({ title: "Login Failed", description: errorMessage, variant: "destructive" });
     } finally {
