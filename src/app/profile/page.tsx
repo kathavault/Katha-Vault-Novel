@@ -6,16 +6,16 @@ import { useRouter } from 'next/navigation'; // Import useRouter
 import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
-import { FeedItemCard, type FeedItemCardProps, type FeedItemComment } from '@/components/forum-post-card'; 
+import { FeedItemCard, type FeedItemCardProps, type FeedItemComment } from '@/components/forum-post-card';
 import { UserListModal, type ModalUser as ProfileModalUser } from '@/components/profile/user-list-modal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpenText, Edit2, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { 
-  allMockUsers, 
-  getInitialFollowingIds, 
-  getKathaExplorerFollowersList, 
-  updateFollowingIds, 
+import {
+  allMockUsers,
+  getInitialFollowingIds,
+  getKathaExplorerFollowersList,
+  updateFollowingIds,
   type MockUser,
   getKathaExplorerUser,
   saveKathaExplorerUser,
@@ -24,7 +24,7 @@ import {
 } from '@/lib/mock-data';
 
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
-const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts'; 
+const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
 
 const mapMockUsersToProfileModalUsers = (mockUsers: MockUser[]): ProfileModalUser[] => {
   return mockUsers.map(u => ({
@@ -45,7 +45,7 @@ export default function ProfilePage() {
   const router = useRouter(); // Initialize router
   const [currentUserProfileData, setCurrentUserProfileData] = useState<UserProfileData | null>(null);
   const [myProfilePosts, setMyProfilePosts] = useState<FeedItemCardProps[]>([]);
-  
+
   const [followers, setFollowers] = useState<ProfileModalUser[]>([]);
   const [following, setFollowing] = useState<ProfileModalUser[]>([]);
 
@@ -60,28 +60,14 @@ export default function ProfilePage() {
       router.replace('/login?redirect=/profile');
       return;
     }
-    loadUserProfile();
-    loadUserPosts();
-    refreshFollowCountsAndLists();
-    setIsLoadingProfile(false); // Moved here after initial checks and loads
-  }, [router]); 
 
-  const loadUserProfile = () => {
     const user = getKathaExplorerUser();
-    setCurrentUserProfileData({
-        ...user,
-        postsCount: myProfilePosts.length, 
-        followersCount: followers.length, 
-        followingCount: following.length 
-    });
-  };
-  
-  const loadUserPosts = () => {
+
+    // Load posts
     try {
       const storedPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
-      const storedPosts: FeedItemCardProps[] = storedPostsRaw ? JSON.parse(storedPostsRaw) : [];
-      setMyProfilePosts(storedPosts);
-      setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: storedPosts.length }) : null);
+      const posts: FeedItemCardProps[] = storedPostsRaw ? JSON.parse(storedPostsRaw) : [];
+      setMyProfilePosts(posts);
     } catch (error) {
       console.error("Error loading posts from localStorage:", error);
       toast({
@@ -89,38 +75,31 @@ export default function ProfilePage() {
         description: "Could not load your posts for the profile page.",
         variant: "destructive",
       });
-       setMyProfilePosts([]);
-       setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: 0 }) : null);
+      setMyProfilePosts([]);
     }
-  };
 
-  const refreshFollowCountsAndLists = () => {
-     const currentFollowingIds = getInitialFollowingIds();
-     const currentUser = getKathaExplorerUser(); // Get current user to exclude from following list
-     const actualFollowingUsers = allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== currentUser.id);
-     setFollowing(mapMockUsersToProfileModalUsers(actualFollowingUsers));
-     
-     const simulatedFollowers = getKathaExplorerFollowersList(5); 
-     setFollowers(mapMockUsersToProfileModalUsers(simulatedFollowers));
+    // Load follow data
+    const currentFollowingIds = getInitialFollowingIds();
+    const actualFollowingUsers = allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== user.id);
+    const simulatedFollowers = getKathaExplorerFollowersList(5);
+    setFollowing(mapMockUsersToProfileModalUsers(actualFollowingUsers));
+    setFollowers(mapMockUsersToProfileModalUsers(simulatedFollowers));
 
-     setCurrentUserProfileData(prev => prev ? ({
-        ...prev,
-        followersCount: simulatedFollowers.length,
-        followingCount: actualFollowingUsers.length,
-      }) : null);
-  };
+    // Set the complete profile data once
+    // Use the lengths of the data just fetched/calculated for initial counts
+    const postsLength = (localStorage.getItem(USER_POSTS_STORAGE_KEY) ? JSON.parse(localStorage.getItem(USER_POSTS_STORAGE_KEY)!).length : 0);
+    const followersLength = simulatedFollowers.length;
+    const followingLength = actualFollowingUsers.length;
 
+    setCurrentUserProfileData({
+        ...user,
+        postsCount: postsLength,
+        followersCount: followersLength,
+        followingCount: followingLength
+    });
 
-  useEffect(() => { 
-    if(currentUserProfileData && !isLoadingProfile){ // Ensure not to run on initial load if data is null
-        setCurrentUserProfileData(prev => prev ? ({
-            ...prev,
-            postsCount: myProfilePosts.length,
-            followersCount: followers.length,
-            followingCount: following.length,
-        }): null);
-    }
-  }, [myProfilePosts, followers, following, isLoadingProfile, currentUserProfileData]);
+    setIsLoadingProfile(false);
+  }, [router, toast]); // router and toast are stable dependencies
 
 
   const handleAvatarChange = (newAvatarUrl: string) => {
@@ -149,7 +128,7 @@ export default function ProfilePage() {
     if (type === 'followers') {
       setModalUsers(followers);
       setModalTitle("Followers");
-      setModalActionButtonLabel("View Profile"); 
+      setModalActionButtonLabel("View Profile");
     } else {
       setModalUsers(following);
       setModalTitle("Following");
@@ -165,10 +144,15 @@ export default function ProfilePage() {
       const currentFollowingIds = getInitialFollowingIds();
       const updatedFollowingIds = currentFollowingIds.filter(id => id !== userId);
       updateFollowingIds(updatedFollowingIds);
-      refreshFollowCountsAndLists(); 
+
+      const user = getKathaExplorerUser();
+      const newFollowingList = allMockUsers.filter(u => updatedFollowingIds.includes(u.id) && u.id !== user.id);
+      setFollowing(mapMockUsersToProfileModalUsers(newFollowingList));
+      setCurrentUserProfileData(prev => prev ? ({ ...prev, followingCount: newFollowingList.length }) : null);
+
       toast({ title: "User Unfollowed", description: "You are no longer following this user." });
     }
-    setModalOpenFor(null); 
+    setModalOpenFor(null);
   };
 
   const handleDeleteMyPost = (postId: string) => {
@@ -176,7 +160,7 @@ export default function ProfilePage() {
     setMyProfilePosts(updatedPosts);
     if (typeof window !== 'undefined') localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(updatedPosts));
     setCurrentUserProfileData(prev => prev ? ({ ...prev, postsCount: updatedPosts.length }) : null);
-    
+
     try {
         const socialFeedRaw = typeof window !== 'undefined' ? localStorage.getItem(SOCIAL_FEED_POSTS_STORAGE_KEY) : null;
         if (socialFeedRaw) {
@@ -191,7 +175,7 @@ export default function ProfilePage() {
   };
 
   const handleUpdateMyPostComments = (postId: string, updatedComments: FeedItemComment[]) => {
-    const updatedPosts = myProfilePosts.map(post => 
+    const updatedPosts = myProfilePosts.map(post =>
       post.id === postId ? { ...post, comments: updatedComments } : post
     );
     setMyProfilePosts(updatedPosts);
@@ -208,7 +192,7 @@ export default function ProfilePage() {
         console.error("Error updating comments in social feed localStorage", e);
     }
   };
-  
+
   const handleLogout = () => {
     setLoggedInStatus(false);
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
@@ -251,7 +235,7 @@ const readingProgress = [
 
       <Tabs defaultValue="my-posts" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-           <TabsTrigger value="my-posts" onClick={loadUserPosts}> 
+           <TabsTrigger value="my-posts">
             <Edit2 className="mr-2 h-4 w-4" /> My Posts
           </TabsTrigger>
           <TabsTrigger value="reading-progress">
@@ -263,16 +247,16 @@ const readingProgress = [
             <h2 className="text-2xl font-headline text-primary" id="my-posts-section">My Posts</h2>
             {myProfilePosts.length > 0 ? (
               myProfilePosts.map(post => (
-                <FeedItemCard 
-                  key={post.id} 
-                  {...post} 
+                <FeedItemCard
+                  key={post.id}
+                  {...post}
                   onDeletePost={handleDeleteMyPost}
                   onUpdateComments={handleUpdateMyPostComments}
-                  isFullView={true} 
-                  currentUserName={currentUserProfileData.name} 
+                  isFullView={true}
+                  currentUserName={currentUserProfileData.name}
                   currentUserId={currentUserProfileData.id}
                 />
-              )) 
+              ))
             ) : (
               <p className="text-muted-foreground font-body">You haven't made any posts yet. Create one in the Community Feed!</p>
             )}
