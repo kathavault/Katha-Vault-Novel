@@ -19,7 +19,7 @@ import {
 import { NovelForm } from '@/components/novel-form';
 import {
   getNovelsFromStorage, saveNovelsToStorage, type Novel,
-  allMockUsers, type MockUser, CURRENT_USER_ID,
+  allMockUsers, type MockUser,
   getSocialFeedPostsFromStorage, type FeedItemCardProps, type FeedItemComment, SOCIAL_FEED_POSTS_STORAGE_KEY, USER_POSTS_STORAGE_KEY,
   getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment,
   getKathaExplorerUser,
@@ -27,7 +27,7 @@ import {
   KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID,
   isUserLoggedIn, isUserAdmin 
 } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter, Loader2, CheckCircle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter, Loader2, CheckCircle, FileText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -221,12 +221,12 @@ export default function AdminPage() {
   const filteredUsers = useMemo(() => {
     let results = [...users]; 
 
-    if (adminUser && adminUser.id === CURRENT_USER_ID) {
-      const isAdminKritikaImpersonator = adminUser.email === KRITIKA_EMAIL && CURRENT_USER_ID !== KRITIKA_USER_ID;
-      const isAdminOwnerImpersonator = adminUser.email === KATHAVAULT_OWNER_EMAIL && CURRENT_USER_ID !== KATHAVAULT_OWNER_USER_ID;
+    if (adminUser && adminUser.id === getCurrentUserId()) {
+      const isAdminKritikaImpersonator = adminUser.email === KRITIKA_EMAIL && getCurrentUserId() !== KRITIKA_USER_ID;
+      const isAdminOwnerImpersonator = adminUser.email === KATHAVAULT_OWNER_EMAIL && getCurrentUserId() !== KATHAVAULT_OWNER_USER_ID;
 
       if (isAdminKritikaImpersonator || isAdminOwnerImpersonator) {
-        results = results.filter(u => u.id !== CURRENT_USER_ID);
+        results = results.filter(u => u.id !== getCurrentUserId());
       }
     }
     
@@ -265,6 +265,7 @@ export default function AdminPage() {
         const mockUserToUpdateInAll = allMockUsers.find(u => u.id === userIdToToggle);
         if (mockUserToUpdateInAll) {
             mockUserToUpdateInAll.isActive = changedUser.isActive; 
+            saveKathaExplorerUser(changedUser); // Persist the change
             toast({ title: "User Status Updated", description: `${changedUser.name} is now ${changedUser.isActive ? "Active" : "Deactivated"}.` });
         }
     }
@@ -403,10 +404,11 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="novels" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4">
           <TabsTrigger value="novels"><BookText className="mr-2 h-5 w-5" />Manage Novels</TabsTrigger>
           <TabsTrigger value="comments"><MessageSquareText className="mr-2 h-5 w-5" />Manage Comments</TabsTrigger>
           <TabsTrigger value="users"><Users className="mr-2 h-5 w-5" />Manage Users</TabsTrigger>
+          <TabsTrigger value="site-content"><FileText className="mr-2 h-5 w-5" />Site Content</TabsTrigger>
         </TabsList>
 
         <TabsContent value="novels" className="mt-6">
@@ -593,6 +595,23 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="site-content" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl text-primary flex items-center"><FileText className="mr-3 h-6 w-6" /> Site Content Management</CardTitle>
+              <CardDescription>Manage various content sections of your website.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <Button asChild variant="outline" className="w-full sm:w-auto justify-start text-left">
+                <Link href="/admin/about-editor" className="flex items-center w-full">
+                  <FileText className="mr-2 h-5 w-5 text-primary" />
+                  Edit "About Us" Page Content
+                </Link>
+              </Button>
+              {/* Add more links to other content editors here if needed */}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
 
@@ -612,6 +631,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-
-    

@@ -1,16 +1,15 @@
 
-"use client"; // Add "use client"
+"use client"; 
 
 import Link from 'next/link';
 import { Home, Library, PlusSquare, MessageCircle, UserCircle, LogIn, Info } from 'lucide-react';
-import { useState, useEffect } from 'react'; // Import hooks
-import { isUserLoggedIn } from '@/lib/mock-data'; // Import isUserLoggedIn
+import { useState, useEffect } from 'react'; 
+import { isUserLoggedIn } from '@/lib/mock-data'; 
 
 export function Footer() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    // This effect runs only on the client after hydration
     setLoggedIn(isUserLoggedIn());
 
     const handleStorageChange = () => {
@@ -32,19 +31,16 @@ export function Footer() {
     ? { href: '/profile', label: 'Account', icon: <UserCircle size={24} />, requiresLogin: true }
     : { href: '/login', label: 'Login', icon: <LogIn size={24} />, requiresLogin: false };
 
-  const aboutNavItem = { href: '/about', label: 'About', icon: <Info size={24} />, requiresLogin: false };
+  // About Nav Item (can be used if space allows, or in main menu)
+  // const aboutNavItem = { href: '/about', label: 'About', icon: <Info size={24} />, requiresLogin: false };
 
-  // Construct the final list of nav items for the mobile footer
-  // For a typical mobile footer with limited space, we might select specific items.
-  // Here, I'm adding 'About' and then 'Account/Login'
+  // Mobile Footer: Home, Library, Post, Chat, Account (or Login)
   const mobileFooterNavItems = [
     footerNavItemsBase[0], // Home
     footerNavItemsBase[1], // Library
     footerNavItemsBase[2], // Post
-    // If space is very tight, we might omit 'Chat' or 'About' from here
-    // but let's include 'About' and then the account/login
-    aboutNavItem,
-    accountNavItem
+    footerNavItemsBase[3], // Chat
+    accountNavItem         // Account or Login
   ];
 
 
@@ -71,7 +67,6 @@ export function Footer() {
             <h3 className="font-semibold text-foreground mb-3">Connect</h3>
             <nav className="space-y-2">
               <Link href="/chat" className="block hover:text-primary transition-colors">Chat</Link>
-              {/* Add social media links here if applicable */}
             </nav>
           </div>
           <div>
@@ -96,7 +91,6 @@ export function Footer() {
         © {new Date().getFullYear()} Katha Vault. All rights reserved.
       </div>
 
-      {/* Mobile Bottom Bar */}
       <footer className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-40 lg:hidden">
         <div className="container mx-auto px-2 sm:px-4">
           <nav className="flex justify-around items-center h-16">

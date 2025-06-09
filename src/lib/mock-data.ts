@@ -99,6 +99,26 @@ export interface StoredChapterComment {
   chapterTitleAdmin?: string;
 }
 
+export interface AboutPageContent {
+  headerTitle: string;
+  headerSubtitle: string;
+  headerParagraph: string;
+  missionTitle: string;
+  missionParagraph: string;
+  visionariesTitle: string;
+  visionariesSubtitle: string;
+  vikasName: string;
+  vikasRole: string;
+  vikasBio: string;
+  vikasImageHint: string;
+  kritikaName: string;
+  kritikaRole: string;
+  kritikaBio: string;
+  kritikaImageHint: string;
+  journeyTitle: string;
+  journeyParagraph: string;
+}
+
 
 export const KRITIKA_EMAIL = "rajputkritika510@gmail.com";
 export const KATHAVAULT_OWNER_EMAIL = "kathavault@gmail.com";
@@ -131,6 +151,8 @@ export const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 export const KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY = 'kathaVaultStoredChapterComments';
 export const KATHA_VAULT_BLOCKED_USER_IDS_KEY = 'kathaVaultBlockedUserIds';
 const KATHA_VAULT_CURRENT_USER_PROFILE_KEY = 'kathaVaultCurrentUserProfile';
+export const ABOUT_US_CONTENT_STORAGE_KEY = 'kathaVaultAboutUsContent';
+
 
 export const defaultKathaExplorerUser: MockUser = {
   id: 'default_user_placeholder_id', 
@@ -165,8 +187,8 @@ export const setLoggedInStatus = (status: boolean, user?: { uid: string; email: 
       username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || defaultKathaExplorerUser.username,
       avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
       avatarFallback: (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase(),
-      isActive: true,
-      signInMethod: user.photoURL ? "google" : "email", // Basic assumption
+      isActive: true, // Default to active on new login/signup
+      signInMethod: user.photoURL ? "google" : "email",
     };
     const lowerCaseUserEmail = user.email?.toLowerCase();
     if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
@@ -174,6 +196,7 @@ export const setLoggedInStatus = (status: boolean, user?: { uid: string; email: 
       profileToStore.name = specialInfo.fixedName;
       profileToStore.username = specialInfo.fixedUsername;
       profileToStore.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
+      profileToStore.isActive = true; // Special accounts always active
     }
     localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(profileToStore));
   } else if (!status) {
@@ -211,17 +234,16 @@ export const getKathaExplorerUser = (): MockUser => {
       }
     }
 
-    // Prioritize Firebase Auth data, then localStorage, then defaults
     let finalProfile: MockUser = {
-      ...defaultKathaExplorerUser, // Base defaults
-      ...profileFromStorage,       // Overwrite with localStorage if available
-      id: firebaseUser.uid,        // Firebase UID is authoritative
-      email: firebaseUser.email,   // Firebase email is authoritative
+      ...defaultKathaExplorerUser, 
+      ...profileFromStorage,       
+      id: firebaseUser.uid,        
+      email: firebaseUser.email,   
       name: firebaseUser.displayName || profileFromStorage.name || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name,
       username: profileFromStorage.username || firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username,
       avatarUrl: firebaseUser.photoURL || profileFromStorage.avatarUrl || defaultKathaExplorerUser.avatarUrl,
       avatarFallback: (firebaseUser.displayName || profileFromStorage.name || firebaseUser.email || 'KU').substring(0, 2).toUpperCase(),
-      isActive: profileFromStorage.isActive !== undefined ? profileFromStorage.isActive : true, // Default to active if not set
+      isActive: profileFromStorage.isActive !== undefined ? profileFromStorage.isActive : true, 
       signInMethod: profileFromStorage.signInMethod || (firebaseUser.providerData.some(p => p.providerId === 'google.com') ? 'google' : 'email'),
     };
     
@@ -231,9 +253,9 @@ export const getKathaExplorerUser = (): MockUser => {
       finalProfile.name = specialInfo.fixedName;
       finalProfile.username = specialInfo.fixedUsername;
       finalProfile.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-      finalProfile.isActive = true; // Special accounts are always active
+      finalProfile.isActive = true; 
     }
-    // Save the potentially updated profile back to localStorage
+    
     localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(finalProfile));
     localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, 'true');
     return finalProfile;
@@ -250,19 +272,17 @@ export const saveKathaExplorerUser = async (userData: MockUser): Promise<void> =
     const firebaseUser = auth?.currentUser;
     if (firebaseUser && userData.id === firebaseUser.uid) {
       let dataToSave = { ...userData };
-      dataToSave.email = firebaseUser.email; // Ensure email is from Firebase
-      dataToSave.id = firebaseUser.uid;     // Ensure ID is from Firebase
+      dataToSave.email = firebaseUser.email; 
+      dataToSave.id = firebaseUser.uid;     
 
       if (dataToSave.email?.toLowerCase() === KRITIKA_EMAIL.toLowerCase() || dataToSave.email?.toLowerCase() === KATHAVAULT_OWNER_EMAIL.toLowerCase()) {
-          dataToSave.isActive = true; // Admins cannot be deactivated this way
+          dataToSave.isActive = true; 
       }
       
       localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(dataToSave));
       
-      // Also save to Firestore
       try {
         const userDocRef = doc(db, "users", firebaseUser.uid);
-        // Only update fields that are typically user-editable, don't overwrite uid, email, createdAt, signInMethod from profile form
         const { id, email, createdAt, signInMethod, ...profileUpdates } = dataToSave;
         await setDoc(userDocRef, profileUpdates, { merge: true });
       } catch (error) {
@@ -494,13 +514,11 @@ export const getAllUniqueGenres = (novels: Novel[]): string[] => {
 
 
 export const isUserActive = (userIdToCheck?: string | null): boolean => {
-  if (typeof window === 'undefined') return true; // Default to true on server
+  if (typeof window === 'undefined') return true; 
 
-  const loggedInUser = getKathaExplorerUser(); // This might fetch from localStorage
+  const loggedInUser = getKathaExplorerUser(); 
   
-  // If checking the currently logged-in user
   if (!userIdToCheck || userIdToCheck === loggedInUser.id) {
-    // If it's a special admin email, always active
     const lowerCaseUserEmail = loggedInUser.email?.toLowerCase();
     if (lowerCaseUserEmail && (lowerCaseUserEmail === KRITIKA_EMAIL.toLowerCase() || lowerCaseUserEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
         return true;
@@ -508,17 +526,15 @@ export const isUserActive = (userIdToCheck?: string | null): boolean => {
     return loggedInUser.isActive;
   }
 
-  // If checking another user from the mock list
   const userInMockList = allMockUsers.find(u => u.id === userIdToCheck);
   if (userInMockList) {
       const lowerCaseUserEmail = userInMockList.email?.toLowerCase();
       if (lowerCaseUserEmail && (lowerCaseUserEmail === KRITIKA_EMAIL.toLowerCase() || lowerCaseUserEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
-          return true; // Special admins from mock list are always active
+          return true; 
       }
       return userInMockList.isActive;
   }
   
-  // Fallback for users not in mock list and not current user
   return false; 
 };
 
@@ -622,26 +638,55 @@ export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
     return [];
 };
 
-// Function to ensure Firestore has user profiles for all mock users (run once, or on demand for dev)
 export const ensureMockUserProfilesInFirestore = async () => {
     if (typeof window === 'undefined' || !db) return;
     console.log("Attempting to ensure mock user profiles in Firestore (dev utility)...");
 
     for (const mockUser of allMockUsers) {
-        // For mock users, we can't use their mock ID as Firebase UID.
-        // This function is more conceptual for a dev setup where you might pre-populate.
-        // For this app, user documents are created on actual Firebase Auth signup/Google Sign-In.
-        // So, this function as-is won't directly work to create Firestore docs for `allMockUsers`
+        // This function as-is won't directly work to create Firestore docs for `allMockUsers`
         // unless they've actually signed up/in through Firebase.
-
-        // If you had a way to map mockUser.id to a Firebase UID, or if you were creating
-        // them with specific UIDs (not recommended for real users), then you could use:
-        // const userDocRef = doc(db, "users", mockUser.firebaseUid); // Assuming mockUser has a firebaseUid
-        // const userDocSnap = await getDoc(userDocRef);
-        // if (!userDocSnap.exists()) {
-        //   await setDoc(userDocRef, { ...mockUser });
-        //   console.log(`Created Firestore profile for ${mockUser.name}`);
-        // }
     }
      console.log("Mock user profile check finished. Documents are created upon actual user signup/login via Firebase Auth.");
+};
+
+const defaultAboutUsContent: AboutPageContent = {
+  headerTitle: "Welcome to Katha Vault",
+  headerSubtitle: "Where every story finds its voice, and every reader discovers a new world.",
+  headerParagraph: "Katha Vault is a vibrant sanctuary dedicated to the art of storytelling. We are a platform built for authors to weave their original tales, from sweeping novels to captivating short stories, and for readers to immerse themselves in an ever-expanding universe of narratives. Our core belief is in the boundless power of stories to connect, inspire, and transform.",
+  missionTitle: "Our Mission",
+  missionParagraph: "At Katha Vault, we are driven by a singular, passionate mission: to cultivate a nurturing and dynamic space where writers can confidently share their original novels and narratives with a global audience. We strive to connect readers with a diverse tapestry of voices and genres, fostering a community where imagination thrives, creativity is celebrated, and the magic of storytelling unites us all in shared wonder.",
+  visionariesTitle: "Meet Our Visionaries",
+  visionariesSubtitle: "The driving force behind Katha Vault's narrative dream.",
+  vikasName: "Vikas Kumar",
+  vikasRole: "Founder & Owner",
+  vikasBio: "Vikas is the architect of Katha Vault, driven by a profound love for stories and a vision to create a haven for storytellers and readers. With his passion for technology and a deep respect for the narrative arts, he laid the groundwork for a platform where every story, big or small, can find its stage and connect hearts across the globe.",
+  vikasImageHint: "male portrait professional",
+  kritikaName: "Kritika",
+  kritikaRole: "Founder, Owner & CEO",
+  kritikaBio: "Kritika leads Katha Vault with strategic insight and an unwavering commitment to nurturing a vibrant and supportive community. Her dedication to empowering authors in sharing their unique novels and delighting readers with endless discovery fuels the platform's continuous growth and its mission to celebrate the storyteller in everyone.",
+  kritikaImageHint: "female portrait professional",
+  journeyTitle: "Embark on Your Storytelling Journey",
+  journeyParagraph: "Whether you're here to pen your next bestseller, discover your new favorite novel, or simply connect with fellow story enthusiasts, we're thrilled to welcome you to the Katha Vault family. Let's build a universe of unforgettable stories, together!"
+};
+
+export const getAboutUsContent = (): AboutPageContent => {
+  if (typeof window !== 'undefined') {
+    const storedContent = localStorage.getItem(ABOUT_US_CONTENT_STORAGE_KEY);
+    if (storedContent) {
+      try {
+        return JSON.parse(storedContent) as AboutPageContent;
+      } catch (e) {
+        console.error("Error parsing About Us content from localStorage", e);
+      }
+    }
+    localStorage.setItem(ABOUT_US_CONTENT_STORAGE_KEY, JSON.stringify(defaultAboutUsContent));
+    return defaultAboutUsContent;
+  }
+  return defaultAboutUsContent;
+};
+
+export const saveAboutUsContent = (content: AboutPageContent): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(ABOUT_US_CONTENT_STORAGE_KEY, JSON.stringify(content));
+  }
 };
