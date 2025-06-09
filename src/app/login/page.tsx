@@ -44,6 +44,11 @@ function LoginPageContent() {
     }
     setIsSubmitting(true);
     try {
+      if (!auth || !db) {
+        toast({ title: "Initialization Error", description: "Firebase services are not available. Please try again later.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
@@ -52,15 +57,10 @@ function LoginPageContent() {
 
       let displayNameForProfile = user.displayName || email.split('@')[0] || defaultKathaExplorerUser.name;
       let photoURLForProfile = user.photoURL;
-      // let existingProfileData: Partial<MockUser> = {}; // Not strictly needed here for login if getKathaExplorerUser handles overrides
-
+      
       if (userDocSnap.exists()) {
-        // existingProfileData = userDocSnap.data() as MockUser; // Get existing data if needed for comparison
-        // displayNameForProfile = existingProfileData.name || displayNameForProfile; // Prefer Firestore name
-        // photoURLForProfile = existingProfileData.avatarUrl || photoURLForProfile; // Prefer Firestore avatar
+        // Data already exists, will be merged/handled by getKathaExplorerUser and setLoggedInStatus logic
       } else {
-         // This block should ideally not be hit often on login, profile should exist.
-         // For robustness, create a basic profile if it's somehow missing.
          let profileName = user.displayName || user.email?.split('@')[0] || `User ${user.uid.substring(0,6)}`;
          let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
          
@@ -82,9 +82,8 @@ function LoginPageContent() {
          photoURLForProfile = user.photoURL;
       }
       
-      // setLoggedInStatus will store this basic info, getKathaExplorerUser will apply special admin names if applicable
       setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: displayNameForProfile, photoURL: photoURLForProfile }, 'login');
-      const finalDisplayUser = getKathaExplorerUser(); // Get potentially overridden name for toast
+      const finalDisplayUser = getKathaExplorerUser(); 
 
       toast({ title: "Login Successful!", description: `Welcome back, ${finalDisplayUser.name}!` });
       
@@ -113,13 +112,18 @@ function LoginPageContent() {
     setIsGoogleSubmitting(true);
     const provider = new GoogleAuthProvider();
     try {
+      if (!auth || !db) {
+        toast({ title: "Initialization Error", description: "Firebase services are not available. Please try again later.", variant: "destructive" });
+        setIsGoogleSubmitting(false);
+        return;
+      }
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       const userEmail = user.email?.toLowerCase();
 
       if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
         setIsGoogleSubmitting(false);
-        if (auth.currentUser) { // Ensure user is signed in before signing out
+        if (auth.currentUser) { 
             await signOut(auth);
         }
         toast({
@@ -157,9 +161,9 @@ function LoginPageContent() {
             name: profileName, 
             avatarUrl: user.photoURL || existingData.avatarUrl,
             avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-            signInMethod: existingData.signInMethod || "google", // Preserve existing sign-in method if user used email before
+            signInMethod: existingData.signInMethod || "google", 
         };
-        if (existingData.signInMethod !== "google" && !existingData.signInMethod) { // if signInMethod was not set, set it
+        if (existingData.signInMethod !== "google" && !existingData.signInMethod) { 
             updateData.signInMethod = "google";
         }
         await setDoc(userDocRef, updateData, { merge: true });
@@ -202,6 +206,11 @@ function LoginPageContent() {
 
     setIsSubmitting(true); 
     try {
+        if (!auth) {
+            toast({ title: "Initialization Error", description: "Firebase services are not available. Please try again later.", variant: "destructive" });
+            setIsSubmitting(false);
+            return;
+        }
         await sendPasswordResetEmail(auth, emailToReset);
         toast({ title: "Password Reset Email Sent", description: `If an account exists for ${emailToReset}, you will receive an email with instructions.` });
     } catch (error: any) {
