@@ -1,4 +1,7 @@
 
+import { auth } from '@/lib/firebase'; // Import Firebase auth
+import { signOut } from 'firebase/auth';
+
 export interface Chapter {
   id: string;
   title: string;
@@ -6,23 +9,25 @@ export interface Chapter {
 }
 
 export interface MockUser {
-  id: string;
+  id: string; // This will be Firebase UID
   name: string;
   username: string;
   avatarUrl: string;
   avatarFallback: string;
   dataAiHint?: string;
   bio?: string;
-  email?: string;
+  email?: string | null; // Firebase email can be null
   emailVisible?: boolean;
   gender?: string;
   isActive: boolean;
+  createdAt?: string; // Added for Firestore user doc
 }
 
 export interface Novel {
   id: string;
   title: string;
-  author: string;
+  author: string; // Could be author's name or UID
+  authorId?: string; // Store Firebase UID of author
   genres: string[];
   snippet: string;
   status: 'draft' | 'published';
@@ -91,7 +96,9 @@ export interface StoredChapterComment {
   chapterTitleAdmin?: string;
 }
 
-export const CURRENT_USER_ID = 'user_ke';
+// CURRENT_USER_ID will now be dynamically fetched from auth.currentUser.uid
+// export const CURRENT_USER_ID = 'user_ke'; // This will be deprecated
+
 export const KRITIKA_EMAIL = "rajputkritika510@gmail.com";
 export const KATHAVAULT_OWNER_EMAIL = "kathavault@gmail.com";
 const KATHA_VAULT_IS_LOGGED_IN_KEY = 'kathaVaultIsLoggedIn';
@@ -101,15 +108,16 @@ export const SPECIAL_ACCOUNT_DETAILS: Record<string, { fixedName: string; fixedU
   [KRITIKA_EMAIL]: {
     fixedName: "Kritika ✨ (CEO)",
     fixedUsername: "Kritikasignh",
-    idInAllUsers: 'user_kritika_ceo',
+    idInAllUsers: 'user_kritika_ceo', // This mock ID is for local 'allMockUsers' array, not Firebase UID
   },
   [KATHAVAULT_OWNER_EMAIL]: {
     fixedName: "Katha Vault Owner ✨",
     fixedUsername: "kathavault",
-    idInAllUsers: 'user_katha_owner',
+    idInAllUsers: 'user_katha_owner', // This mock ID is for local 'allMockUsers' array
   }
 };
 
+// These mock IDs are for the `allMockUsers` array. Real admin checks will use email.
 export const KRITIKA_USER_ID = SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].idInAllUsers;
 export const KATHAVAULT_OWNER_USER_ID = SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].idInAllUsers;
 
@@ -123,16 +131,16 @@ export const KATHA_VAULT_STORED_CHAPTER_COMMENTS_KEY = 'kathaVaultStoredChapterC
 export const KATHA_VAULT_BLOCKED_USER_IDS_KEY = 'kathaVaultBlockedUserIds';
 const KATHA_VAULT_CURRENT_USER_PROFILE_KEY = 'kathaVaultCurrentUserProfile';
 
-const defaultKathaExplorerUser: MockUser = {
-  id: CURRENT_USER_ID,
-  name: 'Katha Explorer',
-  username: 'katha_explorer',
+export const defaultKathaExplorerUser: MockUser = {
+  id: 'default_user_placeholder_id', // Placeholder, actual ID will be Firebase UID
+  name: 'Katha User',
+  username: 'katha_user',
   avatarUrl: 'https://placehold.co/128x128.png',
-  avatarFallback: 'KE',
-  dataAiHint: 'person explorer',
-  bio: 'Avid reader and aspiring writer. Exploring worlds one story at a time.',
-  email: 'katha.explorer@example.com', // Default non-logged-in email
-  emailVisible: true,
+  avatarFallback: 'KU',
+  dataAiHint: 'person anonymous',
+  bio: 'Exploring the world of stories on Katha Vault.',
+  email: null,
+  emailVisible: false,
   gender: 'Prefer not to say',
   isActive: true,
 };
@@ -140,15 +148,42 @@ const defaultKathaExplorerUser: MockUser = {
 export const isUserLoggedIn = (): boolean => {
   if (typeof window === 'undefined') return false;
   const loggedInStatus = localStorage.getItem(KATHA_VAULT_IS_LOGGED_IN_KEY);
-  return loggedInStatus === 'true';
+  return loggedInStatus === 'true' && auth?.currentUser !== null;
 };
 
-export const setLoggedInStatus = (status: boolean): void => {
+export const setLoggedInStatus = (status: boolean, user?: { uid: string; email: string | null; displayName?: string | null }): void => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, String(status));
-    if (!status) {
-      // If logging out, reset current user profile to default to prevent previous user's data lingering
-      localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(defaultKathaExplorerUser));
+    if (status && user) {
+      const profileToStore: MockUser = {
+        ...defaultKathaExplorerUser, // Start with defaults
+        id: user.uid,
+        email: user.email,
+        name: user.displayName || user.email?.split('@')[0] || defaultKathaExplorerUser.name,
+        username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || defaultKathaExplorerUser.username,
+        avatarFallback: (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase(),
+        isActive: true, // Assume active on login/signup
+      };
+       // Check if it's a special admin email and update name/username if they are generic
+      const lowerCaseUserEmail = user.email?.toLowerCase();
+      if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
+        const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+        if (profileToStore.name === defaultKathaExplorerUser.name || profileToStore.name === user.email?.split('@')[0]) {
+            profileToStore.name = specialInfo.fixedName;
+        }
+        if (profileToStore.username === defaultKathaExplorerUser.username || profileToStore.username === user.email?.split('@')[0]) {
+            profileToStore.username = specialInfo.fixedUsername;
+        }
+        profileToStore.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
+      }
+      localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(profileToStore));
+    } else if (!status) {
+      // Logout
+      if (auth) {
+        signOut(auth).catch(error => console.error("Error signing out from Firebase:", error));
+      }
+      localStorage.removeItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY);
+      localStorage.removeItem(KATHA_VAULT_IS_LOGGED_IN_KEY); // Explicitly remove login flag
     }
   }
 };
@@ -156,102 +191,112 @@ export const setLoggedInStatus = (status: boolean): void => {
 export const isUserAdmin = (): boolean => {
   if (typeof window === 'undefined') return false;
   if (!isUserLoggedIn()) return false;
-  const currentUser = getKathaExplorerUser();
-  return currentUser.email === KRITIKA_EMAIL || currentUser.email === KATHAVAULT_OWNER_EMAIL;
+  const currentUser = auth?.currentUser;
+  if (!currentUser || !currentUser.email) return false;
+  return currentUser.email.toLowerCase() === KRITIKA_EMAIL.toLowerCase() || currentUser.email.toLowerCase() === KATHAVAULT_OWNER_EMAIL.toLowerCase();
 };
 
 
 export const getKathaExplorerUser = (): MockUser => {
-  let profileToReturn = { ...defaultKathaExplorerUser };
-  if (typeof window !== 'undefined') {
+  if (typeof window === 'undefined') {
+    return { ...defaultKathaExplorerUser, id: 'server_side_placeholder_uid' };
+  }
+
+  const firebaseUser = auth?.currentUser;
+  if (firebaseUser) {
     const storedProfile = localStorage.getItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY);
     if (storedProfile) {
       try {
         const parsedProfile = JSON.parse(storedProfile) as MockUser;
-        profileToReturn = {
-          ...defaultKathaExplorerUser, // Start with defaults
-          ...parsedProfile,            // Override with stored values
-          id: CURRENT_USER_ID,         // Ensure ID is always CURRENT_USER_ID
-          isActive: parsedProfile.isActive !== undefined ? parsedProfile.isActive : defaultKathaExplorerUser.isActive,
-        };
+        if (parsedProfile.id === firebaseUser.uid) {
+          let finalProfile = {
+            ...defaultKathaExplorerUser,
+            ...parsedProfile,
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+          };
+          const lowerCaseUserEmail = firebaseUser.email?.toLowerCase();
+          if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
+            const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+            if (finalProfile.name === defaultKathaExplorerUser.name || finalProfile.name === firebaseUser.email?.split('@')[0]) {
+                finalProfile.name = specialInfo.fixedName;
+            }
+             if (finalProfile.username === defaultKathaExplorerUser.username || finalProfile.username === firebaseUser.email?.split('@')[0]) {
+                finalProfile.username = specialInfo.fixedUsername;
+            }
+            finalProfile.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
+            finalProfile.isActive = true;
+          }
+          return finalProfile;
+        }
       } catch (e) {
         console.error("Error parsing current user profile from localStorage", e);
-        localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(defaultKathaExplorerUser));
-        profileToReturn = { ...defaultKathaExplorerUser };
       }
-    } else {
-      localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(defaultKathaExplorerUser));
-      profileToReturn = { ...defaultKathaExplorerUser };
     }
+    let name = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name;
+    let username = firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username;
+    let avatarFallback = (firebaseUser.displayName || firebaseUser.email || 'KU').substring(0, 2).toUpperCase();
+    let isActive = true;
+
+    const lowerCaseUserEmail = firebaseUser.email?.toLowerCase();
+    if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
+        const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+        name = specialInfo.fixedName;
+        username = specialInfo.fixedUsername;
+        avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
+    }
+
+    const profileFromAuth: MockUser = {
+      ...defaultKathaExplorerUser,
+      id: firebaseUser.uid,
+      email: firebaseUser.email,
+      name: name,
+      username: username,
+      avatarFallback: avatarFallback,
+      isActive: isActive,
+    };
+    localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(profileFromAuth));
+    localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, 'true');
+    return profileFromAuth;
   }
 
-  // Ensure special admin accounts are always active. Name/username are editable.
-  if (profileToReturn.email === KRITIKA_EMAIL || profileToReturn.email === KATHAVAULT_OWNER_EMAIL) {
-    profileToReturn.isActive = true;
-  }
-  return profileToReturn;
+  localStorage.removeItem(KATHA_VAULT_IS_LOGGED_IN_KEY);
+  localStorage.removeItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY);
+  return { ...defaultKathaExplorerUser };
 };
 
 
 export const saveKathaExplorerUser = (userData: MockUser): void => {
   if (typeof window !== 'undefined') {
-    let dataToSave = { ...userData, id: CURRENT_USER_ID }; 
-    if (dataToSave.email === KRITIKA_EMAIL || dataToSave.email === KATHAVAULT_OWNER_EMAIL) {
-        dataToSave.isActive = true;
+    const firebaseUser = auth?.currentUser;
+    if (firebaseUser && userData.id === firebaseUser.uid) {
+      let dataToSave = { ...userData };
+      dataToSave.email = firebaseUser.email;
+      dataToSave.id = firebaseUser.uid;
+
+      if (dataToSave.email?.toLowerCase() === KRITIKA_EMAIL.toLowerCase() || dataToSave.email?.toLowerCase() === KATHAVAULT_OWNER_EMAIL.toLowerCase()) {
+          dataToSave.isActive = true;
+      }
+      localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(dataToSave));
+    } else {
+      console.warn("Attempted to save user data for a non-matching or non-existent Firebase user.");
     }
-    localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(dataToSave));
   }
 };
 
-
-export const updateCurrentLoggedInUser = (loggedInEmail: string): void => {
-  let currentUser = getKathaExplorerUser();
-  const lowerCaseLoggedInEmail = loggedInEmail.toLowerCase();
-
-  let newName = currentUser.name;
-  let newUsername = currentUser.username;
-  let newIsActive = true; 
-
-  const specialAccountInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseLoggedInEmail];
-
-  if (specialAccountInfo) {
-    // If current name is default or generic, update to special name. Otherwise, keep custom name.
-    if ([defaultKathaExplorerUser.name, "Katha User"].includes(currentUser.name)) {
-      newName = specialAccountInfo.fixedName;
+export const CURRENT_USER_NAME = (): string => getKathaExplorerUser().name;
+export const getCurrentUserId = (): string | null => {
+    if (typeof window !== 'undefined' && auth?.currentUser) {
+        return auth.currentUser.uid;
     }
-    // If current username is default or generic, update to special username. Otherwise, keep custom username.
-    const genericUsernames = [defaultKathaExplorerUser.username, "katha_user", loggedInEmail.split('@')[0]];
-    if (genericUsernames.includes(currentUser.username)) {
-      newUsername = specialAccountInfo.fixedUsername;
-    }
-    newIsActive = true;
-  } else {
-    // If logging in with a regular email, but current profile name is a special admin name, reset it.
-    const isCurrentlySpecialName = Object.values(SPECIAL_ACCOUNT_DETAILS).some(details => details.fixedName === currentUser.name);
-    if (isCurrentlySpecialName) {
-       newName = "Katha User"; 
-       newUsername = loggedInEmail.split('@')[0] || "katha_user";
-    }
-  }
-
-  const updatedUser: MockUser = {
-    ...currentUser, 
-    email: loggedInEmail,
-    name: newName,
-    username: newUsername,
-    isActive: newIsActive,
-  };
-  saveKathaExplorerUser(updatedUser);
-  setLoggedInStatus(true); 
+    const localProfile = getKathaExplorerUser();
+    return localProfile.id !== defaultKathaExplorerUser.id ? localProfile.id : null;
 };
-
-export const CURRENT_USER_NAME = () => getKathaExplorerUser().name;
 
 
 export const allMockUsers: MockUser[] = [
-  { ...defaultKathaExplorerUser }, 
-  { id: KRITIKA_USER_ID, name: SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].fixedName, username: SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].fixedUsername, avatarUrl: 'https://placehold.co/128x128.png?text=KR', avatarFallback: 'KR', dataAiHint: 'person ceo', bio: 'CEO of Katha Vault. Passionate about stories and innovation.', email: KRITIKA_EMAIL, emailVisible: true, gender: 'Female', isActive: true },
-  { id: KATHAVAULT_OWNER_USER_ID, name: SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].fixedName, username: SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].fixedUsername, avatarUrl: 'https://placehold.co/128x128.png?text=KV', avatarFallback: 'KV', dataAiHint: 'team logo', bio: 'The official account for Katha Vault.', email: KATHAVAULT_OWNER_EMAIL, emailVisible: true, gender: 'Prefer not to say', isActive: true },
+  { id: 'user_kritika_ceo', name: SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].fixedName, username: SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].fixedUsername, avatarUrl: 'https://placehold.co/128x128.png?text=KR', avatarFallback: 'KR', dataAiHint: 'person ceo', bio: 'CEO of Katha Vault. Passionate about stories and innovation.', email: KRITIKA_EMAIL, emailVisible: true, gender: 'Female', isActive: true },
+  { id: 'user_katha_owner', name: SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].fixedName, username: SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].fixedUsername, avatarUrl: 'https://placehold.co/128x128.png?text=KV', avatarFallback: 'KV', dataAiHint: 'team logo', bio: 'The official account for Katha Vault.', email: KATHAVAULT_OWNER_EMAIL, emailVisible: true, gender: 'Prefer not to say', isActive: true },
   { id: 'user_er', name: 'Elara Reads', username: 'elara_reads', avatarUrl: 'https://placehold.co/128x128.png?text=ER', avatarFallback: 'ER', dataAiHint: 'person reading', bio: 'Lover of all things fantasy and sci-fi. Always looking for the next great adventure.', email: 'elara@example.com', emailVisible: false, gender: 'Female', isActive: true },
   { id: 'user_mw', name: 'Marcus Writes', username: 'marcus_writes', avatarUrl: 'https://placehold.co/128x128.png?text=MW', avatarFallback: 'MW', dataAiHint: 'person writing', bio: 'Aspiring novelist, currently working on a historical fiction piece. Coffee enthusiast.', email: 'marcus@example.com', emailVisible: true, gender: 'Male', isActive: true },
   { id: 'user_sg', name: 'SciFi Guru', username: 'scifi_guru', avatarUrl: 'https://placehold.co/128x128.png?text=SG', avatarFallback: 'SG', dataAiHint: 'person space', bio: 'Exploring the final frontier, one book at a time. Beam me up!', email: 'scifi@example.com', emailVisible: true, gender: 'Prefer not to say', isActive: true },
@@ -260,7 +305,7 @@ export const allMockUsers: MockUser[] = [
   { id: 'user_aa', name: 'Adventure Alex', username: 'adventure_alex', avatarUrl: 'https://placehold.co/128x128.png?text=AA', avatarFallback: 'AA', dataAiHint: 'person adventure', bio: 'Seeking thrills in stories and in life!', email: 'alex@example.com', emailVisible: false, gender: 'Male', isActive: true },
   { id: 'user_rh', name: 'Romance Hannah', username: 'romance_hannah', avatarUrl: 'https://placehold.co/128x128.png?text=RH', avatarFallback: 'RH', dataAiHint: 'person romance', bio: 'Hopeless romantic, give me all the happy endings.', email: 'hannah@example.com', emailVisible: true, gender: 'Female', isActive: true },
   { id: 'user_th', name: 'Thriller Tom', username: 'thriller_tom', avatarUrl: 'https://placehold.co/128x128.png?text=TT', avatarFallback: 'TT', dataAiHint: 'person thriller', bio: 'Always on the edge of my seat. The more suspense, the better!', email: 'tom@example.com', emailVisible: false, gender: 'Male', isActive: true },
-].filter((user, index, self) => index === self.findIndex(u => u.id === user.id)); 
+].filter((user, index, self) => index === self.findIndex(u => u.id === user.id));
 
 
 export const getInitialFollowingIds = (): string[] => {
@@ -274,6 +319,9 @@ export const getInitialFollowingIds = (): string[] => {
         return ['user_er', 'user_mw', 'user_ff'];
       }
     }
+    const defaultFollowing = ['user_er', 'user_mw', 'user_ff'];
+    localStorage.setItem(KATHA_EXPLORER_FOLLOWING_IDS_KEY, JSON.stringify(defaultFollowing));
+    return defaultFollowing;
   }
   return ['user_er', 'user_mw', 'user_ff'];
 };
@@ -286,13 +334,14 @@ export const updateFollowingIds = (newFollowingIds: string[]): void => {
 
 export const getKathaExplorerFollowingList = (): MockUser[] => {
   const followingIds = getInitialFollowingIds();
-  return allMockUsers.filter(user => followingIds.includes(user.id) && user.id !== CURRENT_USER_ID);
+  const currentFirebaseUser = auth?.currentUser;
+  return allMockUsers.filter(user => followingIds.includes(user.id) && user.id !== currentFirebaseUser?.uid);
 };
 
 export const getKathaExplorerFollowersList = (count: number = 3): MockUser[] => {
   const followingIds = getInitialFollowingIds();
-  // Simulate: users who are not the current user and not followed by the current user
-  return allMockUsers.filter(user => user.id !== CURRENT_USER_ID && !followingIds.includes(user.id)).slice(0, count);
+  const currentFirebaseUser = auth?.currentUser;
+  return allMockUsers.filter(user => user.id !== currentFirebaseUser?.uid && !followingIds.includes(user.id)).slice(0, count);
 };
 
 export const getBlockedUserIds = (): string[] => {
@@ -303,17 +352,17 @@ export const getBlockedUserIds = (): string[] => {
         return JSON.parse(storedBlocked);
       } catch (e) {
         console.error("Error parsing blocked user IDs from localStorage", e);
-        const defaultBlocked = ['user_th']; 
+        const defaultBlocked = ['user_th'];
         localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(defaultBlocked));
         return defaultBlocked;
       }
-    } else { 
+    } else {
       const defaultBlocked = ['user_th'];
       localStorage.setItem(KATHA_VAULT_BLOCKED_USER_IDS_KEY, JSON.stringify(defaultBlocked));
       return defaultBlocked;
     }
   }
-  return ['user_th']; 
+  return ['user_th'];
 };
 
 export const addBlockedUserId = (userId: string): void => {
@@ -350,12 +399,12 @@ The narrative builds, adding new layers of intrigue and excitement...
 `;
 
 export const initialMockNovels: Novel[] = [
-  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Eleanor Vance', genres: ['Time Travel', 'Sci-Fi'], status: 'published', snippet: "A time-traveling journey through the eras in search of a missing chronomancer.", coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'time machine', views: 26000, chapters: Array.from({ length: 3 }, (_, i) => ({ id: `chronos-ch-${i+1}`, title: `Chapter ${i+1}: Epoch's Echo`, content: defaultChapterContent("The Whispers of Chronos", i+1, `Chapter ${i+1}: Epoch's Echo`) })), rating: 4.8, homePageFeaturedGenre: 'Sci-Fi' },
-  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Marcus Stone', genres: ['Fantasy', 'Adventure'], status: 'published', snippet: 'Fantasy exploration into ancient rainforest magic.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'jungle temple', views: 18000, chapters: Array.from({ length: 2 }, (_, i) => ({ id: `canopy-ch-${i+1}`, title: `Chapter ${i+1}: Root and Ritual`, content: defaultChapterContent("Beneath the Emerald Canopy", i+1, `Chapter ${i+1}: Root and Ritual`) })), rating: 4.6, homePageFeaturedGenre: 'Fantasy' },
-  { id: 'novel-1', title: 'The Alchemist of Moonhaven', author: 'Seraphina Gold', genres: ['Steampunk', 'Mystery'], status: 'published', snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk city moon', views: 12000, chapters: Array.from({ length: 1 }, (_, i) => ({ id: `moonhaven-ch-${i+1}`, title: `Chapter ${i+1}: Lunar Brews`, content: defaultChapterContent("The Alchemist of Moonhaven", i+1, `Chapter ${i+1}: Lunar Brews`) })), rating: 4.2, homePageFeaturedGenre: null },
-  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Weave', genres: ['Short Story', 'Urban Fantasy'], status: 'published', snippet: 'A short story about a magical tailor who can alter time.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'magic tailor', views: 9600, chapters: [{id: 'stitch-ch-1', title: 'The Golden Thread', content: defaultChapterContent("A Stitch in Time", 1, 'The Golden Thread')}], rating: 4.3, homePageFeaturedGenre: null },
-  { id: 'draft-1', title: 'The Crimson Comet (Draft)', author: 'Jax Orion', genres: ['Sci-Fi', 'Mystery'], status: 'draft', snippet: 'A rogue comet appears, and with it, a series of strange disappearances. (This is a DRAFT novel)', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'comet space mystery', views: 100, chapters: [{id: 'comet-draft-ch-1', title: 'First Sighting', content: defaultChapterContent("The Crimson Comet (Draft)", 1, 'First Sighting')}], rating: 0, homePageFeaturedGenre: null },
-  { id: 'romance-1', title: 'Hearts Entwined by Starlight', author: 'Luna Lovegood', genres: ['Romance', 'Contemporary'], status: 'published', snippet: 'Two astronomers find love while searching for a new constellation.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'couple stars', views: 15000, chapters: Array.from({ length: 20 }, (_, i) => ({ id: `romance1-ch-${i+1}`, title: `Chapter ${i+1}: Celestial Meeting`, content: defaultChapterContent("Hearts Entwined by Starlight", i+1, `Chapter ${i+1}: Celestial Meeting`) })), rating: 4.7, homePageFeaturedGenre: 'Romance' },
+  { id: 'trend-1', title: 'The Whispers of Chronos', author: 'Eleanor Vance', authorId: 'user_ev_mock', genres: ['Time Travel', 'Sci-Fi'], status: 'published', snippet: "A time-traveling journey through the eras in search of a missing chronomancer.", coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'time machine', views: 26000, chapters: Array.from({ length: 3 }, (_, i) => ({ id: `chronos-ch-${i+1}`, title: `Chapter ${i+1}: Epoch's Echo`, content: defaultChapterContent("The Whispers of Chronos", i+1, `Chapter ${i+1}: Epoch's Echo`) })), rating: 4.8, homePageFeaturedGenre: 'Sci-Fi' },
+  { id: 'trend-2', title: 'Beneath the Emerald Canopy', author: 'Marcus Stone', authorId: 'user_ms_mock', genres: ['Fantasy', 'Adventure'], status: 'published', snippet: 'Fantasy exploration into ancient rainforest magic.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'jungle temple', views: 18000, chapters: Array.from({ length: 2 }, (_, i) => ({ id: `canopy-ch-${i+1}`, title: `Chapter ${i+1}: Root and Ritual`, content: defaultChapterContent("Beneath the Emerald Canopy", i+1, `Chapter ${i+1}: Root and Ritual`) })), rating: 4.6, homePageFeaturedGenre: 'Fantasy' },
+  { id: 'novel-1', title: 'The Alchemist of Moonhaven', author: 'Seraphina Gold', authorId: 'user_sg_mock', genres: ['Steampunk', 'Mystery'], status: 'published', snippet: 'In a city powered by moonlight, a young alchemist seeks to break tradition.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk city moon', views: 12000, chapters: Array.from({ length: 1 }, (_, i) => ({ id: `moonhaven-ch-${i+1}`, title: `Chapter ${i+1}: Lunar Brews`, content: defaultChapterContent("The Alchemist of Moonhaven", i+1, `Chapter ${i+1}: Lunar Brews`) })), rating: 4.2, homePageFeaturedGenre: null },
+  { id: 'short-1', title: 'A Stitch in Time', author: 'Penelope Weave', authorId: 'user_pw_mock', genres: ['Short Story', 'Urban Fantasy'], status: 'published', snippet: 'A short story about a magical tailor who can alter time.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'magic tailor', views: 9600, chapters: [{id: 'stitch-ch-1', title: 'The Golden Thread', content: defaultChapterContent("A Stitch in Time", 1, 'The Golden Thread')}], rating: 4.3, homePageFeaturedGenre: null },
+  { id: 'draft-1', title: 'The Crimson Comet (Draft)', author: 'Jax Orion', authorId: 'user_jo_mock', genres: ['Sci-Fi', 'Mystery'], status: 'draft', snippet: 'A rogue comet appears, and with it, a series of strange disappearances. (This is a DRAFT novel)', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'comet space mystery', views: 100, chapters: [{id: 'comet-draft-ch-1', title: 'First Sighting', content: defaultChapterContent("The Crimson Comet (Draft)", 1, 'First Sighting')}], rating: 0, homePageFeaturedGenre: null },
+  { id: 'romance-1', title: 'Hearts Entwined by Starlight', author: 'Luna Lovegood', authorId: 'user_ll_mock', genres: ['Romance', 'Contemporary'], status: 'published', snippet: 'Two astronomers find love while searching for a new constellation.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'couple stars', views: 15000, chapters: Array.from({ length: 20 }, (_, i) => ({ id: `romance1-ch-${i+1}`, title: `Chapter ${i+1}: Celestial Meeting`, content: defaultChapterContent("Hearts Entwined by Starlight", i+1, `Chapter ${i+1}: Celestial Meeting`) })), rating: 4.7, homePageFeaturedGenre: 'Romance' },
 ];
 
 export const getNovelsFromStorage = (): Novel[] => {
@@ -367,11 +416,11 @@ export const getNovelsFromStorage = (): Novel[] => {
         novelsFromStorage = JSON.parse(storedNovels);
       } catch (e) {
         console.error("Error parsing novels from localStorage", e);
-        novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels)); 
+        novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels));
         localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novelsFromStorage));
       }
     } else {
-      novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels)); 
+      novelsFromStorage = JSON.parse(JSON.stringify(initialMockNovels));
       localStorage.setItem(KATHA_VAULT_MANAGED_NOVELS_KEY, JSON.stringify(novelsFromStorage));
     }
   } else {
@@ -380,20 +429,21 @@ export const getNovelsFromStorage = (): Novel[] => {
 
   const processedNovels = novelsFromStorage.map(novel => ({
     ...novel,
-    status: novel.status || 'draft', 
-    views: novel.views ?? 0, 
-    rating: novel.rating ?? 0, 
+    authorId: novel.authorId || `mock-author-${novel.id}`,
+    status: novel.status || 'draft',
+    views: novel.views ?? 0,
+    rating: novel.rating ?? 0,
     homePageFeaturedGenre: novel.homePageFeaturedGenre === undefined ? null : novel.homePageFeaturedGenre,
     chapters: Array.isArray(novel.chapters) && novel.chapters.length > 0 ? novel.chapters.map(ch => ({
         id: ch.id || `ch-random-${Math.random().toString(36).substring(2, 9)}`,
         title: ch.title || 'Untitled Chapter',
         content: ch.content || 'No content available.'
-    })) : [{id: `fallback-ch-${novel.id}`, title: 'Chapter 1', content: defaultChapterContent(novel.title, 1, 'Chapter 1')}], 
+    })) : [{id: `fallback-ch-${novel.id}`, title: 'Chapter 1', content: defaultChapterContent(novel.title, 1, 'Chapter 1')}],
   }));
 
   const publishedNovels = processedNovels.filter(n => n.status === 'published');
   const sortedByViews = [...publishedNovels].sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
-  const TRENDING_COUNT = 3; 
+  const TRENDING_COUNT = 3;
 
   return processedNovels.map(novel => {
     const isTopTrending = novel.status === 'published' && sortedByViews.slice(0, TRENDING_COUNT).some(trendingNovel => trendingNovel.id === novel.id);
@@ -411,8 +461,8 @@ export const saveNovelsToStorage = (novels: Novel[]): void => {
 };
 
 const defaultHomeConfig: HomeLayoutConfig = {
-  selectedGenres: ['Sci-Fi', 'Fantasy', 'Romance'], 
-  showMoreNovelsSection: true, 
+  selectedGenres: ['Sci-Fi', 'Fantasy', 'Romance'],
+  showMoreNovelsSection: true,
 };
 
 export const getHomeSectionsConfig = (): HomeLayoutConfig => {
@@ -452,23 +502,25 @@ export const getAllUniqueGenres = (novels: Novel[]): string[] => {
 };
 
 
-export const isUserActive = (userId: string): boolean => {
-  if (typeof window === 'undefined') return true; 
+export const isUserActive = (userIdToCheck?: string | null): boolean => {
+  if (typeof window === 'undefined') return true;
 
-  if (userId === CURRENT_USER_ID) {
-    return getKathaExplorerUser().isActive;
+  const loggedInUser = getKathaExplorerUser();
+  if (!userIdToCheck || userIdToCheck === loggedInUser.id) {
+    return loggedInUser.isActive;
   }
-  const user = allMockUsers.find(u => u.id === userId);
-  return user ? user.isActive : false; 
+
+  const userInMockList = allMockUsers.find(u => u.id === userIdToCheck);
+  return userInMockList ? userInMockList.isActive : false;
 };
 
 
 const defaultStoredChapterComments: StoredChapterComment[] = [
   {
     id: 'chapcomment-1-1',
-    novelId: 'trend-1', 
-    chapterId: 'chronos-ch-1', 
-    authorId: 'user_er', 
+    novelId: 'trend-1',
+    chapterId: 'chronos-ch-1',
+    authorId: 'user_er',
     authorName: 'Elara Reads',
     authorAvatarUrl: 'https://placehold.co/40x40.png?text=ER',
     authorInitials: 'ER',
@@ -481,23 +533,23 @@ const defaultStoredChapterComments: StoredChapterComment[] = [
         id: 'chapreply-1-1-1',
         novelId: 'trend-1',
         chapterId: 'chronos-ch-1',
-        authorId: 'user_mw', 
+        authorId: 'user_mw',
         authorName: 'Marcus Writes',
         authorAvatarUrl: 'https://placehold.co/40x40.png?text=MW',
         authorInitials: 'MW',
         text: 'Agreed, Elara! The pacing is excellent and the mystery is already building.',
         timestamp: '1 day ago',
         commentLikes: 7,
-        isCommentLikedByUser: true, 
+        isCommentLikedByUser: true,
         replies: [],
       },
     ],
   },
   {
     id: 'chapcomment-1-2',
-    novelId: 'trend-1', 
-    chapterId: 'chronos-ch-2', 
-    authorId: 'user_sg', 
+    novelId: 'trend-1',
+    chapterId: 'chronos-ch-2',
+    authorId: 'user_sg',
     authorName: 'SciFi Guru',
     authorAvatarUrl: 'https://placehold.co/40x40.png?text=SG',
     authorInitials: 'SG',
@@ -509,9 +561,9 @@ const defaultStoredChapterComments: StoredChapterComment[] = [
   },
   {
     id: 'chapcomment-2-1',
-    novelId: 'trend-2', 
-    chapterId: 'canopy-ch-1', 
-    authorId: 'user_ff', 
+    novelId: 'trend-2',
+    chapterId: 'canopy-ch-1',
+    authorId: 'user_ff',
     authorName: 'Fantasy Fan',
     authorAvatarUrl: 'https://placehold.co/40x40.png?text=FF',
     authorInitials: 'FF',
@@ -555,9 +607,9 @@ export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
                 console.error("Error parsing social feed posts from localStorage", e);
             }
         }
+        const defaultFeedPosts: FeedItemCardProps[] = [ /* Can add default posts here if needed */ ];
+        localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(defaultFeedPosts));
+        return defaultFeedPosts;
     }
-    return []; 
+    return [];
 };
-
-
-    

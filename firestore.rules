@@ -1,8 +1,57 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    // Users collection
+    // Anyone can read user profiles.
+    // A user can create their own profile document.
+    // A user can update their own profile document.
+    match /users/{userId} {
+      allow read: if true; // Or consider: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // Or admin only: get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Novels collection
+    // Published novels can be read by anyone.
+    // Creating, updating, or deleting novels should be restricted.
+    match /novels/{novelId} {
+      allow read: if resource.data.status == 'published';
+      // Writes (create, update, delete) should be restricted to admins or specific author roles
+      // For example, to allow only authenticated users who are marked as admin:
+      // allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      // Or, if authorId is stored on the novel:
+      // allow update, delete: if request.auth != null && (resource.data.authorId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      // allow create: if request.auth != null; // More complex logic needed for who can create
+      allow write: if false; // Placeholder: Strictest rule. Implement your logic.
+    }
+
+    // Chapters (subcollection of novels)
+    // Chapters of published novels can be read by anyone.
+    match /novels/{novelId}/chapters/{chapterId} {
+      allow read: if get(/databases/$(database)/documents/novels/$(novelId)).data.status == 'published';
+      allow write: if false; // Placeholder: Writes should be restricted like novels.
+    }
+
+    // Social Feed Posts
+    match /socialFeedPosts/{postId} {
+      allow read: if resource.data.privacy == 'public' || 
+                     (resource.data.privacy == 'custom' && request.auth.uid in resource.data.customAudienceUserIds) || 
+                     request.auth.uid == resource.data.authorId;
+      allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.authorId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
+    }
+
+    // Chapter Comments
+    match /chapterComments/{commentId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.authorId == request.auth.uid; // Or admin
+      allow delete: if request.auth != null && resource.data.authorId == request.auth.uid; // Or admin
     }
   }
 }
