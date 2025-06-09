@@ -1,6 +1,8 @@
 
-import { auth } from '@/lib/firebase'; // Import Firebase auth
+import { auth, db } from '@/lib/firebase'; 
 import { signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 export interface Chapter {
   id: string;
@@ -9,25 +11,26 @@ export interface Chapter {
 }
 
 export interface MockUser {
-  id: string; // This will be Firebase UID
+  id: string; 
   name: string;
   username: string;
   avatarUrl: string;
   avatarFallback: string;
   dataAiHint?: string;
   bio?: string;
-  email?: string | null; // Firebase email can be null
+  email?: string | null; 
   emailVisible?: boolean;
   gender?: string;
   isActive: boolean;
-  createdAt?: string; // Added for Firestore user doc
+  createdAt?: string; 
+  signInMethod?: "email" | "google" | "unknown";
 }
 
 export interface Novel {
   id: string;
   title: string;
-  author: string; // Could be author's name or UID
-  authorId?: string; // Store Firebase UID of author
+  author: string; 
+  authorId?: string; 
   genres: string[];
   snippet: string;
   status: 'draft' | 'published';
@@ -96,8 +99,6 @@ export interface StoredChapterComment {
   chapterTitleAdmin?: string;
 }
 
-// CURRENT_USER_ID will now be dynamically fetched from auth.currentUser.uid
-// export const CURRENT_USER_ID = 'user_ke'; // This will be deprecated
 
 export const KRITIKA_EMAIL = "rajputkritika510@gmail.com";
 export const KATHAVAULT_OWNER_EMAIL = "kathavault@gmail.com";
@@ -108,16 +109,16 @@ export const SPECIAL_ACCOUNT_DETAILS: Record<string, { fixedName: string; fixedU
   [KRITIKA_EMAIL]: {
     fixedName: "Kritika ✨ (CEO)",
     fixedUsername: "Kritikasignh",
-    idInAllUsers: 'user_kritika_ceo', // This mock ID is for local 'allMockUsers' array, not Firebase UID
+    idInAllUsers: 'user_kritika_ceo', 
   },
   [KATHAVAULT_OWNER_EMAIL]: {
     fixedName: "Katha Vault Owner ✨",
     fixedUsername: "kathavault",
-    idInAllUsers: 'user_katha_owner', // This mock ID is for local 'allMockUsers' array
+    idInAllUsers: 'user_katha_owner', 
   }
 };
 
-// These mock IDs are for the `allMockUsers` array. Real admin checks will use email.
+
 export const KRITIKA_USER_ID = SPECIAL_ACCOUNT_DETAILS[KRITIKA_EMAIL].idInAllUsers;
 export const KATHAVAULT_OWNER_USER_ID = SPECIAL_ACCOUNT_DETAILS[KATHAVAULT_OWNER_EMAIL].idInAllUsers;
 
@@ -132,7 +133,7 @@ export const KATHA_VAULT_BLOCKED_USER_IDS_KEY = 'kathaVaultBlockedUserIds';
 const KATHA_VAULT_CURRENT_USER_PROFILE_KEY = 'kathaVaultCurrentUserProfile';
 
 export const defaultKathaExplorerUser: MockUser = {
-  id: 'default_user_placeholder_id', // Placeholder, actual ID will be Firebase UID
+  id: 'default_user_placeholder_id', 
   name: 'Katha User',
   username: 'katha_user',
   avatarUrl: 'https://placehold.co/128x128.png',
@@ -143,6 +144,7 @@ export const defaultKathaExplorerUser: MockUser = {
   emailVisible: false,
   gender: 'Prefer not to say',
   isActive: true,
+  signInMethod: "unknown",
 };
 
 export const isUserLoggedIn = (): boolean => {
@@ -151,40 +153,35 @@ export const isUserLoggedIn = (): boolean => {
   return loggedInStatus === 'true' && auth?.currentUser !== null;
 };
 
-export const setLoggedInStatus = (status: boolean, user?: { uid: string; email: string | null; displayName?: string | null }): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, String(status));
-    if (status && user) {
-      const profileToStore: MockUser = {
-        ...defaultKathaExplorerUser, // Start with defaults
-        id: user.uid,
-        email: user.email,
-        name: user.displayName || user.email?.split('@')[0] || defaultKathaExplorerUser.name,
-        username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || defaultKathaExplorerUser.username,
-        avatarFallback: (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase(),
-        isActive: true, // Assume active on login/signup
-      };
-       // Check if it's a special admin email and update name/username if they are generic
-      const lowerCaseUserEmail = user.email?.toLowerCase();
-      if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-        const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-        if (profileToStore.name === defaultKathaExplorerUser.name || profileToStore.name === user.email?.split('@')[0]) {
-            profileToStore.name = specialInfo.fixedName;
-        }
-        if (profileToStore.username === defaultKathaExplorerUser.username || profileToStore.username === user.email?.split('@')[0]) {
-            profileToStore.username = specialInfo.fixedUsername;
-        }
-        profileToStore.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-      }
-      localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(profileToStore));
-    } else if (!status) {
-      // Logout
-      if (auth) {
-        signOut(auth).catch(error => console.error("Error signing out from Firebase:", error));
-      }
-      localStorage.removeItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY);
-      localStorage.removeItem(KATHA_VAULT_IS_LOGGED_IN_KEY); // Explicitly remove login flag
+export const setLoggedInStatus = (status: boolean, user?: { uid: string; email: string | null; displayName?: string | null; photoURL?: string | null }): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, String(status));
+  if (status && user) {
+    let profileToStore: MockUser = {
+      ...defaultKathaExplorerUser,
+      id: user.uid,
+      email: user.email,
+      name: user.displayName || user.email?.split('@')[0] || defaultKathaExplorerUser.name,
+      username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || defaultKathaExplorerUser.username,
+      avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
+      avatarFallback: (user.displayName || user.email || 'KU').substring(0, 2).toUpperCase(),
+      isActive: true,
+      signInMethod: user.photoURL ? "google" : "email", // Basic assumption
+    };
+    const lowerCaseUserEmail = user.email?.toLowerCase();
+    if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
+      const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+      profileToStore.name = specialInfo.fixedName;
+      profileToStore.username = specialInfo.fixedUsername;
+      profileToStore.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
     }
+    localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(profileToStore));
+  } else if (!status) {
+    if (auth) {
+      signOut(auth).catch(error => console.error("Error signing out from Firebase:", error));
+    }
+    localStorage.removeItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY);
+    localStorage.removeItem(KATHA_VAULT_IS_LOGGED_IN_KEY);
   }
 };
 
@@ -205,59 +202,41 @@ export const getKathaExplorerUser = (): MockUser => {
   const firebaseUser = auth?.currentUser;
   if (firebaseUser) {
     const storedProfile = localStorage.getItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY);
+    let profileFromStorage: Partial<MockUser> = {};
     if (storedProfile) {
       try {
-        const parsedProfile = JSON.parse(storedProfile) as MockUser;
-        if (parsedProfile.id === firebaseUser.uid) {
-          let finalProfile = {
-            ...defaultKathaExplorerUser,
-            ...parsedProfile,
-            id: firebaseUser.uid,
-            email: firebaseUser.email,
-          };
-          const lowerCaseUserEmail = firebaseUser.email?.toLowerCase();
-          if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-            const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-            if (finalProfile.name === defaultKathaExplorerUser.name || finalProfile.name === firebaseUser.email?.split('@')[0]) {
-                finalProfile.name = specialInfo.fixedName;
-            }
-             if (finalProfile.username === defaultKathaExplorerUser.username || finalProfile.username === firebaseUser.email?.split('@')[0]) {
-                finalProfile.username = specialInfo.fixedUsername;
-            }
-            finalProfile.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
-            finalProfile.isActive = true;
-          }
-          return finalProfile;
-        }
+        profileFromStorage = JSON.parse(storedProfile) as MockUser;
       } catch (e) {
         console.error("Error parsing current user profile from localStorage", e);
       }
     }
-    let name = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name;
-    let username = firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username;
-    let avatarFallback = (firebaseUser.displayName || firebaseUser.email || 'KU').substring(0, 2).toUpperCase();
-    let isActive = true;
 
+    // Prioritize Firebase Auth data, then localStorage, then defaults
+    let finalProfile: MockUser = {
+      ...defaultKathaExplorerUser, // Base defaults
+      ...profileFromStorage,       // Overwrite with localStorage if available
+      id: firebaseUser.uid,        // Firebase UID is authoritative
+      email: firebaseUser.email,   // Firebase email is authoritative
+      name: firebaseUser.displayName || profileFromStorage.name || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name,
+      username: profileFromStorage.username || firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username,
+      avatarUrl: firebaseUser.photoURL || profileFromStorage.avatarUrl || defaultKathaExplorerUser.avatarUrl,
+      avatarFallback: (firebaseUser.displayName || profileFromStorage.name || firebaseUser.email || 'KU').substring(0, 2).toUpperCase(),
+      isActive: profileFromStorage.isActive !== undefined ? profileFromStorage.isActive : true, // Default to active if not set
+      signInMethod: profileFromStorage.signInMethod || (firebaseUser.providerData.some(p => p.providerId === 'google.com') ? 'google' : 'email'),
+    };
+    
     const lowerCaseUserEmail = firebaseUser.email?.toLowerCase();
     if (lowerCaseUserEmail && SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail]) {
-        const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
-        name = specialInfo.fixedName;
-        username = specialInfo.fixedUsername;
-        avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
+      const specialInfo = SPECIAL_ACCOUNT_DETAILS[lowerCaseUserEmail];
+      finalProfile.name = specialInfo.fixedName;
+      finalProfile.username = specialInfo.fixedUsername;
+      finalProfile.avatarFallback = specialInfo.fixedName.substring(0,2).toUpperCase();
+      finalProfile.isActive = true; // Special accounts are always active
     }
-
-    const profileFromAuth: MockUser = {
-      ...defaultKathaExplorerUser,
-      id: firebaseUser.uid,
-      email: firebaseUser.email,
-      name: name,
-      username: username,
-      avatarFallback: avatarFallback,
-      isActive: isActive,
-    };
-    localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(profileFromAuth));
+    // Save the potentially updated profile back to localStorage
+    localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(finalProfile));
     localStorage.setItem(KATHA_VAULT_IS_LOGGED_IN_KEY, 'true');
-    return profileFromAuth;
+    return finalProfile;
   }
 
   localStorage.removeItem(KATHA_VAULT_IS_LOGGED_IN_KEY);
@@ -266,18 +245,30 @@ export const getKathaExplorerUser = (): MockUser => {
 };
 
 
-export const saveKathaExplorerUser = (userData: MockUser): void => {
+export const saveKathaExplorerUser = async (userData: MockUser): Promise<void> => {
   if (typeof window !== 'undefined') {
     const firebaseUser = auth?.currentUser;
     if (firebaseUser && userData.id === firebaseUser.uid) {
       let dataToSave = { ...userData };
-      dataToSave.email = firebaseUser.email;
-      dataToSave.id = firebaseUser.uid;
+      dataToSave.email = firebaseUser.email; // Ensure email is from Firebase
+      dataToSave.id = firebaseUser.uid;     // Ensure ID is from Firebase
 
       if (dataToSave.email?.toLowerCase() === KRITIKA_EMAIL.toLowerCase() || dataToSave.email?.toLowerCase() === KATHAVAULT_OWNER_EMAIL.toLowerCase()) {
-          dataToSave.isActive = true;
+          dataToSave.isActive = true; // Admins cannot be deactivated this way
       }
+      
       localStorage.setItem(KATHA_VAULT_CURRENT_USER_PROFILE_KEY, JSON.stringify(dataToSave));
+      
+      // Also save to Firestore
+      try {
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        // Only update fields that are typically user-editable, don't overwrite uid, email, createdAt, signInMethod from profile form
+        const { id, email, createdAt, signInMethod, ...profileUpdates } = dataToSave;
+        await setDoc(userDocRef, profileUpdates, { merge: true });
+      } catch (error) {
+        console.error("Error saving user profile to Firestore:", error);
+      }
+
     } else {
       console.warn("Attempted to save user data for a non-matching or non-existent Firebase user.");
     }
@@ -503,15 +494,32 @@ export const getAllUniqueGenres = (novels: Novel[]): string[] => {
 
 
 export const isUserActive = (userIdToCheck?: string | null): boolean => {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return true; // Default to true on server
 
-  const loggedInUser = getKathaExplorerUser();
+  const loggedInUser = getKathaExplorerUser(); // This might fetch from localStorage
+  
+  // If checking the currently logged-in user
   if (!userIdToCheck || userIdToCheck === loggedInUser.id) {
+    // If it's a special admin email, always active
+    const lowerCaseUserEmail = loggedInUser.email?.toLowerCase();
+    if (lowerCaseUserEmail && (lowerCaseUserEmail === KRITIKA_EMAIL.toLowerCase() || lowerCaseUserEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
+        return true;
+    }
     return loggedInUser.isActive;
   }
 
+  // If checking another user from the mock list
   const userInMockList = allMockUsers.find(u => u.id === userIdToCheck);
-  return userInMockList ? userInMockList.isActive : false;
+  if (userInMockList) {
+      const lowerCaseUserEmail = userInMockList.email?.toLowerCase();
+      if (lowerCaseUserEmail && (lowerCaseUserEmail === KRITIKA_EMAIL.toLowerCase() || lowerCaseUserEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
+          return true; // Special admins from mock list are always active
+      }
+      return userInMockList.isActive;
+  }
+  
+  // Fallback for users not in mock list and not current user
+  return false; 
 };
 
 
@@ -612,4 +620,28 @@ export const getSocialFeedPostsFromStorage = (): FeedItemCardProps[] => {
         return defaultFeedPosts;
     }
     return [];
+};
+
+// Function to ensure Firestore has user profiles for all mock users (run once, or on demand for dev)
+export const ensureMockUserProfilesInFirestore = async () => {
+    if (typeof window === 'undefined' || !db) return;
+    console.log("Attempting to ensure mock user profiles in Firestore (dev utility)...");
+
+    for (const mockUser of allMockUsers) {
+        // For mock users, we can't use their mock ID as Firebase UID.
+        // This function is more conceptual for a dev setup where you might pre-populate.
+        // For this app, user documents are created on actual Firebase Auth signup/Google Sign-In.
+        // So, this function as-is won't directly work to create Firestore docs for `allMockUsers`
+        // unless they've actually signed up/in through Firebase.
+
+        // If you had a way to map mockUser.id to a Firebase UID, or if you were creating
+        // them with specific UIDs (not recommended for real users), then you could use:
+        // const userDocRef = doc(db, "users", mockUser.firebaseUid); // Assuming mockUser has a firebaseUid
+        // const userDocSnap = await getDoc(userDocRef);
+        // if (!userDocSnap.exists()) {
+        //   await setDoc(userDocRef, { ...mockUser });
+        //   console.log(`Created Firestore profile for ${mockUser.name}`);
+        // }
+    }
+     console.log("Mock user profile check finished. Documents are created upon actual user signup/login via Firebase Auth.");
 };
