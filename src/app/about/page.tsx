@@ -2,9 +2,11 @@
 "use client";
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, BookHeart, Target, PenTool, Library } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // Added this import
 
 export default function AboutPage() {
   return (
@@ -74,7 +76,7 @@ export default function AboutPage() {
         </CardHeader>
         <CardContent>
           <p className="text-lg text-foreground/90 font-body mb-8">
-            Whether you're here to pen your next bestseller, discover your new favorite novel, or simply connect with fellow story enthusiasts, we're thrilled to welcome you to the Katha Vault family. 
+            Whether you're here to pen your next bestseller, discover your new favorite novel, or simply connect with fellow story enthusiasts, we're thrilled to welcome you to the Katha Vault family.
             Let's build a universe of unforgettable stories, together!
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 md:gap-6">
