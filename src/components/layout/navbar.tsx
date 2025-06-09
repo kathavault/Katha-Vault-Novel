@@ -8,7 +8,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import React from 'react';
-import { isUserAdmin, isUserLoggedIn, getKathaExplorerUser } from '@/lib/mock-data'; // Import auth functions
+import { isUserAdmin, isUserLoggedIn, getKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data'; 
+import { auth } from '@/lib/firebase'; // Import auth directly
 
 export function Navbar() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -16,48 +17,30 @@ export function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [currentEmail, setCurrentEmail] = useState("");
-
+  // currentEmail state might not be strictly needed for admin link visibility with onAuthStateChanged
 
   useEffect(() => {
-    setMounted(true);
-    const checkLoginAndAdminStatus = () => {
-      const userLoggedIn = isUserLoggedIn();
-      setLoggedIn(userLoggedIn);
-      if (userLoggedIn) {
-        const user = getKathaExplorerUser();
-        setCurrentEmail(user.email || "");
-        setShowAdminLink(isUserAdmin());
+    setMounted(true); // For theme toggling
+
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in
+        setLoggedIn(true);
+        // isUserAdmin internally checks auth.currentUser which is now firebaseUser
+        setShowAdminLink(isUserAdmin()); 
+        // Ensure the localStorage profile is up-to-date.
+        // getKathaExplorerUser will use firebaseUser (via auth.currentUser)
+        // and apply special admin names if applicable.
+        getKathaExplorerUser(); 
       } else {
-        setCurrentEmail("");
+        // User is signed out
+        setLoggedIn(false);
         setShowAdminLink(false);
       }
-    };
+    });
 
-    checkLoginAndAdminStatus(); // Initial check
-
-    // Listen for storage changes that might affect login status (e.g., login/logout on another tab)
-    // This is a basic implementation. For robust multi-tab sync, consider BroadcastChannel or custom events.
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'kathaVaultIsLoggedIn' || event.key === 'kathaVaultCurrentUserProfile') {
-        checkLoginAndAdminStatus();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-
-  }, []); // Run once on mount
-
-   // Effect to re-check admin status when email or loggedIn status changes
-   useEffect(() => {
-    if (mounted) { // Ensure this only runs client-side after initial mount
-      if (loggedIn) {
-        setShowAdminLink(isUserAdmin()); // isUserAdmin already checks isUserLoggedIn internally
-      } else {
-        setShowAdminLink(false);
-      }
-    }
-  }, [loggedIn, currentEmail, mounted]);
+    return () => unsubscribe(); // Cleanup subscription on unmount
+  }, []); // Empty dependency array for one-time setup
 
 
   const navLinks = [
@@ -68,11 +51,11 @@ export function Navbar() {
     { href: '/write', label: 'AI Writer', icon: <Bot size={20} /> },
     { href: '/about', label: 'About Us', icon: <Info size={20} /> },
   ];
-  // Admin link is handled conditionally
 
   const adminSpecificLinks = [
      { href: '/admin', label: 'Admin Panel', icon: <Shield size={20} /> },
      { href: '/admin/home-layout', label: 'Home Layout', icon: <LayoutGrid size={18} />, isSubLink: true },
+     { href: '/admin/about-editor', label: 'About Editor', icon: <Edit3 size={18} />, isSubLink: true },
   ];
 
 
@@ -138,7 +121,7 @@ export function Navbar() {
                         variant="ghost"
                         className="justify-start text-md py-3 px-3"
                         asChild
-                        onClick={() => setIsSheetOpen(false)} // Logout is handled on profile page for now
+                        onClick={() => setIsSheetOpen(false)} 
                       >
                         <Link href="/profile" className="flex items-center">
                           <Shield size={20} />
