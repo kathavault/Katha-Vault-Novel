@@ -7,13 +7,13 @@ import { getStorage, type FirebaseStorage } from 'firebase/storage';
 // import { getAnalytics, type Analytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA6FyrKanmUtbvh1pS_4XQts-njiiHh9J4",
-  authDomain: "kathavaultnovel.firebaseapp.com",
-  projectId: "kathavaultnovel",
-  storageBucket: "kathavaultnovel.firebasestorage.app",
-  messagingSenderId: "352870837406",
-  appId: "1:352870837406:web:4df69aed3c891f85879f8f",
-  measurementId: "G-GL4G5NNSR3",
+  apiKey: "AIzaSyASOaXSytY4Uq4oa1C_4mzzAYZOXEWnqQ4",
+  authDomain: "katha-vault-g81gj.firebaseapp.com",
+  projectId: "katha-vault-g81gj",
+  storageBucket: "katha-vault-g81gj.appspot.com", // Corrected storageBucket format
+  messagingSenderId: "613581820650",
+  appId: "1:613581820650:web:ae76c0a3ee82bb67627d93"
+  // measurementId is optional and was not provided in the new config
 };
 
 let app: FirebaseApp;
