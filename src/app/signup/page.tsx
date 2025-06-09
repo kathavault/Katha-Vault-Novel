@@ -11,9 +11,9 @@ import { UserPlus, LogIn, Mail, KeyRound, User as UserIcon, Loader2 } from 'luci
 import { useToast } from "@/hooks/use-toast";
 import { useState, type FormEvent, Suspense } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'; // Added signOut
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser } from '@/lib/mock-data';
+import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data';
 
 // Google Icon SVG as a React component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -33,8 +33,8 @@ function SignupPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState(""); // User's actual full name
-  const [username, setUsername] = useState(""); // User's chosen username
+  const [name, setName] = useState(""); 
+  const [username, setUsername] = useState(""); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
@@ -62,24 +62,22 @@ function SignupPageContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Create user profile in Firestore with form-provided name and username
       const userProfileData = {
         uid: user.uid,
         email: user.email,
-        name: name, // Use name from form
-        username: username, // Use username from form
-        avatarUrl: defaultKathaExplorerUser.avatarUrl, // Default avatar
-        avatarFallback: name.substring(0, 2).toUpperCase() || "KV", // Fallback from form name
+        name: name, 
+        username: username, 
+        avatarUrl: defaultKathaExplorerUser.avatarUrl,
+        avatarFallback: name.substring(0, 2).toUpperCase() || "KV",
         bio: defaultKathaExplorerUser.bio,
         emailVisible: defaultKathaExplorerUser.emailVisible,
         gender: defaultKathaExplorerUser.gender,
         isActive: true,
         createdAt: new Date().toISOString(),
-        signInMethod: "email",
+        signInMethod: "email" as "email",
       };
       await setDoc(doc(db, "users", user.uid), userProfileData);
       
-      // Set logged-in status using the name from the form
       setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: name, photoURL: null }, 'signup');
 
       toast({ title: "Signup Successful!", description: `Welcome to Katha Vault, ${name}! You're now logged in.` });
@@ -109,16 +107,28 @@ function SignupPageContent() {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const userEmail = user.email?.toLowerCase();
+
+      if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
+        setIsGoogleSubmitting(false);
+        if (auth.currentUser) { 
+            await signOut(auth);
+        }
+        toast({
+          title: "Admin Signup Method",
+          description: "Admin accounts should be created via email/password or managed directly. Google Sign-Up is not permitted for these specific emails.",
+          variant: "destructive",
+          duration: 7000,
+        });
+        return; 
+      }
 
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
-      // For Google Sign-In, name comes from Google profile
       let profileName = user.displayName || user.email?.split('@')[0] || 'Katha User';
 
       if (!userDocSnap.exists()) {
-        // User signed in with Google for the first time, create their Firestore profile
-        // Name and username come from Google or are generated.
         await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
@@ -131,10 +141,9 @@ function SignupPageContent() {
           gender: defaultKathaExplorerUser.gender,
           isActive: true,
           createdAt: new Date().toISOString(),
-          signInMethod: "google",
+          signInMethod: "google" as "google",
         });
       } else {
-         // User exists, ensure name/avatar from Google are updated if they changed
         const existingData = userDocSnap.data();
         await setDoc(userDocRef, {
             name: profileName, 
@@ -144,9 +153,8 @@ function SignupPageContent() {
         }, { merge: true });
       }
       
-      // getKathaExplorerUser will handle applying special names if email matches for display of existing admins.
+      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: profileName, photoURL: user.photoURL }, 'google');
       const finalDisplayUser = getKathaExplorerUser(); 
-      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: finalDisplayUser.name, photoURL: user.photoURL }, 'google');
 
       toast({ title: "Signed in with Google!", description: `Welcome, ${finalDisplayUser.name}!` });
       
@@ -255,4 +263,3 @@ export default function SignupPage() {
     </Suspense>
   )
 }
-

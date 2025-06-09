@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogIn, UserPlus, Mail, KeyRound, Loader2, HelpCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { useState, type FormEvent, Suspense, useEffect } from 'react';
+import { useState, type FormEvent, Suspense } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { setLoggedInStatus, defaultKathaExplorerUser, SPECIAL_ACCOUNT_DETAILS, getKathaExplorerUser, isUserAdmin } from '@/lib/mock-data';
+import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data';
 
 // Google Icon SVG as a React component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -52,13 +52,15 @@ function LoginPageContent() {
 
       let displayNameForProfile = user.displayName || email.split('@')[0] || defaultKathaExplorerUser.name;
       let photoURLForProfile = user.photoURL;
-      let existingProfileData: Partial<MockUser> = {};
+      // let existingProfileData: Partial<MockUser> = {}; // Not strictly needed here for login if getKathaExplorerUser handles overrides
 
       if (userDocSnap.exists()) {
-        existingProfileData = userDocSnap.data() as MockUser;
-        displayNameForProfile = existingProfileData.name || displayNameForProfile;
-        photoURLForProfile = existingProfileData.avatarUrl || photoURLForProfile;
+        // existingProfileData = userDocSnap.data() as MockUser; // Get existing data if needed for comparison
+        // displayNameForProfile = existingProfileData.name || displayNameForProfile; // Prefer Firestore name
+        // photoURLForProfile = existingProfileData.avatarUrl || photoURLForProfile; // Prefer Firestore avatar
       } else {
+         // This block should ideally not be hit often on login, profile should exist.
+         // For robustness, create a basic profile if it's somehow missing.
          let profileName = user.displayName || user.email?.split('@')[0] || `User ${user.uid.substring(0,6)}`;
          let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
          
@@ -80,9 +82,11 @@ function LoginPageContent() {
          photoURLForProfile = user.photoURL;
       }
       
+      // setLoggedInStatus will store this basic info, getKathaExplorerUser will apply special admin names if applicable
       setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: displayNameForProfile, photoURL: photoURLForProfile }, 'login');
-      
-      toast({ title: "Login Successful!", description: `Welcome back, ${displayNameForProfile}!` });
+      const finalDisplayUser = getKathaExplorerUser(); // Get potentially overridden name for toast
+
+      toast({ title: "Login Successful!", description: `Welcome back, ${finalDisplayUser.name}!` });
       
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
@@ -111,6 +115,21 @@ function LoginPageContent() {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const userEmail = user.email?.toLowerCase();
+
+      if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
+        setIsGoogleSubmitting(false);
+        if (auth.currentUser) { // Ensure user is signed in before signing out
+            await signOut(auth);
+        }
+        toast({
+          title: "Admin Login Method",
+          description: "Admin accounts should log in using their email and password, not Google Sign-In.",
+          variant: "destructive",
+          duration: 7000,
+        });
+        return; 
+      }
 
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
@@ -138,13 +157,16 @@ function LoginPageContent() {
             name: profileName, 
             avatarUrl: user.photoURL || existingData.avatarUrl,
             avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-            signInMethod: existingData.signInMethod || "google",
+            signInMethod: existingData.signInMethod || "google", // Preserve existing sign-in method if user used email before
         };
+        if (existingData.signInMethod !== "google" && !existingData.signInMethod) { // if signInMethod was not set, set it
+            updateData.signInMethod = "google";
+        }
         await setDoc(userDocRef, updateData, { merge: true });
       }
       
-      const finalDisplayUser = getKathaExplorerUser(); 
-      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: finalDisplayUser.name, photoURL: user.photoURL }, 'google');
+      setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: profileName, photoURL: user.photoURL }, 'google');
+      const finalDisplayUser = getKathaExplorerUser();
 
       toast({ title: "Signed in with Google!", description: `Welcome, ${finalDisplayUser.name}!` });
       
