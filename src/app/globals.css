@@ -34,7 +34,7 @@
   }
 
   .dark {
-    /* Dark Theme based on provided image */
+    /* Dark Theme based on user's image description */
     --background: 260 30% 9%; /* Very dark, slightly purplish */
     --foreground: 0 0% 96%; /* Off-white for text */
     --card: 260 25% 11%; /* Card background, slightly off main dark bg */
@@ -47,7 +47,7 @@
     --secondary-foreground: 0 0% 85%; /* Lighter text for secondary elements */
     --muted: 260 20% 12%; /* Even more subtle dark for muted elements */
     --muted-foreground: 260 5% 55%; /* Grayish text for muted foreground */
-    --accent: 325 80% 65%; /* Can be same as primary or a variation, using a slightly lighter pink */
+    --accent: 325 80% 65%; /* Slightly lighter pink for accent */
     --accent-foreground: 0 0% 100%; /* Text on accent elements */
     --destructive: 0 70% 50%; /* A suitable red for destructive actions */
     --destructive-foreground: 0 0% 100%;
