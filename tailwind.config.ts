@@ -17,12 +17,6 @@ export default {
       },
     },
     extend: {
-      fontFamily: {
-        headline: ['Belleza', 'sans-serif'], 
-        body: ['Alegreya', 'serif'],     
-        sans: ['Alegreya', 'serif'], // Default sans to body font
-        code: ['monospace'],
-      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
