@@ -58,9 +58,10 @@ function LoginPageContent() {
       let displayNameForProfile = user.displayName || email.split('@')[0] || defaultKathaExplorerUser.name;
       let photoURLForProfile = user.photoURL;
       
-      if (userDocSnap.exists()) {
-        // Data already exists, will be merged/handled by getKathaExplorerUser and setLoggedInStatus logic
-      } else {
+      if (!userDocSnap.exists()) {
+         // If user doc doesn't exist, create a basic one.
+         // This might happen if user signed up via a method that didn't create a doc, or doc was deleted.
+         // For a regular email/password login, the doc should ideally exist from signup.
          let profileName = user.displayName || user.email?.split('@')[0] || `User ${user.uid.substring(0,6)}`;
          let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
          
@@ -74,12 +75,18 @@ function LoginPageContent() {
             bio: defaultKathaExplorerUser.bio,
             emailVisible: defaultKathaExplorerUser.emailVisible,
             gender: defaultKathaExplorerUser.gender,
-            isActive: true,
+            isActive: true, // Assume active on login, admin can deactivate
             createdAt: new Date().toISOString(),
             signInMethod: "email",
          }, { merge: true });
          displayNameForProfile = profileName; 
          photoURLForProfile = user.photoURL;
+      } else {
+        // User doc exists, potentially update fields like last login if needed
+        // For now, we primarily rely on getKathaExplorerUser to consolidate profile for display
+        const existingData = userDocSnap.data();
+        displayNameForProfile = existingData.name || displayNameForProfile;
+        photoURLForProfile = existingData.avatarUrl || photoURLForProfile;
       }
       
       setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: displayNameForProfile, photoURL: photoURLForProfile }, 'login');
@@ -193,7 +200,7 @@ function LoginPageContent() {
       } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-blocked') {
         errorMessage = "Google Sign-In popup was blocked or cancelled. Please ensure popups are allowed and try again.";
       } else if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = "This domain is not authorized for Google Sign-In. Please contact support.";
+        errorMessage = "This domain is not authorized for Google Sign-In. Please contact support or check Firebase Console settings.";
       } else {
         errorMessage = `Google Sign-In Error: ${error.code || 'Unknown Error'} - ${error.message || 'An unexpected error occurred.'}`;
       }

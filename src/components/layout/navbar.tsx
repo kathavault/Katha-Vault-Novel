@@ -8,8 +8,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import React from 'react';
-import { isUserAdmin, isUserLoggedIn, getKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data'; 
-import { auth } from '@/lib/firebase'; // Import auth directly
+import { isUserAdmin, isUserLoggedIn, getKathaExplorerUser } from '@/lib/mock-data'; 
+import { auth } from '@/lib/firebase'; 
 
 export function Navbar() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -17,30 +17,25 @@ export function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
-  // currentEmail state might not be strictly needed for admin link visibility with onAuthStateChanged
 
   useEffect(() => {
-    setMounted(true); // For theme toggling
+    setMounted(true); 
 
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in
         setLoggedIn(true);
-        // isUserAdmin internally checks auth.currentUser which is now firebaseUser
-        setShowAdminLink(isUserAdmin()); 
-        // Ensure the localStorage profile is up-to-date.
-        // getKathaExplorerUser will use firebaseUser (via auth.currentUser)
-        // and apply special admin names if applicable.
+        // Call getKathaExplorerUser to ensure local profile (potentially with special admin name) is set
+        // before checking isUserAdmin.
         getKathaExplorerUser(); 
+        setShowAdminLink(isUserAdmin()); 
       } else {
-        // User is signed out
         setLoggedIn(false);
         setShowAdminLink(false);
       }
     });
 
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, []); // Empty dependency array for one-time setup
+    return () => unsubscribe(); 
+  }, []);
 
 
   const navLinks = [

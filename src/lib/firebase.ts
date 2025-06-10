@@ -25,17 +25,9 @@ let storage: FirebaseStorage | null = null;
 // Initialize Firebase only on the client-side
 if (typeof window !== 'undefined') {
   try {
-    // Basic check for placeholder or missing API key
-    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY")) {
-      console.error("Firebase API Key is missing or is a placeholder. Firebase SDK will not be initialized.");
-    } else if (firebaseConfig.apiKey.startsWith("AIzaSyC") && firebaseConfig.apiKey.length < 30) {
-        // Example check for potentially problematic "generic" keys if they are known to cause issues without restrictions
-        // This is a heuristic; actual validation is more complex.
-        console.warn("Firebase API Key might be a generic key. Ensure it's properly configured and restricted for your web app in the Google Cloud Console for security and functionality. If issues persist, this could be a source.");
-    }
-
-    // Proceed with initialization only if API key seems present and not an obvious placeholder
-    if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("YOUR_API_KEY")) {
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.length < 20) {
+      console.error("Firebase API Key is missing, a placeholder, or too short. Firebase SDK will not be initialized. Please check your environment configuration and src/lib/firebase.ts.");
+    } else {
         if (getApps().length === 0) {
           app = initializeApp(firebaseConfig);
         } else {
@@ -44,23 +36,22 @@ if (typeof window !== 'undefined') {
 
         auth = getAuth(app);
         db = getFirestore(app);
-        storage = getStorage(app);
-        // if (firebaseConfig.measurementId) { // Initialize Analytics if measurementId exists
+        storage = getStorage(app); // Initialize Firebase Storage
+        // if (firebaseConfig.measurementId) { 
         //   analytics = getAnalytics(app);
         // }
-    } else {
-      // Log that services will be unavailable if API key was deemed missing/placeholder
-       console.warn("Firebase app not initialized due to API key issue. Firebase services (auth, db, storage) will not be available.");
+        console.log("Firebase initialized successfully on the client.");
     }
   } catch (e) {
     console.error("Critical Firebase Initialization Error:", e);
-    // Ensure app and services remain null if any part of init fails
     app = null;
     auth = null;
     db = null;
     storage = null;
     // analytics = null;
   }
+} else {
+  // console.log("Firebase SDK not initialized (server-side or window undefined).");
 }
 
 export { app, auth, db, storage /*, analytics */ };
