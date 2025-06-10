@@ -18,9 +18,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Rubik', 'sans-serif'], 
-        headline: ['Rubik', 'sans-serif'], 
-        body: ['Rubik', 'sans-serif'],     
+        headline: ['Belleza', 'sans-serif'], 
+        body: ['Alegreya', 'serif'],     
+        sans: ['Alegreya', 'serif'], // Default sans to body font
         code: ['monospace'],
       },
       colors: {

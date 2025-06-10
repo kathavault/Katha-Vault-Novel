@@ -4,63 +4,80 @@
 
 @layer base {
   :root {
-    --background: 270 30% 8%; /* Very Dark Purple */
-    --foreground: 270 15% 85%; /* Light Grayish Lavender */
+    /* Light Theme */
+    --background: 250 50% 97%; /* #F2F0F9 (Soft Indigo from PRD as light background) */
+    --foreground: 260 40% 19%; /* #2A1A46 (Dark grayish-violet text for light bg) */
 
-    --muted: 270 25% 15%; /* Darker Muted Purple */
-    --muted-foreground: 270 15% 60%; /* Muted Grayish Lavender */
+    --muted: 250 40% 90%; /* Light grayish */
+    --muted-foreground: 260 30% 40%; /* Darker gray for muted text */
 
-    --popover: 270 35% 7%; /* Very Dark Popover BG */
-    --popover-foreground: 270 15% 85%;
+    --popover: 0 0% 100%; /* White popover */
+    --popover-foreground: 260 40% 19%; /* Dark text */
 
-    --card: 270 28% 12%; /* Slightly Lighter Dark Purple for Cards */
-    --card-foreground: 270 15% 85%;
+    --card: 0 0% 100%; /* White card */
+    --card-foreground: 260 40% 19%; /* Dark text */
 
-    --border: 270 20% 25%; /* Muted Border */
-    --input: 270 20% 20%; /* Dark Input BG */
+    --border: 250 30% 85%; /* Light border */
+    --input: 250 30% 92%; /* Light Input BG */
 
-    --primary: 330 80% 55%; /* Vibrant Pink */
+    --primary: 326 57% 45%; /* #B4317B (Muted Violet) */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 330 70% 45%; /* Darker Pink */
-    --secondary-foreground: 0 0% 95%; 
+    --secondary: 326 50% 55%; /* Lighter Muted Violet */
+    --secondary-foreground: 0 0% 100%; /* White */
 
-    --accent: 330 80% 55%; /* Vibrant Pink (same as primary) */
+    --accent: 326 57% 45%; /* #B4317B (Muted Violet as accent on light theme) */
     --accent-foreground: 0 0% 100%; /* White */
 
     --destructive: 0 70% 50%; /* Destructive Red */
     --destructive-foreground: 0 0% 98%;
 
-    --ring: 330 80% 65%; /* Lighter Pink for Ring */
+    --ring: 326 57% 55%; /* Lighter Muted Violet for Ring */
     --radius: 0.5rem;
 
     --chart-1: hsl(var(--primary));
-    --chart-2: 330 75% 65%;
-    --chart-3: 270 20% 45%;
-    --chart-4: 310 70% 60%;
-    --chart-5: 270 15% 75%;
+    --chart-2: hsl(var(--secondary));
+    --chart-3: 326 70% 70%; /* Pinkish tone */
+    --chart-4: 260 50% 60%; /* Mid Indigo */
+    --chart-5: 260 30% 50%; /* Darker Indigo for contrast */
   }
 
   .dark {
-    --background: 270 30% 8%;
-    --foreground: 270 15% 85%;
-    --muted: 270 25% 15%;
-    --muted-foreground: 270 15% 60%;
-    --popover: 270 35% 7%;
-    --popover-foreground: 270 15% 85%;
-    --card: 270 28% 12%;
-    --card-foreground: 270 15% 85%;
-    --border: 270 20% 25%;
-    --input: 270 20% 20%;
-    --primary: 330 80% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 330 70% 45%;
+    /* Dark Theme */
+    --background: 260 40% 19%; /* #2A1A46 (Very light grayish-violet from PRD, as dark bg) */
+    --foreground: 250 50% 97%; /* #F2F0F9 (Soft Indigo as text) */
+
+    --muted: 260 30% 25%; /* Darker version of #2A1A46 */
+    --muted-foreground: 250 30% 70%; /* Lighter gray for muted text */
+
+    --popover: 260 40% 15%; /* Darker than background */
+    --popover-foreground: 250 50% 97%; /* #F2F0F9 */
+
+    --card: 260 35% 22%; /* Slightly lighter than background */
+    --card-foreground: 250 50% 97%; /* #F2F0F9 */
+
+    --border: 260 30% 30%; /* Muted Border */
+    --input: 260 30% 28%; /* Dark Input BG */
+
+    --primary: 326 57% 45%; /* #B4317B (Muted Violet) */
+    --primary-foreground: 0 0% 100%; /* White */
+
+    --secondary: 326 50% 35%; /* Darker Muted Violet */
     --secondary-foreground: 0 0% 95%;
-    --accent: 330 80% 55%;
-    --accent-foreground: 0 0% 100%;
+
+    --accent: 250 50% 97%; /* #F2F0F9 (Soft Indigo for interactive elements) */
+    --accent-foreground: 260 40% 19%; /* #2A1A46 (Dark text on light accent) */
+    
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
-    --ring: 330 80% 65%;
+
+    --ring: 326 57% 55%; /* Lighter Muted Violet for Ring */
+
+    --chart-1: hsl(var(--primary));
+    --chart-2: hsl(var(--secondary));
+    --chart-3: 250 40% 50%; /* Mid-tone of Soft Indigo */
+    --chart-4: 326 40% 60%; /* Lighter Muted Violet */
+    --chart-5: 250 20% 75%; /* Lighter Grayish Indigo */
   }
 }
 
@@ -69,7 +86,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline;
