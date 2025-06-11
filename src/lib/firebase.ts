@@ -61,26 +61,28 @@ if (typeof window !== 'undefined') {
           console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
         }
 
+        // --- App Check Initialization ---
+        const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
         try {
-          const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
-          
           if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
-            // Explicitly set debug token if placeholder key is used
-            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-            console.warn("%cFirebase App Check: NOTICE - Using DEBUG TOKEN for App Check because reCAPTCHA V3 Site Key is a placeholder. App Check relies on this debug token. For production, replace the placeholder key in src/lib/firebase.ts with a valid key from Google Cloud Console for reCAPTCHA Enterprise.", "color: orange; font-weight: bold; font-size: 1.1em; border: 1px solid orange; padding: 3px;");
+            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN for App Check. For production, replace the placeholder key in src/lib/firebase.ts with a valid key from Google Cloud Console for reCAPTCHA Enterprise. You may need to set `self.FIREBASE_APPCHECK_DEBUG_TOKEN = 'YOUR_DEBUG_TOKEN_FROM_CONSOLE';` or `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` in your browser console and refresh if issues persist.", "color: orange; font-weight: bold; font-size: 1.1em; border: 1px solid orange; padding: 3px;");
+            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true; // Ensure debug token is enabled
+            appCheckInstance = initializeAppCheck(app, {
+              isTokenAutoRefreshEnabled: true
+              // DO NOT pass a provider if we want the SDK to automatically use the debug provider
+            });
+            console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: green;");
           } else {
-            console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key. Debug token not explicitly set by this logic.", "color: green; font-weight: bold;");
+            console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
+            appCheckInstance = initializeAppCheck(app, {
+              provider: new ReCaptchaV3Provider(reCaptchaKey),
+              isTokenAutoRefreshEnabled: true
+            });
+            console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
           }
-
-          appCheckInstance = initializeAppCheck(app, {
-            provider: new ReCaptchaV3Provider(reCaptchaKey),
-            isTokenAutoRefreshEnabled: true
-          });
-          console.log("%cFirebase: App Check initialization SUCCEEDED (or using debug token as configured).", "color: green;");
-
         } catch (e: any) {
           console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
-          appCheckInstance = null; 
+          appCheckInstance = null;
         }
         
         // Optional Analytics initialization
@@ -105,7 +107,6 @@ if (typeof window !== 'undefined') {
          if (!appCheckInstance) {
             console.warn("%cFirebase: App Check instance is NULL after initialization attempt. If App Check is enforced, Firebase services might fail.", "color: orange; font-weight: bold;");
         }
-
 
       } else {
         console.error("%cCRITICAL: Firebase app object is null after initialization attempt. Firebase services will be unavailable.", "color: red; font-weight: bold; font-size: 1.3em;");
