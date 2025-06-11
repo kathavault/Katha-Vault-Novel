@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
-// Firebase App Check has been removed from client-side initialization.
+import { initializeAppCheck, ReCaptchaV3Provider, type AppCheck } from 'firebase/app-check';
 
 // Uncomment and import if you need analytics
 // import { getAnalytics, type Analytics } from "firebase/analytics";
@@ -21,9 +21,8 @@ let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
-// App Check instance HATA DIYA GAYA HAI
+let appCheckInstance: AppCheck | null = null; // Re-added AppCheck instance
 // let analytics: Analytics | null = null; // Optional
-
 
 if (typeof window !== 'undefined') {
   console.log("%cFirebase: Attempting initialization on client...", "color: blue; font-weight: bold;");
@@ -68,9 +67,33 @@ if (typeof window !== 'undefined') {
         console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
       }
 
-      // App Check related code has been removed from here.
-      // If you re-enable App Check, ensure your Firebase Project Settings (Console -> App Check) for services like Authentication
-      // have enforcement OFF if you don't intend to provide an App Check token from the client.
+      // Initialize Firebase App Check
+      const reCaptchaKey = "YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER";
+
+      if (typeof initializeAppCheck === 'function' && typeof ReCaptchaV3Provider === 'function') {
+        try {
+          if (reCaptchaKey === "YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER" || !reCaptchaKey) {
+            console.warn("%cFirebase App Check: WARNING - reCAPTCHA v3 Site Key is a PLACEHOLDER. DEBUG TOKEN (`FIREBASE_APPCHECK_DEBUG_TOKEN=true`) has been automatically enabled for local development. For this to work effectively with enforced services, ensure your debug token is registered in the Firebase console OR temporarily disable enforcement for services (Auth, Firestore etc.) if the debug flow fails. You MUST replace the placeholder with a REAL reCAPTCHA v3 Site Key from Google Cloud Console (reCAPTCHA Enterprise) for production and for App Check to function correctly with ENFORCEMENT.", "color: orange; font-weight: bold; font-size: 1.1em; border: 1px solid orange; padding: 5px;");
+            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+            appCheckInstance = initializeAppCheck(app); // No provider uses debug token if flag is set
+            console.log("%cFirebase: App Check initialized (attempting DEBUG mode due to placeholder key).", "color: orange; font-weight: bold;");
+          } else {
+            console.log("%cFirebase App Check: Initializing with provided reCAPTCHA v3 Site Key.", "color: green; font-weight: bold;");
+            const provider = new ReCaptchaV3Provider(reCaptchaKey);
+            appCheckInstance = initializeAppCheck(app, {
+              provider: provider,
+              isTokenAutoRefreshEnabled: true,
+            });
+            console.log("%cFirebase: App Check initialized with reCAPTCHA v3 provider.", "color: green; font-weight: bold;");
+          }
+        } catch (e: any) {
+          console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
+          appCheckInstance = null;
+        }
+      } else {
+        console.error("%cFirebase: App Check SDK functions (initializeAppCheck or ReCaptchaV3Provider) are not available. App Check will not be initialized. Check Firebase SDK installation.", "color: red; font-weight: bold;");
+        appCheckInstance = null;
+      }
 
       if (authInstance && dbInstance && storageInstance) {
           console.log("%cFirebase: SDK core services (Auth, Firestore, Storage) initialized successfully.", "color: green; font-weight: bold;");
@@ -87,6 +110,7 @@ if (typeof window !== 'undefined') {
       authInstance = null;
       dbInstance = null;
       storageInstance = null;
+      appCheckInstance = null;
     }
   } catch (e: any) {
     console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR (Outer Catch):", "color: red; font-weight: bold; font-size: 1.3em;", e);
@@ -94,7 +118,8 @@ if (typeof window !== 'undefined') {
     authInstance = null;
     dbInstance = null;
     storageInstance = null;
+    appCheckInstance = null;
   }
 }
 
-export { app, authInstance as auth, dbInstance as db, storageInstance as storage };
+export { app, authInstance as auth, dbInstance as db, storageInstance as storage, appCheckInstance };
