@@ -47,7 +47,6 @@ if (typeof window !== 'undefined') {
       app = null;
     }
 
-    // More robust check for a valid FirebaseApp instance
     if (app && typeof app.name !== 'undefined' && app.options && app.options.projectId === firebaseConfig.projectId) {
       console.log(`%cFirebase: App successfully initialized or retrieved. App name: ${app.name}, Project ID: ${app.options.projectId}`, "color: green; font-weight: bold;");
 
@@ -74,27 +73,23 @@ if (typeof window !== 'undefined') {
       if (typeof initializeAppCheck === 'function') {
         try {
           const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
+          console.log("Firebase: Preparing App Check. reCaptchaKey is placeholder:", reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER');
 
           if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
-            // Debug mode if reCAPTCHA key is placeholder
             (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN. This is for DEVELOPMENT ONLY. For production, replace the placeholder key in src/lib/firebase.ts.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
-            appCheckInstance = initializeAppCheck(app, {
-              isTokenAutoRefreshEnabled: true
-              // No provider explicitly set; SDK uses debug provider if FIREBASE_APPCHECK_DEBUG_TOKEN is true
-            });
-            console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: green;");
+            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. DEBUG TOKEN IS ACTIVE. For production, replace placeholder key.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
+            console.log("Firebase: Attempting App Check initialization (DEBUG mode - no provider). App object:", app);
+            appCheckInstance = initializeAppCheck(app); // SIMPLIFIED DEBUG CALL
+            console.log("%cFirebase: App Check initialized (DEBUG mode attempt).", "color: green;");
           } else {
-            // Production mode with reCAPTCHA key
             if (typeof ReCaptchaV3Provider === 'function') {
               console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
-              appCheckInstance = initializeAppCheck(app, {
-                provider: new ReCaptchaV3Provider(reCaptchaKey),
-                isTokenAutoRefreshEnabled: true
-              });
+              console.log("Firebase: Attempting App Check initialization (PRODUCTION reCAPTCHA mode). App object:", app);
+              const provider = new ReCaptchaV3Provider(reCaptchaKey);
+              appCheckInstance = initializeAppCheck(app, { provider }); // SIMPLIFIED PRODUCTION CALL
               console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
             } else {
-               console.error("%cFirebase App Check: CRITICAL - ReCaptchaV3Provider is undefined. App Check cannot initialize with reCAPTCHA. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.2em;");
+               console.error("%cFirebase App Check: CRITICAL - ReCaptchaV3Provider function is undefined. App Check cannot initialize with reCAPTCHA. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.2em;");
                appCheckInstance = null;
             }
           }
@@ -107,9 +102,6 @@ if (typeof window !== 'undefined') {
         appCheckInstance = null;
       }
       
-      // Optional Analytics initialization
-      // if (firebaseConfig.measurementId) { ... }
-
       if (authInstance && dbInstance && storageInstance) {
           console.log("%cFirebase: SDK core services (Auth, Firestore, Storage) initialized successfully.", "color: green; font-weight: bold;");
       } else {
@@ -130,7 +122,6 @@ if (typeof window !== 'undefined') {
       dbInstance = null;
       storageInstance = null;
       appCheckInstance = null;
-      // analytics = null;
     }
   } catch (e: any) { 
     console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR (Outer Catch):", "color: red; font-weight: bold; font-size: 1.3em;", e);
@@ -139,10 +130,9 @@ if (typeof window !== 'undefined') {
     dbInstance = null;
     storageInstance = null;
     appCheckInstance = null;
-    // analytics = null;
   }
 } else {
   // console.log("Firebase: SDK not initialized (server-side or window undefined).");
 }
 
-export { app, authInstance as auth, dbInstance as db, storageInstance as storage, appCheckInstance as appCheck /*, analytics */ };
+export { app, authInstance as auth, dbInstance as db, storageInstance as storage, appCheckInstance as appCheck };
