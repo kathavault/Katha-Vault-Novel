@@ -28,91 +28,95 @@ let appCheckInstance: AppCheck | null = null;
 
 if (typeof window !== 'undefined') {
   console.log("%cFirebase: Attempting initialization on client...", "color: blue; font-weight: bold;");
-  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.startsWith("AIza") === false || firebaseConfig.apiKey.length < 20) {
-    console.error("%cCRITICAL: Firebase API Key is missing, invalid, or a placeholder. Firebase SDK will NOT be initialized. Check src/lib/firebase.ts and your environment configuration.", "color: red; font-weight: bold; font-size: 1.3em;");
-  } else {
+  try { // Outer try for all client-side Firebase setup
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.startsWith("AIza") === false || firebaseConfig.apiKey.length < 20) {
+      console.error("%cCRITICAL: Firebase API Key is missing, invalid, or a placeholder. Firebase SDK will NOT be initialized. Check src/lib/firebase.ts and your environment configuration.", "color: red; font-weight: bold; font-size: 1.3em;");
+      throw new Error("Invalid Firebase API Key configuration."); // Throw to be caught by outer catch
+    }
+
     try {
       if (getApps().length === 0) {
-        console.log("Firebase: No apps initialized. Initializing new app...");
+        console.log("Firebase: No apps initialized. Attempting initializeApp...");
         app = initializeApp(firebaseConfig);
-        console.log("%cFirebase: App initialized.", "color: green;");
       } else {
+        console.log("Firebase: Existing app found. Attempting getApp()...");
         app = getApp();
-        console.log("%cFirebase: Existing app retrieved.", "color: green;");
+      }
+    } catch (initError: any) {
+      console.error("%cFirebase: Core App initialization (initializeApp/getApp) FAILED.", "color: red; font-weight: bold;", initError);
+      app = null; // Ensure app is null if core init fails
+    }
+
+    // More robust check for a valid FirebaseApp instance
+    if (app && typeof app.name !== 'undefined' && app.options && app.options.projectId === firebaseConfig.projectId) {
+      console.log(`%cFirebase: App successfully initialized or retrieved. App name: ${app.name}, Project ID: ${app.options.projectId}`, "color: green; font-weight: bold;");
+
+      try {
+        authInstance = getAuth(app);
+        console.log("%cFirebase: Auth initialized.", "color: green;");
+      } catch (e) {
+        console.error("%cFirebase: Auth initialization FAILED.", "color: red; font-weight: bold;", e);
+      }
+      try {
+        dbInstance = getFirestore(app);
+        console.log("%cFirebase: Firestore initialized.", "color: green;");
+      } catch (e) {
+        console.error("%cFirebase: Firestore initialization FAILED.", "color: red; font-weight: bold;", e);
+      }
+      try {
+        storageInstance = getStorage(app);
+        console.log("%cFirebase: Storage initialized.", "color: green;");
+      } catch (e) {
+        console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
       }
 
-      if (app) {
-        try {
-          authInstance = getAuth(app);
-          console.log("%cFirebase: Auth initialized.", "color: green;");
-        } catch (e) {
-          console.error("%cFirebase: Auth initialization FAILED.", "color: red; font-weight: bold;", e);
-        }
-        try {
-          dbInstance = getFirestore(app);
-          console.log("%cFirebase: Firestore initialized.", "color: green;");
-        } catch (e) {
-          console.error("%cFirebase: Firestore initialization FAILED.", "color: red; font-weight: bold;", e);
-        }
-        try {
-          storageInstance = getStorage(app);
-          console.log("%cFirebase: Storage initialized.", "color: green;");
-        } catch (e) {
-          console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
-        }
-
-        // --- App Check Initialization ---
+      // --- App Check Initialization ---
+      try {
         const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
-        try {
-          if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
-            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN for App Check. For production, replace the placeholder key in src/lib/firebase.ts with a valid key from Google Cloud Console for reCAPTCHA Enterprise. You may need to set `self.FIREBASE_APPCHECK_DEBUG_TOKEN = 'YOUR_DEBUG_TOKEN_FROM_CONSOLE';` or `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` in your browser console and refresh if issues persist.", "color: orange; font-weight: bold; font-size: 1.1em; border: 1px solid orange; padding: 3px;");
-            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true; // Ensure debug token is enabled
-            appCheckInstance = initializeAppCheck(app, {
-              isTokenAutoRefreshEnabled: true
-              // DO NOT pass a provider if we want the SDK to automatically use the debug provider
-            });
-            console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: green;");
-          } else {
-            console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
-            appCheckInstance = initializeAppCheck(app, {
-              provider: new ReCaptchaV3Provider(reCaptchaKey),
-              isTokenAutoRefreshEnabled: true
-            });
-            console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
-          }
-        } catch (e: any) {
-          console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
-          appCheckInstance = null;
+        if (!app) { // This check is now somewhat redundant due to the earlier robust check but kept for safety
+          console.error("%cFirebase: 'app' is unexpectedly null/undefined before App Check initialization attempt.", "color: red; font-weight: bold;");
+          throw new Error("'app' is unexpectedly null/undefined before App Check initialization attempt.");
         }
-        
-        // Optional Analytics initialization
-        // if (firebaseConfig.measurementId) {
-        //   try {
-        //     analytics = getAnalytics(app);
-        //     console.log("%cFirebase: Analytics initialized.", "color: green;");
-        //   } catch (e) {
-        //     console.error("%cFirebase: Analytics initialization FAILED.", "color: red; font-weight: bold;", e);
-        //   }
-        // }
 
-        if (authInstance && dbInstance && storageInstance) {
-            console.log("%cFirebase: SDK core services (Auth, Firestore, Storage) initialized successfully.", "color: green; font-weight: bold;");
+        if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
+          (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+          console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN. For production, replace the placeholder key in src/lib/firebase.ts. Ensure FIREBASE_APPCHECK_DEBUG_TOKEN is set in your console if issues persist after refresh.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
+          appCheckInstance = initializeAppCheck(app, {
+            isTokenAutoRefreshEnabled: true
+            // No provider, relies on debug token set on window
+          });
+          console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: green;");
         } else {
-            let missingServices = [];
-            if (!authInstance) missingServices.push("Auth");
-            if (!dbInstance) missingServices.push("Firestore");
-            if (!storageInstance) missingServices.push("Storage");
-            console.warn(`%cFirebase: One or more core Firebase services FAILED to initialize: [${missingServices.join(', ')}]. App functionality related to these services will be affected.`, "color: orange; font-weight: bold;");
+          console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
+          appCheckInstance = initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider(reCaptchaKey),
+            isTokenAutoRefreshEnabled: true
+          });
+          console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
         }
-         if (!appCheckInstance) {
-            console.warn("%cFirebase: App Check instance is NULL after initialization attempt. If App Check is enforced, Firebase services might fail.", "color: orange; font-weight: bold;");
-        }
-
-      } else {
-        console.error("%cCRITICAL: Firebase app object is null after initialization attempt. Firebase services will be unavailable.", "color: red; font-weight: bold; font-size: 1.3em;");
+      } catch (e: any) {
+        console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
+        appCheckInstance = null;
       }
-    } catch (e) {
-      console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR:", "color: red; font-weight: bold; font-size: 1.3em;", e);
+      
+      // Optional Analytics initialization
+      // if (firebaseConfig.measurementId) { ... }
+
+      if (authInstance && dbInstance && storageInstance) {
+          console.log("%cFirebase: SDK core services (Auth, Firestore, Storage) initialized successfully.", "color: green; font-weight: bold;");
+      } else {
+          let missingServices = [];
+          if (!authInstance) missingServices.push("Auth");
+          if (!dbInstance) missingServices.push("Firestore");
+          if (!storageInstance) missingServices.push("Storage");
+          console.warn(`%cFirebase: One or more core Firebase services FAILED to initialize: [${missingServices.join(', ')}]. App functionality related to these services will be affected.`, "color: orange; font-weight: bold;");
+      }
+       if (!appCheckInstance) {
+          console.warn("%cFirebase: App Check instance is NULL after initialization attempt. If App Check is enforced, Firebase services might fail.", "color: orange; font-weight: bold;");
+      }
+
+    } else { // app is null, undefined, or not a valid FirebaseApp instance
+      console.error("%cCRITICAL: Firebase app object is null, undefined, or not a valid FirebaseApp instance after initialization attempt. Firebase services will be unavailable. All Firebase instances set to null.", "color: red; font-weight: bold; font-size: 1.3em;");
       app = null; 
       authInstance = null;
       dbInstance = null;
@@ -120,6 +124,14 @@ if (typeof window !== 'undefined') {
       appCheckInstance = null;
       // analytics = null;
     }
+  } catch (e: any) { // Catch any error from the outer try block, including the API key check error
+    console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR (Outer Catch):", "color: red; font-weight: bold; font-size: 1.3em;", e);
+    app = null; 
+    authInstance = null;
+    dbInstance = null;
+    storageInstance = null;
+    appCheckInstance = null;
+    // analytics = null;
   }
 } else {
   // console.log("Firebase: SDK not initialized (server-side or window undefined).");
