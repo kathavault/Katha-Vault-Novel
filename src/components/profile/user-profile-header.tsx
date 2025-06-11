@@ -179,7 +179,7 @@ export function UserProfileHeader({
           )}
         </div>
 
-        <div className="flex-grow space-y-3 w-full text-center md:text-left">
+        <div className="flex-grow space-y-3 w-full text-left"> {/* Ensure text-left for the whole block */}
           {isViewingOwnProfile && isEditing ? (
             <div className="space-y-4">
               <div className="space-y-1">
@@ -226,8 +226,8 @@ export function UserProfileHeader({
             </div>
           ) : (
             <div className="space-y-1 md:space-y-2">
-              <div className="flex flex-col md:flex-row md:items-center md:gap-2 justify-center md:justify-start">
-                <h1 className="text-2xl md:text-3xl font-headline text-foreground flex items-center justify-center md:justify-start">
+              <div className="flex flex-col md:flex-row md:items-center md:gap-2 justify-start"> {/* Changed to justify-start */}
+                <h1 className="text-2xl md:text-3xl font-headline text-foreground flex items-center justify-start"> {/* Changed to justify-start */}
                     {currentName}
                     {isSpecialAdmin && (
                         <CheckCircle className="ml-2 h-5 w-5 md:h-6 md:w-6 text-blue-500 flex-shrink-0" title="Verified Admin" />
@@ -240,15 +240,15 @@ export function UserProfileHeader({
                     <Edit className="mr-2 h-4 w-4" /> Edit Profile
                 </Button>
               )}
-              <p className="font-body text-foreground/90 max-w-xl md:max-w-md whitespace-pre-wrap pt-1">{currentBio}</p>
+              <p className="font-body text-foreground/90 max-w-xl whitespace-pre-wrap pt-1">{currentBio}</p> {/* max-w-xl for slightly wider bio */}
               {currentEmailDisplay && (
-                <div className="flex items-center justify-center md:justify-start text-sm text-muted-foreground font-body pt-2 gap-1">
+                <div className="flex items-center justify-start text-sm text-muted-foreground font-body pt-2 gap-1"> {/* Changed to justify-start */}
                   <Mail className="h-4 w-4" />
                   <span>{currentEmailVisibleDisplay ? currentEmailDisplay : "Email hidden"}</span>
                 </div>
               )}
               {currentGenderDisplay && (
-                <div className="flex items-center justify-center md:justify-start text-sm text-muted-foreground font-body gap-1">
+                <div className="flex items-center justify-start text-sm text-muted-foreground font-body gap-1"> {/* Changed to justify-start */}
                   <UserSquare2 className="h-4 w-4" />
                   <span>Gender: {currentGenderDisplay}</span>
                 </div>
@@ -303,7 +303,7 @@ export function UserProfileHeader({
       </div>
 
       {isViewingOwnProfile && isEditing && loggedIn && (
-        <div className="flex gap-3 mt-6 justify-center md:justify-end">
+        <div className="flex gap-3 mt-6 justify-end"> {/* Kept justify-end for buttons */}
           <Button variant="ghost" onClick={handleCancelEdit}>
             <XCircle className="mr-2 h-4 w-4" /> Cancel
           </Button>
