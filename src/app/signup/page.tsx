@@ -46,7 +46,8 @@ function SignupPageContent() {
 
     setIsSubmitting(true);
     if (!auth) {
-      toast({ title: "Firebase Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
+      toast({ title: "Firebase Auth Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
+      console.error("Firebase Auth instance (auth) is not available in handleSubmit (Signup).");
       setIsSubmitting(false);
       return;
     }
@@ -55,45 +56,42 @@ function SignupPageContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
+      // Step 1: Set local logged-in status and basic profile from Auth/Form data
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: name, photoURL: null }, 'signup');
-      toast({ title: "Signup Initiated...", description: "Creating your profile. Please wait." });
+      toast({ title: "Signup successful! Creating profile & redirecting...", description: "Welcome to Katha Vault!" });
 
-      if (!db) {
-        console.warn("Database service (db) is not available for profile creation after signup.");
-        toast({ title: "Profile Creation Warning", description: "Account created, but could not save profile: Database service (db) not initialized. Check Firebase setup.", variant: "default", duration: 8000 });
-        const redirectUrl = searchParams.get('redirect');
-        router.push(redirectUrl || '/profile');
-        setIsSubmitting(false);
-        return;
-      }
-      
-      const userProfileData = {
-        uid: firebaseUser.uid, email: firebaseUser.email, name: name, username: username, 
-        avatarUrl: defaultKathaExplorerUser.avatarUrl,
-        avatarFallback: name.substring(0, 2).toUpperCase() || "KV",
-        bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
-        gender: defaultKathaExplorerUser.gender, isActive: true, createdAt: new Date().toISOString(),
-        signInMethod: "email" as "email",
-      };
-      
-      try {
-        await setDoc(doc(db, "users", firebaseUser.uid), userProfileData);
-        console.log("New user profile created in Firestore during email signup.");
-        saveKathaExplorerUser(userProfileData); 
-        toast({ title: "Signup Successful!", description: `Welcome to Katha Vault, ${name}! You're now logged in.` });
-      } catch (firestoreError: any) {
-        console.error("Firestore operation failed during email signup:", firestoreError);
-        let firestoreErrorMessage = "Account created, but couldn't save your profile data.";
-        if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-          firestoreErrorMessage = "Account created, but couldn't save profile: Client is offline. Please check your internet connection.";
-        } else {
-          firestoreErrorMessage = `Account created, but profile save error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
-        }
-        toast({ title: "Profile Save Issue", description: firestoreErrorMessage, variant: "default", duration: 8000 });
-      }
-      
+      // Step 2: Navigate immediately
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
+      // setIsSubmitting(false) handled in finally block
+
+      // Step 3: Perform Firestore profile creation in the background
+      (async () => {
+        try {
+          if (!db) {
+            console.warn("Signup: Database service (db) is not available for profile creation. Profile will be created when available.");
+            // toast({ title: "Profile Creation Delayed", description: "Your profile will be created once connection is restored.", variant: "default", duration: 7000});
+            return;
+          }
+          
+          const userProfileData = {
+            uid: firebaseUser.uid, email: firebaseUser.email, name: name, username: username, 
+            avatarUrl: defaultKathaExplorerUser.avatarUrl,
+            avatarFallback: name.substring(0, 2).toUpperCase() || "KV",
+            bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
+            gender: defaultKathaExplorerUser.gender, isActive: true, createdAt: new Date().toISOString(),
+            signInMethod: "email" as const,
+            lastLogin: new Date().toISOString(),
+          };
+          
+          // saveKathaExplorerUser will save to localStorage and call setDoc to Firestore.
+          saveKathaExplorerUser(userProfileData); 
+          console.log("Signup: New user profile creation process initiated for Firestore (post-navigation).");
+        } catch (error) { // This catch is for the IIFE, saveKathaExplorerUser has its own internal try-catch for setDoc
+          console.error("Signup: Background Firestore profile creation failed:", error);
+          // A non-blocking toast for background failure could be added if critical
+        }
+      })();
 
     } catch (authError: any) {
       console.error("Firebase Signup Auth Error:", authError);
@@ -120,7 +118,8 @@ function SignupPageContent() {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     if (!auth) {
-      toast({ title: "Firebase Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
+      toast({ title: "Firebase Auth Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
+      console.error("Firebase Auth instance (auth) is not available in handleGoogleSignIn (Signup).");
       setIsGoogleSubmitting(false);
       return;
     }
@@ -131,68 +130,64 @@ function SignupPageContent() {
       const userEmail = firebaseUser.email?.toLowerCase();
 
       if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
-        setIsGoogleSubmitting(false);
         if (auth.currentUser) { await signOut(auth); }
-        setLoggedInStatus(false); // Ensure local state is logged out
+        setLoggedInStatus(false); 
         toast({ title: "Admin Signup Method", description: "Admin accounts should be created via email/password.", variant: "destructive", duration: 7000 });
+        setIsGoogleSubmitting(false);
         return; 
       }
       
+      // Step 1: Set local logged-in status and basic profile
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'google');
-      toast({ title: "Google Sign-Up Initiated...", description: "Finalizing your profile. Please wait." });
+      toast({ title: "Google Sign-Up successful! Finalizing profile & redirecting...", description: "Welcome to Katha Vault!" });
 
-      if (!db) {
-        console.warn("Database service (db) is not available for profile sync after Google sign-up.");
-        toast({ title: "Profile Sync Warning", description: "Signed up with Google, but could not sync profile: Database service (db) not initialized. Check Firebase setup.", variant: "default", duration: 8000 });
-        const redirectUrl = searchParams.get('redirect');
-        router.push(redirectUrl || '/profile');
-        setIsGoogleSubmitting(false);
-        return;
-      }
-      
-      const userDocRef = doc(db, "users", firebaseUser.uid);
-      let profileName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Katha User';
-      let userProfileData;
-
-      try {
-        const userDocSnap = await getDoc(userDocRef);
-        if (!userDocSnap.exists()) {
-          userProfileData = {
-            uid: firebaseUser.uid, email: firebaseUser.email, name: profileName,
-            username: firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0,6)}`,
-            avatarUrl: firebaseUser.photoURL || defaultKathaExplorerUser.avatarUrl,
-            avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-            bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
-            gender: defaultKathaExplorerUser.gender, isActive: true, createdAt: new Date().toISOString(),
-            signInMethod: "google" as "google",
-          };
-          await setDoc(userDocRef, userProfileData);
-          console.log("New user profile created in Firestore with Google Sign-Up.");
-        } else {
-          userProfileData = userDocSnap.data();
-          await setDoc(userDocRef, {
-              name: profileName, avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl,
-              avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-              signInMethod: userProfileData.signInMethod || "google", lastLogin: new Date().toISOString(),
-          }, { merge: true });
-          console.log("Existing user profile updated in Firestore with Google Sign-Up.");
-        }
-        saveKathaExplorerUser({ ...defaultKathaExplorerUser, ...userProfileData, id: firebaseUser.uid, email: firebaseUser.email });
-        const finalDisplayUser = getKathaExplorerUser(); 
-        toast({ title: "Signed up with Google!", description: `Welcome, ${finalDisplayUser.name}!` });
-      } catch (firestoreError: any) {
-        console.error("Firestore operation failed during Google sign-up:", firestoreError);
-        let firestoreErrorMessage = "Signed up with Google, but couldn't sync your profile data.";
-        if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-          firestoreErrorMessage = "Signed up with Google, but couldn't sync profile: Client is offline. Please check your internet connection.";
-        } else {
-          firestoreErrorMessage = `Signed up with Google, but profile sync error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
-        }
-        toast({ title: "Profile Sync Issue", description: firestoreErrorMessage, variant: "default", duration: 8000 });
-      }
-      
+      // Step 2: Navigate immediately
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
+      // setIsGoogleSubmitting(false) handled in finally
+
+      // Step 3: Perform Firestore profile sync in the background
+      (async () => {
+        try {
+          if (!db) {
+            console.warn("Google Sign-Up: Database service (db) is not available for profile sync. Profile will sync when available.");
+            return;
+          }
+          
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          let profileName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Katha User';
+          let userProfileData;
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (!userDocSnap.exists()) {
+            console.log("Google Sign-Up: User document didn't exist in Firestore. Creating based on Auth data.");
+            userProfileData = {
+              uid: firebaseUser.uid, email: firebaseUser.email, name: profileName,
+              username: firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0,6)}`,
+              avatarUrl: firebaseUser.photoURL || defaultKathaExplorerUser.avatarUrl,
+              avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+              bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
+              gender: defaultKathaExplorerUser.gender, isActive: true, createdAt: new Date().toISOString(),
+              signInMethod: "google" as const,
+              lastLogin: new Date().toISOString(),
+            };
+          } else {
+            userProfileData = userDocSnap.data();
+            // Update existing profile with latest from Google and set lastLogin
+            await setDoc(userDocRef, {
+                name: profileName, 
+                avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl,
+                avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+                signInMethod: userProfileData.signInMethod || ("google" as const), 
+                lastLogin: new Date().toISOString(),
+            }, { merge: true });
+            console.log("Google Sign-Up: Existing user profile updated in Firestore.");
+          }
+          saveKathaExplorerUser({ ...defaultKathaExplorerUser, ...userProfileData, id: firebaseUser.uid, email: firebaseUser.email });
+        } catch (firestoreError: any) {
+          console.error("Google Sign-Up: Firestore profile sync failed (post-navigation):", firestoreError);
+        }
+      })();
 
     } catch (authError: any) {
       console.error("Google Sign-Up Auth Error:", authError);
@@ -200,7 +195,7 @@ function SignupPageContent() {
        if (authError.code === 'auth/popup-closed-by-user') {
         errorMessage = "Google Sign-Up popup was closed. Please try again.";
       } else if (authError.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = "An account already exists with this email address using a different sign-in method.";
+        errorMessage = "An account already exists with this email address using a different sign-in method. Please login with that method.";
       } else if (authError.code === 'auth/network-request-failed' || authError.code === 'auth/internal-error') {
         errorMessage = "Network error during Google Sign-Up. Please check your internet connection and try again.";
       } else if (authError.code === 'auth/cancelled-popup-request' || authError.code === 'auth/popup-blocked') {
@@ -303,3 +298,4 @@ export default function SignupPage() {
     </Suspense>
   )
 }
+

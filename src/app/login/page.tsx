@@ -54,8 +54,8 @@ function LoginPageContent() {
     setIsSubmitting(true);
 
     if (!auth) {
-      toast({ title: "Firebase Error", description: "Authentication service is not available. Please try again later or contact support.", variant: "destructive" });
-      console.error("Firebase Auth instance is not available in handleLogin.");
+      toast({ title: "Firebase Auth Error", description: "Authentication service is not initialized. Please check console or contact support.", variant: "destructive" });
+      console.error("Firebase Auth instance (auth) is not available in handleLogin.");
       setIsSubmitting(false);
       return;
     }
@@ -64,58 +64,62 @@ function LoginPageContent() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
+      // Step 1: Set local logged-in status and basic profile from Auth data
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'login');
-      toast({ title: "Login Initiated...", description: "Finalizing your session. Please wait." });
-
-      if (!db) {
-        console.warn("Database service (db) is not available for profile sync after login.");
-        toast({ title: "Profile Sync Warning", description: "Logged in, but could not sync profile: Database service is unavailable. Your data will sync when connection is restored.", variant: "default", duration: 8000 });
-        const redirectUrl = searchParams.get('redirect');
-        router.push(redirectUrl || '/profile'); 
-        setIsSubmitting(false);
-        return;
-      }
+      toast({ title: "Login successful! Redirecting...", description: "Please wait while we prepare your dashboard." });
       
-      try {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        let userProfileData;
+      // Step 2: Navigate immediately
+      const redirectUrl = searchParams.get('redirect');
+      router.push(redirectUrl || '/profile');
+      // Note: setIsSubmitting(false) will be handled in the finally block
 
-        if (!userDocSnap.exists()) {
-           let profileName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name;
-           let profileUsername = firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username;
-           
-           userProfileData = {
-              uid: firebaseUser.uid, email: firebaseUser.email, name: profileName, username: profileUsername, 
+      // Step 3: Perform Firestore sync in the background (async, doesn't block navigation)
+      (async () => {
+        try {
+          if (!db) {
+            console.warn("Login: Database service (db) is not available for profile sync after login. Profile will sync when available.");
+            // Optionally, a non-critical toast could be shown to the user on the next page
+            // toast({ title: "Profile Sync Delayed", description: "Your profile details will sync shortly. Please check your internet connection if issues persist.", variant: "default", duration: 7000});
+            return;
+          }
+          
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          let userProfileData;
+
+          if (!userDocSnap.exists()) {
+            console.log("Login: User document didn't exist in Firestore. Creating based on Auth data.");
+            let profileName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name;
+            userProfileData = {
+              uid: firebaseUser.uid, email: firebaseUser.email, name: profileName, 
+              username: firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username,
               avatarUrl: firebaseUser.photoURL || defaultKathaExplorerUser.avatarUrl,
               avatarFallback: (profileName).substring(0, 2).toUpperCase(),
               bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
               gender: defaultKathaExplorerUser.gender, isActive: true, createdAt: new Date().toISOString(),
-              signInMethod: "email" as "email",
-           };
-           await setDoc(userDocRef, userProfileData);
-           console.log("New user profile created in Firestore during login.");
-        } else {
-          userProfileData = userDocSnap.data();
-          await setDoc(userDocRef, { lastLogin: new Date().toISOString() }, { merge: true });
-          console.log("Existing user profile found in Firestore during login.");
+              signInMethod: firebaseUser.providerData.some(p => p.providerId === 'google.com') ? "google" as const : "email" as const,
+              lastLogin: new Date().toISOString(),
+            };
+            // saveKathaExplorerUser will call setDoc to Firestore.
+          } else {
+            userProfileData = userDocSnap.data();
+            // Update lastLogin in Firestore for existing user
+            await setDoc(userDocRef, { lastLogin: new Date().toISOString() }, { merge: true });
+            console.log("Login: Existing user profile found in Firestore. Updated last login.");
+          }
+          // Save/update the full profile (from Firestore or newly created) to localStorage & Firestore
+          saveKathaExplorerUser({ ...defaultKathaExplorerUser, ...userProfileData, id: firebaseUser.uid, email: firebaseUser.email }); // This updates localStorage and calls setDoc
+        } catch (firestoreError: any) {
+          console.error("Login: Firestore profile sync failed (post-navigation):", firestoreError);
+          let firestoreErrorMessage = "We had trouble syncing your full profile details from the server.";
+          if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
+            firestoreErrorMessage = "Could not sync profile: Client is offline. Please check your internet connection. Your data will sync when connection is restored.";
+          }
+          // This toast would appear on the page the user has been navigated to.
+          // Consider if this is desired or if console logging is enough for background errors.
+          // toast({ title: "Profile Sync Issue (Background)", description: firestoreErrorMessage, variant: "default", duration: 8000 });
         }
-        saveKathaExplorerUser({ ...defaultKathaExplorerUser, ...userProfileData, id: firebaseUser.uid, email: firebaseUser.email });
-        const finalDisplayUser = getKathaExplorerUser();
-        toast({ title: "Login Successful!", description: `Welcome back, ${finalDisplayUser.name}!` });
-      } catch (firestoreError: any) {
-        console.error("Firestore operation failed during login:", firestoreError);
-        let firestoreErrorMessage = "Logged in, but couldn't sync your profile data.";
-        if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-          firestoreErrorMessage = "Logged in, but couldn't sync profile: Client is offline. Please check your internet connection. Your data will sync when connection is restored.";
-        } else {
-          firestoreErrorMessage = `Logged in, but profile sync error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
-        }
-        toast({ title: "Profile Sync Issue", description: firestoreErrorMessage, variant: "default", duration: 8000 });
-      }
-      
-      const redirectUrl = searchParams.get('redirect');
-      router.push(redirectUrl || '/profile');
+      })();
 
     } catch (authError: any) {
       console.error("Firebase Login Auth Error:", authError);
@@ -144,8 +148,8 @@ function LoginPageContent() {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     if (!auth) {
-      toast({ title: "Firebase Error", description: "Authentication service is not available. Please try again later or contact support.", variant: "destructive" });
-      console.error("Firebase Auth instance is not available in handleGoogleSignIn.");
+      toast({ title: "Firebase Auth Error", description: "Authentication service is not initialized. Please check console or contact support.", variant: "destructive" });
+      console.error("Firebase Auth instance (auth) is not available in handleGoogleSignIn.");
       setIsGoogleSubmitting(false);
       return;
     }
@@ -156,68 +160,64 @@ function LoginPageContent() {
       const userEmail = firebaseUser.email?.toLowerCase();
 
       if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
-        setIsGoogleSubmitting(false);
         if (auth.currentUser) { await signOut(auth); }
         setLoggedInStatus(false); 
         toast({ title: "Admin Login Method", description: "Admin accounts should log in using their email and password.", variant: "destructive", duration: 7000 });
+        setIsGoogleSubmitting(false);
         return; 
       }
       
+      // Step 1: Set local logged-in status and basic profile from Auth data
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'google');
-      toast({ title: "Google Sign-In Initiated...", description: "Finalizing your session. Please wait." });
+      toast({ title: "Google Sign-In successful! Redirecting...", description: "Please wait while we prepare your dashboard." });
 
-      if (!db) {
-        console.warn("Database service (db) is not available for profile sync after Google sign-in.");
-        toast({ title: "Profile Sync Warning", description: "Signed in with Google, but could not sync profile: Database service is unavailable. Your data will sync when connection is restored.", variant: "default", duration: 8000 });
-        const redirectUrl = searchParams.get('redirect');
-        router.push(redirectUrl || '/profile');
-        setIsGoogleSubmitting(false);
-        return;
-      }
-
-      try {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        let profileName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Katha User';
-        let userProfileData;
-
-        if (!userDocSnap.exists()) {
-          userProfileData = {
-            uid: firebaseUser.uid, email: firebaseUser.email, name: profileName,
-            username: firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0,6)}`,
-            avatarUrl: firebaseUser.photoURL || defaultKathaExplorerUser.avatarUrl,
-            avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-            bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
-            gender: defaultKathaExplorerUser.gender, isActive: true, createdAt: new Date().toISOString(),
-            signInMethod: "google" as "google",
-          };
-          await setDoc(userDocRef, userProfileData);
-          console.log("New user profile created in Firestore with Google Sign-In.");
-        } else {
-          userProfileData = userDocSnap.data();
-          await setDoc(userDocRef, {
-              name: profileName, avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl,
-              avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-              signInMethod: userProfileData.signInMethod || "google", lastLogin: new Date().toISOString(),
-          }, { merge: true });
-          console.log("Existing user profile updated in Firestore with Google Sign-In.");
-        }
-        saveKathaExplorerUser({ ...defaultKathaExplorerUser, ...userProfileData, id: firebaseUser.uid, email: firebaseUser.email });
-        const finalDisplayUser = getKathaExplorerUser();
-        toast({ title: "Signed in with Google!", description: `Welcome, ${finalDisplayUser.name}!` });
-      } catch (firestoreError: any) {
-          console.error("Firestore operation failed during Google sign-in:", firestoreError);
-          let firestoreErrorMessage = "Signed in with Google, but couldn't sync your profile data.";
-          if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-            firestoreErrorMessage = "Signed in with Google, but couldn't sync profile: Client is offline. Please check your internet connection. Your data will sync when connection is restored.";
-          } else {
-            firestoreErrorMessage = `Signed in with Google, but profile sync error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
-          }
-          toast({ title: "Profile Sync Issue", description: firestoreErrorMessage, variant: "default", duration: 8000 });
-      }
-      
+      // Step 2: Navigate immediately
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
+      // setIsGoogleSubmitting(false) will be handled in finally
+
+      // Step 3: Perform Firestore sync in the background
+      (async () => {
+        try {
+          if (!db) {
+            console.warn("Google Sign-In: Database service (db) is not available for profile sync. Profile will sync when available.");
+            return;
+          }
+
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          let profileName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Katha User';
+          let userProfileData;
+
+          if (!userDocSnap.exists()) {
+            console.log("Google Sign-In: User document didn't exist in Firestore. Creating based on Auth data.");
+            userProfileData = {
+              uid: firebaseUser.uid, email: firebaseUser.email, name: profileName,
+              username: firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0,6)}`,
+              avatarUrl: firebaseUser.photoURL || defaultKathaExplorerUser.avatarUrl,
+              avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+              bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
+              gender: defaultKathaExplorerUser.gender, isActive: true, createdAt: new Date().toISOString(),
+              signInMethod: "google" as const,
+              lastLogin: new Date().toISOString(),
+            };
+          } else {
+            userProfileData = userDocSnap.data();
+            // Update existing profile with latest from Google and set lastLogin
+            await setDoc(userDocRef, {
+                name: profileName, // Update name from Google if changed
+                avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl, // Update avatar
+                avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+                signInMethod: userProfileData.signInMethod || ("google" as const), 
+                lastLogin: new Date().toISOString(),
+            }, { merge: true });
+            console.log("Google Sign-In: Existing user profile updated in Firestore.");
+          }
+          saveKathaExplorerUser({ ...defaultKathaExplorerUser, ...userProfileData, id: firebaseUser.uid, email: firebaseUser.email });
+        } catch (firestoreError: any) {
+          console.error("Google Sign-In: Firestore profile sync failed (post-navigation):", firestoreError);
+        }
+      })();
 
     } catch (authError: any)      {
       console.error("Google Sign-In Auth Error:", authError);
@@ -252,11 +252,13 @@ function LoginPageContent() {
         emailToReset = promptedEmail.trim();
     }
 
+    // Temporarily set submitting state for this specific action
+    const originalIsSubmitting = isSubmitting;
     setIsSubmitting(true); 
     if (!auth) {
-        toast({ title: "Firebase Error", description: "Authentication service is not available. Please try again later or contact support.", variant: "destructive" });
-        console.error("Firebase Auth instance is not available in handleForgotPassword.");
-        setIsSubmitting(false);
+        toast({ title: "Firebase Auth Error", description: "Authentication service is not initialized. Please check console or contact support.", variant: "destructive" });
+        console.error("Firebase Auth instance (auth) is not available in handleForgotPassword.");
+        setIsSubmitting(originalIsSubmitting); // Reset to original state
         return;
     }
     try {
@@ -266,7 +268,11 @@ function LoginPageContent() {
         console.error("Forgot Password Error:", error);
         let errorMessage = "Could not send password reset email. Please try again.";
          if (error.code === 'auth/user-not-found') {
-             errorMessage = "No user found with this email address.";
+             // Don't reveal if user exists or not for security, keep message generic
+             errorMessage = `If an account exists for ${emailToReset}, a password reset email has been sent. Please also check your spam folder.`;
+             toast({ title: "Password Reset Initiated", description: errorMessage });
+             setIsSubmitting(originalIsSubmitting);
+             return;
         } else if (error.code === 'auth/invalid-email') {
             errorMessage = "The email address is not valid.";
         } else if (error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
@@ -276,7 +282,7 @@ function LoginPageContent() {
         }
         toast({ title: "Password Reset Failed", description: errorMessage, variant: "destructive" });
     } finally {
-        setIsSubmitting(false);
+        setIsSubmitting(originalIsSubmitting); // Reset to original state
     }
   };
   
