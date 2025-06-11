@@ -47,7 +47,6 @@ if (typeof window !== 'undefined') {
       app = null; // Ensure app is null if core init fails
     }
 
-    // More robust check for a valid FirebaseApp instance
     if (app && typeof app.name !== 'undefined' && app.options && app.options.projectId === firebaseConfig.projectId) {
       console.log(`%cFirebase: App successfully initialized or retrieved. App name: ${app.name}, Project ID: ${app.options.projectId}`, "color: green; font-weight: bold;");
 
@@ -71,31 +70,37 @@ if (typeof window !== 'undefined') {
       }
 
       // --- App Check Initialization ---
-      try {
-        const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
-        if (!app) { // This check is now somewhat redundant due to the earlier robust check but kept for safety
-          console.error("%cFirebase: 'app' is unexpectedly null/undefined before App Check initialization attempt.", "color: red; font-weight: bold;");
-          throw new Error("'app' is unexpectedly null/undefined before App Check initialization attempt.");
-        }
+      if (typeof initializeAppCheck === 'function') {
+        try {
+          const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
 
-        if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
-          (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-          console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN. For production, replace the placeholder key in src/lib/firebase.ts. Ensure FIREBASE_APPCHECK_DEBUG_TOKEN is set in your console if issues persist after refresh.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
-          appCheckInstance = initializeAppCheck(app, {
-            isTokenAutoRefreshEnabled: true
-            // No provider, relies on debug token set on window
-          });
-          console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: green;");
-        } else {
-          console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
-          appCheckInstance = initializeAppCheck(app, {
-            provider: new ReCaptchaV3Provider(reCaptchaKey),
-            isTokenAutoRefreshEnabled: true
-          });
-          console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
+          if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
+            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN. For production, replace the placeholder key in src/lib/firebase.ts. This debug token allows App Check to function in development environments without a real reCAPTCHA key. Ensure your Firebase project's App Check settings allow for debug tokens if issues persist.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
+            appCheckInstance = initializeAppCheck(app, {
+              isTokenAutoRefreshEnabled: true
+              // No provider explicitly set; SDK should use debug provider if FIREBASE_APPCHECK_DEBUG_TOKEN is true
+            });
+            console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: green;");
+          } else {
+            if (typeof ReCaptchaV3Provider === 'function') {
+              console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
+              appCheckInstance = initializeAppCheck(app, {
+                provider: new ReCaptchaV3Provider(reCaptchaKey),
+                isTokenAutoRefreshEnabled: true
+              });
+              console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
+            } else {
+              console.error("%cFirebase App Check: CRITICAL - ReCaptchaV3Provider is undefined. App Check cannot initialize with reCAPTCHA. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.3em;");
+              appCheckInstance = null;
+            }
+          }
+        } catch (e: any) {
+          console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
+          appCheckInstance = null;
         }
-      } catch (e: any) {
-        console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
+      } else {
+        console.error("%cFirebase App Check: CRITICAL - initializeAppCheck function is undefined. App Check cannot be initialized. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.3em;");
         appCheckInstance = null;
       }
       
