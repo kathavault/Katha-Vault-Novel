@@ -101,23 +101,22 @@ const kathaVaultAIChatFlow = ai.defineFlow(
   async (input) => {
     try {
       const {output} = await prompt(input);
-      if (output) {
+      if (output && output.aiResponse && output.aiResponse.trim() !== "") {
         return output;
       }
-      // Fallback if output is null or undefined from the model
-      return { aiResponse: "I'm having a little trouble understanding that. Could you try rephrasing, perhaps with a bit more sparkle? ✨🤔" };
+      // Fallback if output is null, or aiResponse is missing or empty
+      return { aiResponse: "Hmm, I'm not quite sure how to respond to that! 🤔 Could you try asking in a different way? Or tell me about a story you love! 📚✨" };
     } catch (error) {
       console.error("Error calling AI model in kathaVaultAIChatFlow:", error);
       const errorMessage = (error instanceof Error && error.message) ? error.message : "Unknown error";
       
-      // Check for specific error conditions related to model availability or overload
       if (errorMessage.includes("503") || errorMessage.toLowerCase().includes("service unavailable") || errorMessage.toLowerCase().includes("overloaded")) {
         return { aiResponse: "Oh dear, my circuits are a bit frazzled right now! 😅 I'm super popular, you see. Please try again in a few moments, okay? 💖" };
       }
-      // Generic fallback for other errors
+      if (errorMessage.toLowerCase().includes("api key not valid")) {
+        return { aiResponse: "It seems my connection to the story-verse is a bit weak (API key issue). The tech wizards are on it! 🛠️✨ Please try again later."};
+      }
       return { aiResponse: "Oops! Something went a bit wobbly in my digital world and I couldn't process your request. So sorry! Please try again later. 🛠️❤️" };
     }
   }
 );
-
-    
