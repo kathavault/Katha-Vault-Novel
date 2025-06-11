@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette, MoreVertical, Smile, Loader2, Trash2, Users, MessageSquareQuote, ListFilter, ExternalLink, LogIn, CheckCircle } from 'lucide-react';
+import { Bot, Send, UserCog, ImagePlus, MessageCircle, CircleUserRound, Palette, MoreVertical, Smile, Loader2, Trash2, Users, MessageSquareQuote, ListFilter, ExternalLink, LogIn, CheckCircle, ChevronLeft } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { chatWithKathaVaultAI, type KathaVaultAIChatInput } from '@/ai/flows/katha-vault-chat-flow';
 import Link from 'next/link';
@@ -135,6 +135,8 @@ interface CurrentChatInterfaceProps {
   setSelectedDiscussionGroup: (value: JoinedDiscussion | null) => void;
   setMessages: (value: Message[] | ((prev: Message[]) => Message[])) => void;
   currentUserIsActive: boolean;
+  onMobileBack: () => void;
+  isMobileFocusedView: boolean;
 }
 
 const CurrentChatInterface: React.FC<CurrentChatInterfaceProps> = ({
@@ -160,6 +162,8 @@ const CurrentChatInterface: React.FC<CurrentChatInterfaceProps> = ({
   setSelectedDiscussionGroup,
   setMessages,
   currentUserIsActive,
+  onMobileBack,
+  isMobileFocusedView,
 }) => {
   const { toast } = useToast();
   const router = useRouter();
@@ -178,22 +182,46 @@ const CurrentChatInterface: React.FC<CurrentChatInterfaceProps> = ({
   
   const canInteract = authStatus === 'loggedIn' && currentUserIsActive;
 
+  if (chatContext === 'none' && !isMobileFocusedView) { // Show placeholder on desktop if no chat selected
+     return (
+        <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-card border rounded-lg shadow-xl">
+            <MessageCircle size={48} className="mb-4 opacity-50" />
+            <p className="text-lg">Select a chat or discussion to start messaging.</p>
+            <p className="text-sm mt-1">Or, chat with Katha Vault AI in the Direct Chats list!</p>
+        </div>
+    );
+  }
+  if (chatContext === 'none' && isMobileFocusedView) { // Should not happen if logic is correct, but as a fallback
+    return (
+      <Card className="flex flex-col h-full shadow-xl items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-2 text-muted-foreground">Loading chat...</p>
+      </Card>
+    );
+  }
+
+
   return (
     <Card className="flex flex-col h-full shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between space-x-3 border-b p-4 flex-shrink-0">
-        <div className="flex items-center space-x-3">
+        {isMobileFocusedView && (
+           <Button variant="ghost" size="icon" onClick={onMobileBack} className="mr-1 md:hidden">
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+        )}
+        <div className="flex items-center space-x-3 flex-grow overflow-hidden">
           <Avatar>
             <AvatarImage src={chatPartnerAvatar} alt={chatPartnerName} data-ai-hint={chatContext === 'ai' ? "robot ai" : chatContext === 'user' ? "person avatar" : "group discussion"} />
             <AvatarFallback>{chatPartnerFallback}</AvatarFallback>
           </Avatar>
-          <div>
+          <div className="overflow-hidden">
             <div className="flex items-center">
                 {chatContext === 'user' ? (
-                    <Link href={`/profile/${chatPartnerId}`} className="hover:underline">
-                        <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+                    <Link href={`/profile/${chatPartnerId}`} className="hover:underline truncate">
+                        <CardTitle className="text-lg font-headline truncate">{chatPartnerName}</CardTitle>
                     </Link>
                 ) : (
-                    <CardTitle className="text-lg font-headline">{chatPartnerName}</CardTitle>
+                    <CardTitle className="text-lg font-headline truncate">{chatPartnerName}</CardTitle>
                 )}
                 {isChatPartnerSpecialAdmin && chatContext === 'user' && (
                     <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 flex-shrink-0" title="Verified Admin" />
@@ -201,9 +229,10 @@ const CurrentChatInterface: React.FC<CurrentChatInterfaceProps> = ({
             </div>
             {chatContext === 'user' && chatPartnerIsOnline && <CardDescription className="text-xs text-green-500">Online</CardDescription>}
             {chatContext === 'discussion' && <CardDescription className="text-xs text-blue-500">Discussion Group</CardDescription>}
+            {chatContext === 'ai' && <CardDescription className="text-xs text-purple-500">AI Assistant</CardDescription>}
           </div>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex-shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8" disabled={chatContext === 'none' || !canInteract}>
@@ -239,6 +268,7 @@ const CurrentChatInterface: React.FC<CurrentChatInterfaceProps> = ({
                     
                     setSelectedDiscussionGroup(null);
                     setMessages([]);
+                    onMobileBack(); // Go back to list view on mobile
                     toast({title: "Left Discussion", description: `You have left "${currentSelectedDiscussion.name}".`});
                   }}>Leave Discussion</DropdownMenuItem>
                 </>
@@ -379,13 +409,15 @@ function ChatPageContent() {
 
   const [messages, setMessages] = useState<Message[]>([]);
 
-  const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<any | null>(null); // Type will be derived
+  const [selectedDirectChatUser, setSelectedDirectChatUser] = useState<any | null>(null); 
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const [joinedDiscussions, setJoinedDiscussions] = useState<JoinedDiscussion[]>([]);
   const [selectedDiscussionGroup, setSelectedDiscussionGroup] = useState<JoinedDiscussion | null>(null);
   
+  const [selectedChatActive, setSelectedChatActive] = useState(false); // For mobile view switching
+
   const aiAvatarInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -413,9 +445,9 @@ function ChatPageContent() {
         avatarUrl: user.avatarUrl || 'https://placehold.co/40x40.png',
         avatarFallback: user.avatarFallback || user.name.substring(0,2).toUpperCase(),
         lastMessage: `Chat with ${user.name}`,
-        timestamp: '10:30 AM', // Placeholder
+        timestamp: '10:30 AM', 
         unreadCount: 0,
-        isOnline: false, // Placeholder
+        isOnline: false, 
         dataAiHint: user.dataAiHint || 'person chat',
         email: user.email,
       }));
@@ -451,6 +483,7 @@ function ChatPageContent() {
     );
   }, [authStatus, currentUser, derivedInitialPlaceholderUserChats]);
 
+  // Effect for loading joined discussions from localStorage
   useEffect(() => {
     if (authStatus !== 'loggedIn') return;
     try {
@@ -458,84 +491,124 @@ function ChatPageContent() {
       if (storedDiscussionsRaw) {
         const parsedDiscussions: JoinedDiscussion[] = JSON.parse(storedDiscussionsRaw);
         setJoinedDiscussions(parsedDiscussions);
-        if (discussionIdToOpen && parsedDiscussions.some(d => d.id === discussionIdToOpen)) {
-            const discussionToSelect = parsedDiscussions.find(d => d.id === discussionIdToOpen) || null;
-            setSelectedDiscussionGroup(discussionToSelect);
-            setActiveMainTab('discussions');
-        }
       }
     } catch (error) {
       console.error("Error loading joined discussions from localStorage:", error);
       toast({ title: "Error", description: "Could not load your joined discussions.", variant: "destructive"});
     }
-  }, [discussionIdToOpen, toast, authStatus]);
+  }, [toast, authStatus]);
 
+
+  // Effect for initial chat selection based on URL parameters or default
   useEffect(() => {
     if (authStatus !== 'loggedIn' || !currentUser) return;
+    let chatOpenedViaUrl = false;
 
     if (userIdToOpen) {
       const userToChat = derivedInitialPlaceholderUserChats.find(u => u.id === userIdToOpen);
-
       if (userToChat) {
         setSelectedDirectChatUser(userToChat);
+        setSelectedDiscussionGroup(null);
         setActiveMainTab('direct');
-        setMessages([
-            {
-                id: 'initial-user-chat-' + Date.now(),
-                text: `You are now chatting with ${userToChat.name}. Say hello!`,
-                sender: 'ai', // System message, styled like AI
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-            }
-        ]);
-        setDisplayedUserChats(prevChats =>
-            prevChats.map(chat =>
-                chat.id === userIdToOpen ? { ...chat, unreadCount: 0 } : chat
-            )
-        );
+        setDisplayedUserChats(prev => prev.map(chat => chat.id === userIdToOpen ? { ...chat, unreadCount: 0 } : chat));
+        chatOpenedViaUrl = true;
       } else if (userIdToOpen === aiChatUser.id) {
-         setSelectedDirectChatUser(null); // Select AI chat
-         setActiveMainTab('direct');
+        setSelectedDirectChatUser(null); // AI chat
+        setSelectedDiscussionGroup(null);
+        setActiveMainTab('direct');
+        chatOpenedViaUrl = true;
+      }
+    } else if (discussionIdToOpen) {
+      const discussionToSelect = joinedDiscussions.find(d => d.id === discussionIdToOpen);
+      if (discussionToSelect) {
+        setSelectedDiscussionGroup(discussionToSelect);
+        setSelectedDirectChatUser(null);
+        setActiveMainTab('discussions');
+        chatOpenedViaUrl = true;
       }
     }
-  }, [userIdToOpen, authStatus, currentUser, router, derivedInitialPlaceholderUserChats]); 
 
-  useEffect(() => {
-    if (authStatus !== 'loggedIn') return;
-    if (activeMainTab === 'direct' && !selectedDirectChatUser && !userIdToOpen && !selectedDiscussionGroup && !discussionIdToOpen) {
-      // Default to AI chat if no specific user/discussion is selected via URL params
-      setMessages([
-          {
-              id: 'initial-ai-' + Date.now(),
-              text: 'Hello! How can I help you with your stories today? 😊',
-              sender: 'ai',
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-          }
-      ]);
-    } else if (activeMainTab === 'direct' && selectedDirectChatUser && !userIdToOpen) {
-        // When a user chat is selected from the sidebar (not via URL param)
-       setMessages([
-           {
-               id: 'initial-user-chat-from-selection-' + Date.now(),
-               text: `You are now chatting with ${selectedDirectChatUser.name}. Say hello!`,
-               sender: 'ai', // System message
-               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-           }
-       ]);
-    } else if (activeMainTab === 'discussions' && selectedDiscussionGroup && !discussionIdToOpen) {
-         // When a discussion is selected from the sidebar
-        setMessages([
-            {
-                id: 'initial-discussion-' + Date.now(),
-                text: `Welcome to the discussion: "${selectedDiscussionGroup.name}". Start chatting!`,
-                sender: 'ai', // System message
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-            }
-        ]);
-    } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup && !discussionIdToOpen) {
-        // When 'Discussions' tab is active but no specific discussion selected
-        setMessages([]); 
+    if (chatOpenedViaUrl) {
+      setSelectedChatActive(true); // Open chat interface on mobile if URL specifies a chat
     }
-  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, authStatus, userIdToOpen, discussionIdToOpen]);
+    // Message loading is now handled by a separate effect based on active selections
+  }, [userIdToOpen, discussionIdToOpen, authStatus, currentUser, router, derivedInitialPlaceholderUserChats, activeMainTab, joinedDiscussions]);
+
+
+  // Effect for loading messages based on current selection
+  useEffect(() => {
+    if (authStatus !== 'loggedIn' || !currentUser) return;
+
+    if (selectedDirectChatUser) { // User chat
+      setMessages([{
+        id: `initial-user-chat-${selectedDirectChatUser.id}-${Date.now()}`,
+        text: `You are now chatting with ${selectedDirectChatUser.name}. Say hello!`,
+        sender: 'ai', // System message
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      }]);
+    } else if (selectedDiscussionGroup) { // Discussion group
+      setMessages([{
+        id: `initial-discussion-${selectedDiscussionGroup.id}-${Date.now()}`,
+        text: `Welcome to the discussion: "${selectedDiscussionGroup.name}". Start chatting!`,
+        sender: 'ai', // System message
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      }]);
+    } else if (activeMainTab === 'direct' && !selectedDirectChatUser && !selectedDiscussionGroup) { // AI chat (default for direct tab)
+      setMessages([{
+        id: `initial-ai-${Date.now()}`,
+        text: 'Hello! How can I help you with your stories today? 😊',
+        sender: 'ai',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      }]);
+    } else if (activeMainTab === 'discussions' && !selectedDiscussionGroup) {
+      setMessages([]); // No discussion selected on discussions tab, clear messages
+    }
+  }, [activeMainTab, selectedDirectChatUser, selectedDiscussionGroup, authStatus, currentUser]);
+
+
+  const commonSelectionLogic = () => {
+    setSelectedChatActive(true); // Show chat interface on mobile
+  };
+
+  const handleDirectChatSelection = (chatUser: ReturnType<typeof derivedInitialPlaceholderUserChats>[0]) => {
+    setSelectedDirectChatUser(chatUser);
+    setSelectedDiscussionGroup(null);
+    setCurrentMessage('');
+    setActiveMainTab('direct');
+    router.push(`/chat?section=direct&userId=${chatUser.id}`, { scroll: false });
+    setDisplayedUserChats(prevChats => prevChats.map(chat =>
+        chat.id === chatUser.id ? { ...chat, unreadCount: 0 } : chat
+    ));
+    commonSelectionLogic();
+  };
+
+  const handleAiChatSelection = () => {
+    setSelectedDirectChatUser(null);
+    setSelectedDiscussionGroup(null);
+    setCurrentMessage('');
+    setActiveMainTab('direct');
+    router.push('/chat?section=direct', { scroll: false });
+    commonSelectionLogic();
+  };
+
+  const handleDiscussionSelection = (discussion: JoinedDiscussion) => {
+    setSelectedDiscussionGroup(discussion);
+    setSelectedDirectChatUser(null);
+    setCurrentMessage('');
+    setActiveMainTab('discussions');
+    router.push(`/chat?section=discussions&discussionId=${discussion.id}`, { scroll: false });
+    commonSelectionLogic();
+  };
+
+  const handleMobileBack = () => {
+    setSelectedDirectChatUser(null);
+    setSelectedDiscussionGroup(null);
+    setSelectedChatActive(false); // Go back to list view
+    // Update URL to general section, not specific chat
+    const targetUrl = activeMainTab === 'direct' ? '/chat?section=direct' : '/chat?section=discussions';
+    router.push(targetUrl, { scroll: false });
+    // Messages will be reset by the message loading useEffect
+  };
 
 
   const handleSendMessage = async () => {
@@ -593,7 +666,7 @@ function ChatPageContent() {
       const otherUserResponse: Message = {
         id: 'other-user-resp-' + Date.now(),
         text: `This is a simulated reply to: "${userMessageText}". Simulating as if I am ${selectedDirectChatUser.name}.`,
-        sender: 'ai', // Simulate as AI for styling, but with user's details
+        sender: 'ai', 
         userName: selectedDirectChatUser.name,
         userId: selectedDirectChatUser.id,
         userAvatarUrl: selectedDirectChatUser.avatarUrl,
@@ -626,7 +699,7 @@ function ChatPageContent() {
     if (newNick && newNick.trim() !== "") {
       setAiNickname(newNick.trim());
       toast({ title: "AI Nickname Updated", description: `Katha Vault AI will now be called "${newNick.trim()}" for you.` });
-    } else if (newNick !== null) { // User didn't cancel but entered empty string
+    } else if (newNick !== null) { 
        toast({ title: "Invalid Nickname", description: "Nickname cannot be empty.", variant: "destructive" });
     }
   };
@@ -692,48 +765,20 @@ function ChatPageContent() {
   };
 
   const ChatPartnerDetails = () => {
-    if (activeMainTab === 'direct' && !selectedDirectChatUser) {
+    if (activeMainTab === 'direct' && !selectedDirectChatUser) { // AI chat
       return { id: aiChatUser.id, name: aiNickname, avatar: aiAvatar, fallback: aiChatUser.avatarFallback, isOnline: undefined, context: 'ai' as const, email: aiChatUser.email };
     }
-    if (activeMainTab === 'direct' && selectedDirectChatUser) {
+    if (activeMainTab === 'direct' && selectedDirectChatUser) { // User chat
       return { id: selectedDirectChatUser.id, name: selectedDirectChatUser.name, avatar: selectedDirectChatUser.avatarUrl, fallback: selectedDirectChatUser.avatarFallback, isOnline: selectedDirectChatUser.isOnline, context: 'user' as const, email: selectedDirectChatUser.email };
     }
-    if (activeMainTab === 'discussions' && selectedDiscussionGroup) {
+    if (activeMainTab === 'discussions' && selectedDiscussionGroup) { // Discussion group
       return { id: selectedDiscussionGroup.id, name: selectedDiscussionGroup.name, avatar: "https://placehold.co/40x40.png?text=DG", fallback: selectedDiscussionGroup.name.substring(0,2).toUpperCase(), isOnline: undefined, context: 'discussion' as const, email: undefined };
     }
-    return { id: '', name: "Select a chat or discussion", avatar: "", fallback: "?", isOnline: undefined, context: 'none' as const, email: undefined };
+    // Default/placeholder if no specific chat is active (e.g. on desktop before selection)
+    return { id: '', name: "Select a chat or discussion", avatar: "https://placehold.co/40x40.png?text=?", fallback: "?", isOnline: undefined, context: 'none' as const, email: undefined };
   };
   
   const currentChatPartnerDetails = ChatPartnerDetails();
-
-  const handleDirectChatSelection = (chatUser: ReturnType<typeof derivedInitialPlaceholderUserChats>[0]) => {
-    setSelectedDirectChatUser(chatUser);
-    setSelectedDiscussionGroup(null);
-    setCurrentMessage('');
-    setActiveMainTab('direct');
-    // Update URL without forcing full reload, but allowing history
-    router.push(`/chat?section=direct&userId=${chatUser.id}`, { scroll: false });
-    setDisplayedUserChats(prevChats => prevChats.map(chat =>
-        chat.id === chatUser.id ? { ...chat, unreadCount: 0 } : chat
-    ));
-  };
-
-  const handleAiChatSelection = () => {
-    setSelectedDirectChatUser(null);
-    setSelectedDiscussionGroup(null);
-    setCurrentMessage('');
-    setActiveMainTab('direct');
-    router.push('/chat?section=direct', { scroll: false });
-  };
-
-  const handleDiscussionSelection = (discussion: JoinedDiscussion) => {
-    setSelectedDiscussionGroup(discussion);
-    setSelectedDirectChatUser(null);
-    setCurrentMessage('');
-    setActiveMainTab('discussions');
-    router.push(`/chat?section=discussions&discussionId=${discussion.id}`, { scroll: false });
-  };
-
 
   const DirectChatsSidebar = () => (
     <Card className="flex flex-col h-full">
@@ -743,7 +788,7 @@ function ChatPageContent() {
       <CardContent className="p-0 flex-grow overflow-hidden">
         <ScrollArea className="h-full">
           <div
-            className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${currentChatPartnerDetails.context === 'ai' && !selectedDirectChatUser ? 'bg-muted' : ''}`}
+            className={`flex items-center space-x-3 p-3 hover:bg-muted/50 cursor-pointer border-b ${(activeMainTab === 'direct' && !selectedDirectChatUser && selectedChatActive) || (activeMainTab === 'direct' && !selectedDirectChatUser && !selectedChatActive && currentChatPartnerDetails.context === 'ai') ? 'bg-muted' : ''}`}
             onClick={handleAiChatSelection}
           >
             <Avatar>
@@ -855,18 +900,11 @@ function ChatPageContent() {
       <Tabs value={activeMainTab} onValueChange={(value) => {
         const newTab = value as 'direct' | 'discussions';
         setActiveMainTab(newTab);
-        if (newTab === 'direct') {
-            if (!selectedDirectChatUser) handleAiChatSelection();
-            else handleDirectChatSelection(selectedDirectChatUser); 
-        } else if (newTab === 'discussions') {
-            if (selectedDiscussionGroup) handleDiscussionSelection(selectedDiscussionGroup);
-            else {
-                setSelectedDiscussionGroup(null);
-                setSelectedDirectChatUser(null);
-                 router.push('/chat?section=discussions', { scroll: false });
-                 setMessages([]); 
-            }
-        }
+        // When changing main tabs, reset selections and mobile view state
+        setSelectedDirectChatUser(null);
+        setSelectedDiscussionGroup(null);
+        setSelectedChatActive(false); 
+        router.push(`/chat?section=${newTab}`, { scroll: false });
       }} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="direct"><CircleUserRound className="mr-2 h-5 w-5" />Direct Chats</TabsTrigger>
@@ -874,14 +912,23 @@ function ChatPageContent() {
         </TabsList>
       </Tabs>
 
-      {activeMainTab === 'direct' && <OnlineFriendsBar onlineFriends={derivedPlaceholderOnlineFriends} />}
+      {activeMainTab === 'direct' && !selectedChatActive && <OnlineFriendsBar onlineFriends={derivedPlaceholderOnlineFriends} />}
+
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 flex-grow min-h-0">
-        <div className="md:col-span-1 flex flex-col h-full min-h-[300px] md:min-h-0">
+        {/* Sidebar Container */}
+        <div 
+          className={`md:col-span-1 flex flex-col h-full min-h-[300px] md:min-h-0 transition-all duration-300 ease-in-out
+                      ${selectedChatActive ? 'hidden md:flex' : 'flex'}`}
+        >
           {activeMainTab === 'direct' ? <DirectChatsSidebar /> : <JoinedDiscussionsSidebar />}
         </div>
 
-        <div className="md:col-span-3 h-full min-h-[500px] md:min-h-0">
+        {/* Chat Interface Container */}
+        <div 
+          className={`md:col-span-3 h-full min-h-[500px] md:min-h-0 flex flex-col transition-all duration-300 ease-in-out
+                      ${selectedChatActive ? 'flex' : 'hidden md:flex'}`}
+        >
           <CurrentChatInterface
             chatPartnerDetails={currentChatPartnerDetails}
             messages={messages}
@@ -905,6 +952,8 @@ function ChatPageContent() {
             setSelectedDiscussionGroup={setSelectedDiscussionGroup}
             setMessages={setMessages}
             currentUserIsActive={currentUserIsActive}
+            onMobileBack={handleMobileBack}
+            isMobileFocusedView={selectedChatActive}
           />
         </div>
       </div>
@@ -919,3 +968,5 @@ export default function ChatPage() {
     </Suspense>
   )
 }
+
+    
