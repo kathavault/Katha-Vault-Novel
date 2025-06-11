@@ -30,8 +30,8 @@ if (typeof window !== 'undefined') {
   console.log("%cFirebase: Attempting initialization on client...", "color: blue; font-weight: bold;");
   try { // Outer try for all client-side Firebase setup
     if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.startsWith("AIza") === false || firebaseConfig.apiKey.length < 20) {
-      console.error("%cCRITICAL: Firebase API Key is missing, invalid, or a placeholder. Firebase SDK will NOT be initialized. Check src/lib/firebase.ts and your environment configuration.", "color: red; font-weight: bold; font-size: 1.3em;");
-      throw new Error("Invalid Firebase API Key configuration."); // Throw to be caught by outer catch
+      console.error("%cCRITICAL: Firebase API Key is missing, invalid, or a placeholder. Firebase SDK will NOT be initialized. Check src/lib/firebase.ts and your environment configuration.", "color: red; font-weight: bold; font-size: 1.3em; border: 2px solid red; padding: 5px;");
+      throw new Error("Invalid Firebase API Key configuration.");
     }
 
     try {
@@ -44,9 +44,10 @@ if (typeof window !== 'undefined') {
       }
     } catch (initError: any) {
       console.error("%cFirebase: Core App initialization (initializeApp/getApp) FAILED.", "color: red; font-weight: bold;", initError);
-      app = null; // Ensure app is null if core init fails
+      app = null;
     }
 
+    // More robust check for a valid FirebaseApp instance
     if (app && typeof app.name !== 'undefined' && app.options && app.options.projectId === firebaseConfig.projectId) {
       console.log(`%cFirebase: App successfully initialized or retrieved. App name: ${app.name}, Project ID: ${app.options.projectId}`, "color: green; font-weight: bold;");
 
@@ -75,14 +76,16 @@ if (typeof window !== 'undefined') {
           const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
 
           if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
+            // Debug mode if reCAPTCHA key is placeholder
             (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN. For production, replace the placeholder key in src/lib/firebase.ts. This debug token allows App Check to function in development environments without a real reCAPTCHA key. Ensure your Firebase project's App Check settings allow for debug tokens if issues persist.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
+            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. Attempting to use DEBUG TOKEN. This is for DEVELOPMENT ONLY. For production, replace the placeholder key in src/lib/firebase.ts.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
             appCheckInstance = initializeAppCheck(app, {
               isTokenAutoRefreshEnabled: true
-              // No provider explicitly set; SDK should use debug provider if FIREBASE_APPCHECK_DEBUG_TOKEN is true
+              // No provider explicitly set; SDK uses debug provider if FIREBASE_APPCHECK_DEBUG_TOKEN is true
             });
             console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: green;");
           } else {
+            // Production mode with reCAPTCHA key
             if (typeof ReCaptchaV3Provider === 'function') {
               console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
               appCheckInstance = initializeAppCheck(app, {
@@ -91,8 +94,8 @@ if (typeof window !== 'undefined') {
               });
               console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
             } else {
-              console.error("%cFirebase App Check: CRITICAL - ReCaptchaV3Provider is undefined. App Check cannot initialize with reCAPTCHA. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.3em;");
-              appCheckInstance = null;
+               console.error("%cFirebase App Check: CRITICAL - ReCaptchaV3Provider is undefined. App Check cannot initialize with reCAPTCHA. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.2em;");
+               appCheckInstance = null;
             }
           }
         } catch (e: any) {
@@ -100,7 +103,7 @@ if (typeof window !== 'undefined') {
           appCheckInstance = null;
         }
       } else {
-        console.error("%cFirebase App Check: CRITICAL - initializeAppCheck function is undefined. App Check cannot be initialized. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.3em;");
+        console.error("%cFirebase App Check: CRITICAL - initializeAppCheck function is undefined. App Check cannot be initialized. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.2em;");
         appCheckInstance = null;
       }
       
@@ -120,8 +123,8 @@ if (typeof window !== 'undefined') {
           console.warn("%cFirebase: App Check instance is NULL after initialization attempt. If App Check is enforced, Firebase services might fail.", "color: orange; font-weight: bold;");
       }
 
-    } else { // app is null, undefined, or not a valid FirebaseApp instance
-      console.error("%cCRITICAL: Firebase app object is null, undefined, or not a valid FirebaseApp instance after initialization attempt. Firebase services will be unavailable. All Firebase instances set to null.", "color: red; font-weight: bold; font-size: 1.3em;");
+    } else { 
+      console.error("%cCRITICAL: Firebase app object is null, undefined, or not a valid FirebaseApp instance after initialization attempt (name or options missing/invalid). Firebase services will be unavailable. All Firebase instances set to null.", "color: red; font-weight: bold; font-size: 1.3em; border: 2px solid red; padding: 5px;");
       app = null; 
       authInstance = null;
       dbInstance = null;
@@ -129,7 +132,7 @@ if (typeof window !== 'undefined') {
       appCheckInstance = null;
       // analytics = null;
     }
-  } catch (e: any) { // Catch any error from the outer try block, including the API key check error
+  } catch (e: any) { 
     console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR (Outer Catch):", "color: red; font-weight: bold; font-size: 1.3em;", e);
     app = null; 
     authInstance = null;
