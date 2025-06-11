@@ -93,6 +93,10 @@ function SignupPageContent() {
 
       if (authError.code) {
         switch (authError.code) {
+          case 'auth/firebase-app-check-token-is-invalid':
+            title = "App Check Token Invalid";
+            errorMessage = "Signup failed because of an App Check token issue. If you recently removed App Check from your app's code, you MUST DISABLE App Check ENFORCEMENT for 'Authentication' in your Firebase project console (Firebase Console -> App Check -> Apps -> Your Web App -> Services).";
+            break;
           case 'auth/email-already-in-use':
             errorMessage = "This email address is already in use by another account.";
             break;
@@ -103,7 +107,7 @@ function SignupPageContent() {
             errorMessage = "The email address is not valid.";
             break;
           case 'auth/network-request-failed':
-            errorMessage = "Network error. Please check your internet connection. This could also be due to Firebase App Check enforcement if active in your project console for Authentication.";
+            errorMessage = "Network error. Please check your internet connection. This could also be due to Firebase App Check ENFORCEMENT if active in your project console for Authentication. Please verify App Check enforcement settings.";
             break;
           case 'auth/unauthorized-domain':
             errorMessage = "This domain is not authorized for Firebase authentication. Contact support or check Firebase Console settings.";
@@ -112,20 +116,12 @@ function SignupPageContent() {
              errorMessage = "Email/password sign-up is not enabled for your Firebase project. Please check your Firebase console Authentication settings.";
              break;
           default:
-            if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
-                errorMessage = "Signup failed. This might be due to Firebase App Check enforcement. If you recently disabled App Check in the code, ensure it's also disabled or correctly configured in your Firebase project settings for Authentication.";
-            } else {
-                errorMessage = `${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
-            }
+            errorMessage = `${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code}). If you recently removed App Check from your app's code, ensure it's also DISABLED for Authentication in your Firebase project settings (App Check section).`;
         }
       } else {
-        if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
-            errorMessage = "Signup failed, possibly due to Firebase App Check. Please verify App Check settings in your Firebase console for the Authentication service.";
-        } else {
-            errorMessage = authError.message || "An unexpected error occurred during signup.";
-        }
+        errorMessage = `${authError.message || "An unexpected error occurred during signup."} If App Check was recently disabled in code but is still ENFORCED in your Firebase project settings, this could be the cause.`;
       }
-      toast({ title: title, description: errorMessage, variant: "destructive", duration: 7000 });
+      toast({ title: title, description: errorMessage, variant: "destructive", duration: 10000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -207,6 +203,10 @@ function SignupPageContent() {
 
       if (authError.code) {
         switch (authError.code) {
+          case 'auth/firebase-app-check-token-is-invalid':
+            title = "App Check Token Invalid";
+            errorMessage = "Google Sign-Up failed due to App Check. If you recently removed App Check from code, DISABLE ENFORCEMENT for 'Authentication' in your Firebase project console (Firebase Console -> App Check -> Apps -> Your Web App -> Services).";
+            break;
           case 'auth/popup-closed-by-user':
             title = "Google Sign-Up Cancelled";
             errorMessage = "Google Sign-Up popup was closed before completion. Please try again.";
@@ -216,7 +216,7 @@ function SignupPageContent() {
             errorMessage = "An account already exists with this email address using a different sign-in method (e.g., email/password). Please login with that method.";
             break;
           case 'auth/network-request-failed':
-            errorMessage = "Network error during Google Sign-Up. Please check your internet connection. This could also be due to Firebase App Check enforcement if active in your project console for Authentication.";
+            errorMessage = "Network error during Google Sign-Up. Check internet connection. This could also be due to App Check ENFORCEMENT in Firebase Console. Verify App Check settings.";
             break;
           case 'auth/cancelled-popup-request':
           case 'auth/popup-blocked':
@@ -230,20 +230,12 @@ function SignupPageContent() {
              errorMessage = "Google Sign-Up is not enabled for your Firebase project. Please check your Firebase console Authentication settings.";
              break;
           default:
-            if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
-                errorMessage = "Google Sign-Up failed. This might be due to Firebase App Check enforcement. If you recently disabled App Check in the code, ensure it's also disabled or correctly configured in your Firebase project settings for Authentication.";
-            } else {
-                errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
-            }
+            errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code}). If App Check related, ensure ENFORCEMENT is disabled in Firebase Console.`;
           }
       } else {
-        if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
-            errorMessage = "Google Sign-Up failed, possibly due to Firebase App Check. Please verify App Check settings in your Firebase console for the Authentication service.";
-        } else {
-            errorMessage = authError.message || "An unexpected error occurred during Google Sign-Up.";
-        }
+        errorMessage = `${authError.message || "An unexpected error occurred during Google Sign-Up."} If App Check related, ensure ENFORCEMENT is disabled for Authentication in Firebase Console.`;
       }
-      toast({ title: title, description: errorMessage, variant: "destructive", duration: 7000 });
+      toast({ title: title, description: errorMessage, variant: "destructive", duration: 10000 });
     } finally {
       setIsGoogleSubmitting(false);
     }
