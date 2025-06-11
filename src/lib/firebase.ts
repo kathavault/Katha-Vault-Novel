@@ -3,6 +3,8 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import { initializeAppCheck, ReCaptchaV3Provider, type AppCheck } from 'firebase/app-check';
+
 // Uncomment and import if you need analytics
 // import { getAnalytics, type Analytics } from "firebase/analytics";
 
@@ -20,6 +22,7 @@ let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
+let appCheckInstance: AppCheck | null = null;
 // let analytics: Analytics | null = null; // Optional
 
 // Initialize Firebase only on the client-side
@@ -57,6 +60,30 @@ if (typeof window !== 'undefined') {
         } catch (e) {
           console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
         }
+
+        // Initialize App Check
+        try {
+          // IMPORTANT: Replace 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' with your actual reCAPTCHA v3 site key.
+          // You can get a site key from the Google Cloud Console for reCAPTCHA v3.
+          // For development, Firebase might log a debug token in the console if this key is wrong or missing.
+          // You can then set it in your browser console for the current session:
+          // self.FIREBASE_APPCHECK_DEBUG_TOKEN = "YOUR_DEBUG_TOKEN_FROM_CONSOLE";
+          // OR, to make it easier for development if you don't want to set up reCAPTCHA immediately:
+          // (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true; // before initializeAppCheck
+          // This tells Firebase to use a default debug token.
+          
+          // Ensure you call this on the window object if you are setting the debug token globally
+          // (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true; // Uncomment for easy dev setup
+
+          appCheckInstance = initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider('YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER'),
+            isTokenAutoRefreshEnabled: true
+          });
+          console.log("%cFirebase: App Check initialization attempted. If 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' is not replaced with a valid reCAPTCHA v3 site key, this may not function correctly in production. Check console for debug token instructions for development.", "color: orange;");
+        } catch (e) {
+          console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
+          console.log("%cFirebase: App Check Tip: For development, you can set '(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;' in your browser console *before* App Check initializes, or provide a valid reCAPTCHA v3 site key.", "color: yellow;");
+        }
         
         // Optional Analytics initialization
         // if (firebaseConfig.measurementId) {
@@ -83,11 +110,11 @@ if (typeof window !== 'undefined') {
       }
     } catch (e) {
       console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR:", "color: red; font-weight: bold;", e);
-      // Ensure all instances are null if any part of initialization fails
       app = null;
       authInstance = null;
       dbInstance = null;
       storageInstance = null;
+      appCheckInstance = null;
       // analytics = null;
     }
   }
@@ -95,6 +122,4 @@ if (typeof window !== 'undefined') {
   // console.log("Firebase: SDK not initialized (server-side or window undefined).");
 }
 
-// Export instances directly
-export { app, authInstance as auth, dbInstance as db, storageInstance as storage /*, analytics */ };
-
+export { app, authInstance as auth, dbInstance as db, storageInstance as storage, appCheckInstance as appCheck /*, analytics */ };

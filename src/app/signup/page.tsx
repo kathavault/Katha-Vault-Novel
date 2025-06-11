@@ -56,21 +56,16 @@ function SignupPageContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
-      // Step 1: Set local logged-in status and basic profile from Auth/Form data
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: name, photoURL: null }, 'signup');
       toast({ title: "Signup successful! Creating profile & redirecting...", description: "Welcome to Katha Vault!" });
 
-      // Step 2: Navigate immediately
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
-      // setIsSubmitting(false) handled in finally block
 
-      // Step 3: Perform Firestore profile creation in the background
       (async () => {
         try {
           if (!db) {
             console.warn("Signup: Database service (db) is not available for profile creation. Profile will be created when available.");
-            // toast({ title: "Profile Creation Delayed", description: "Your profile will be created once connection is restored.", variant: "default", duration: 7000});
             return;
           }
           
@@ -84,12 +79,10 @@ function SignupPageContent() {
             lastLogin: new Date().toISOString(),
           };
           
-          // saveKathaExplorerUser will save to localStorage and call setDoc to Firestore.
           saveKathaExplorerUser(userProfileData); 
           console.log("Signup: New user profile creation process initiated for Firestore (post-navigation).");
-        } catch (error) { // This catch is for the IIFE, saveKathaExplorerUser has its own internal try-catch for setDoc
+        } catch (error) { 
           console.error("Signup: Background Firestore profile creation failed:", error);
-          // A non-blocking toast for background failure could be added if critical
         }
       })();
 
@@ -106,6 +99,8 @@ function SignupPageContent() {
         errorMessage = "Network error during signup. Please check your internet connection and try again.";
       } else if (authError.code === 'auth/unauthorized-domain') {
         errorMessage = "This domain is not authorized for Firebase authentication. Please contact support or check Firebase Console settings.";
+      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
+        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Signup Auth Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
@@ -137,16 +132,12 @@ function SignupPageContent() {
         return; 
       }
       
-      // Step 1: Set local logged-in status and basic profile
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'google');
       toast({ title: "Google Sign-Up successful! Finalizing profile & redirecting...", description: "Welcome to Katha Vault!" });
 
-      // Step 2: Navigate immediately
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
-      // setIsGoogleSubmitting(false) handled in finally
 
-      // Step 3: Perform Firestore profile sync in the background
       (async () => {
         try {
           if (!db) {
@@ -173,7 +164,6 @@ function SignupPageContent() {
             };
           } else {
             userProfileData = userDocSnap.data();
-            // Update existing profile with latest from Google and set lastLogin
             await setDoc(userDocRef, {
                 name: profileName, 
                 avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl,
@@ -202,6 +192,8 @@ function SignupPageContent() {
         errorMessage = "Google Sign-Up popup was blocked or cancelled. Please ensure popups are allowed and try again.";
       } else if (authError.code === 'auth/unauthorized-domain') {
         errorMessage = "This domain is not authorized for Google Sign-Up. Please contact support or check Firebase Console settings.";
+      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
+        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }

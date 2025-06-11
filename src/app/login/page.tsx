@@ -64,15 +64,12 @@ function LoginPageContent() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
-      // Step 1: Set local logged-in status and basic profile from Auth data
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'login');
       toast({ title: "Login successful! Redirecting...", description: "Please wait while we prepare your dashboard." });
       
-      // Step 2: Navigate immediately
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
 
-      // Step 3: Perform Firestore sync in the background (async, doesn't block navigation)
       (async () => {
         try {
           if (!db) {
@@ -129,6 +126,8 @@ function LoginPageContent() {
         errorMessage = "This domain is not authorized for Firebase authentication. Please contact support or check Firebase Console settings.";
       } else if (authError.code === 'auth/visibility-check-was-unavailable') {
         errorMessage = "A temporary Firebase issue occurred (visibility check unavailable). Please try logging in again. If the problem persists, check your network or try an incognito window.";
+      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
+        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Login Auth Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
@@ -220,6 +219,8 @@ function LoginPageContent() {
         errorMessage = "Google Sign-In popup was blocked or cancelled. Please ensure popups are allowed and try again.";
       } else if (authError.code === 'auth/unauthorized-domain') {
         errorMessage = "This domain is not authorized for Google Sign-In. Please contact support or check Firebase Console settings.";
+      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
+        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Google Sign-In Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
