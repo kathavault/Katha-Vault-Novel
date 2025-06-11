@@ -11,12 +11,12 @@ import {
   getStoredChapterComments, 
   saveStoredChapterComments, 
   type StoredChapterComment, 
-  CURRENT_USER_ID, 
   getKathaExplorerUser,
   isUserActive,
   isUserLoggedIn, 
   KRITIKA_USER_ID, 
-  KATHAVAULT_OWNER_USER_ID
+  KATHAVAULT_OWNER_USER_ID,
+  type MockUser
 } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -222,23 +222,6 @@ const ChapterReadingPage = () => {
         return;
     }
 
-    const deleteCommentRecursively = (comments: StoredChapterComment[]): StoredChapterComment[] => {
-      return comments.filter(comment => {
-        if (comment.id === targetCommentId) {
-          return !(comment.authorId === currentUser.id || currentUser.id === CURRENT_USER_ID); 
-        }
-        if (comment.replies && comment.replies.length > 0) {
-          comment.replies = deleteCommentRecursively(comment.replies);
-        }
-        return true; 
-      }).map(comment => { 
-          if (comment.replies) {
-              comment.replies = deleteCommentRecursively(comment.replies);
-          }
-          return comment;
-      });
-    };
-
     let commentToDelete: StoredChapterComment | undefined;
     const findComment = (comments: StoredChapterComment[]): StoredChapterComment | undefined => {
         for (const comment of comments) {
@@ -252,8 +235,21 @@ const ChapterReadingPage = () => {
     };
     commentToDelete = findComment(chapterComments);
 
-    if (commentToDelete && (commentToDelete.authorId === currentUser.id || currentUser.id === CURRENT_USER_ID)) {
-        updateAndSaveComments(deleteCommentRecursively(chapterComments).filter(c => c.id !== targetCommentId)); 
+    const canDelete = commentToDelete && currentUser &&
+                      (commentToDelete.authorId === currentUser.id || 
+                       currentUser.id === KRITIKA_USER_ID || 
+                       currentUser.id === KATHAVAULT_OWNER_USER_ID);
+
+    if (canDelete) {
+        const deleteCommentRecursively = (comments: StoredChapterComment[]): StoredChapterComment[] => {
+            return comments
+                .filter(comment => comment.id !== targetCommentId)
+                .map(comment => ({
+                    ...comment,
+                    replies: comment.replies ? deleteCommentRecursively(comment.replies) : [],
+                }));
+        };
+        updateAndSaveComments(deleteCommentRecursively(chapterComments)); 
         toast({ title: "Comment Deleted", description: "The comment has been removed." });
     } else {
         toast({ title: "Deletion Failed", description: "You do not have permission to delete this comment or it was not found.", variant: "destructive" });
@@ -282,7 +278,10 @@ const ChapterReadingPage = () => {
 
   const CommentItem = ({ comment, depth = 0 }: { comment: StoredChapterComment; depth?: number }) => {
     const isCommentByCurrentUser = currentUser && comment.authorId === currentUser.id;
-    const canCurrentUserDeleteThisComment = loggedIn && currentUserIsActive && currentUser && (isCommentByCurrentUser || currentUser.id === CURRENT_USER_ID); // CURRENT_USER_ID can be admin
+    const canCurrentUserDeleteThisComment = loggedIn && currentUserIsActive && currentUser && 
+                                        (isCommentByCurrentUser || 
+                                         currentUser.id === KRITIKA_USER_ID || 
+                                         currentUser.id === KATHAVAULT_OWNER_USER_ID);
     const isCommentAuthorSpecialAdmin = comment.authorId === KRITIKA_USER_ID || comment.authorId === KATHAVAULT_OWNER_USER_ID;
 
     return (
@@ -450,5 +449,3 @@ const ChapterReadingPage = () => {
 };
 
 export default ChapterReadingPage;
-
-    

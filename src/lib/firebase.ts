@@ -24,33 +24,46 @@ let storageInstance: FirebaseStorage | null = null;
 
 // Initialize Firebase only on the client-side
 if (typeof window !== 'undefined') {
+  console.log("Attempting Firebase initialization on the client...");
   if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.length < 20) {
-    console.error("Firebase API Key is missing, a placeholder, or too short. Firebase SDK will not be initialized. Please check your environment configuration and src/lib/firebase.ts.");
+    console.error("CRITICAL: Firebase API Key is missing, a placeholder, or too short. Firebase SDK will NOT be initialized. Please check your environment configuration and src/lib/firebase.ts.");
   } else {
     try {
       if (getApps().length === 0) {
+        console.log("No Firebase apps initialized yet. Initializing new app...");
         app = initializeApp(firebaseConfig);
+        console.log("Firebase app initialized:", app ? "Success" : "Failed");
       } else {
         app = getApp();
+        console.log("Existing Firebase app retrieved:", app ? "Success" : "Failed");
       }
 
       if (app) {
         authInstance = getAuth(app);
+        console.log("Firebase Auth initialized:", authInstance ? "Success" : "Failed");
+        
         dbInstance = getFirestore(app);
-        storageInstance = getStorage(app); // Initialize Firebase Storage
+        console.log("Firebase Firestore initialized:", dbInstance ? "Success" : "Failed");
+        
+        storageInstance = getStorage(app);
+        console.log("Firebase Storage initialized:", storageInstance ? "Success" : "Failed");
+        
         // if (firebaseConfig.measurementId) { 
         //   analytics = getAnalytics(app);
+        //   console.log("Firebase Analytics initialized:", analytics ? "Success" : "Failed");
         // }
-        console.log("Firebase initialized successfully on the client.");
+        console.log("Firebase SDK initialization process completed successfully on the client.");
       } else {
-        console.error("Firebase app object is null after initialization attempt.");
+        console.error("CRITICAL: Firebase app object is null after initialization attempt. Auth, Firestore, and Storage will be unavailable.");
       }
     } catch (e) {
-      console.error("Critical Firebase Initialization Error:", e);
-      app = null; // Ensure these are null on error
+      console.error("CRITICAL FIREBASE INITIALIZATION ERROR:", e);
+      // Ensure all instances are null if any part of initialization fails
+      app = null;
       authInstance = null;
       dbInstance = null;
       storageInstance = null;
+      // analytics = null;
     }
   }
 } else {

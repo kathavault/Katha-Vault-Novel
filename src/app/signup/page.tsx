@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { UserPlus, LogIn, Mail, KeyRound, User as UserIcon, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useState, type FormEvent, Suspense } from 'react';
-import { auth, db } from '@/lib/firebase'; // db is imported
+import { auth, db } from '@/lib/firebase'; 
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'; 
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, saveKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data';
@@ -46,7 +46,7 @@ function SignupPageContent() {
 
     setIsSubmitting(true);
     if (!auth) {
-      toast({ title: "Authentication Error", description: "Authentication service is not available. Please try again later.", variant: "destructive" });
+      toast({ title: "Firebase Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
@@ -55,13 +55,12 @@ function SignupPageContent() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
-      // Set local login status immediately
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: name, photoURL: null }, 'signup');
-      toast({ title: "Signup Initiated...", description: "Creating your profile." });
+      toast({ title: "Signup Initiated...", description: "Creating your profile. Please wait." });
 
       if (!db) {
         console.warn("Database service (db) is not available for profile creation after signup.");
-        toast({ title: "Profile Creation Warning", description: "Account created, but could not save profile immediately. Database service unavailable.", variant: "default", duration: 7000 });
+        toast({ title: "Profile Creation Warning", description: "Account created, but could not save profile: Database service (db) not initialized. Check Firebase setup.", variant: "default", duration: 8000 });
         const redirectUrl = searchParams.get('redirect');
         router.push(redirectUrl || '/profile');
         setIsSubmitting(false);
@@ -79,19 +78,18 @@ function SignupPageContent() {
       
       try {
         await setDoc(doc(db, "users", firebaseUser.uid), userProfileData);
-        console.log("New user profile created in Firestore during signup.");
-        // Update localStorage with the newly created profile data
+        console.log("New user profile created in Firestore during email signup.");
         saveKathaExplorerUser(userProfileData); 
         toast({ title: "Signup Successful!", description: `Welcome to Katha Vault, ${name}! You're now logged in.` });
       } catch (firestoreError: any) {
-        console.error("Firestore operation failed during signup:", firestoreError);
-        let firestoreErrorMessage = "Account created, but couldn't save your profile.";
+        console.error("Firestore operation failed during email signup:", firestoreError);
+        let firestoreErrorMessage = "Account created, but couldn't save your profile data.";
         if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-          firestoreErrorMessage = "Account created, but couldn't save profile: Client is offline or network issue with database. Please check your internet connection.";
+          firestoreErrorMessage = "Account created, but couldn't save profile: Client is offline. Please check your internet connection.";
         } else {
           firestoreErrorMessage = `Account created, but profile save error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
         }
-        toast({ title: "Profile Save Issue", description: firestoreErrorMessage, variant: "default", duration: 7000 });
+        toast({ title: "Profile Save Issue", description: firestoreErrorMessage, variant: "default", duration: 8000 });
       }
       
       const redirectUrl = searchParams.get('redirect');
@@ -106,8 +104,10 @@ function SignupPageContent() {
         errorMessage = "The password is too weak. Please choose a stronger password.";
       } else if (authError.code === 'auth/invalid-email') {
         errorMessage = "The email address is not valid.";
-      } else if (authError.code === 'auth/network-request-failed') {
+      } else if (authError.code === 'auth/network-request-failed' || authError.code === 'auth/internal-error') {
         errorMessage = "Network error during signup. Please check your internet connection and try again.";
+      } else if (authError.code === 'auth/unauthorized-domain') {
+        errorMessage = "This domain is not authorized for Firebase authentication. Please contact support or check Firebase Console settings.";
       } else {
         errorMessage = `Signup Auth Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
@@ -120,7 +120,7 @@ function SignupPageContent() {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     if (!auth) {
-      toast({ title: "Authentication Error", description: "Authentication service is not available.", variant: "destructive" });
+      toast({ title: "Firebase Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
       setIsGoogleSubmitting(false);
       return;
     }
@@ -133,16 +133,17 @@ function SignupPageContent() {
       if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
         setIsGoogleSubmitting(false);
         if (auth.currentUser) { await signOut(auth); }
+        setLoggedInStatus(false); // Ensure local state is logged out
         toast({ title: "Admin Signup Method", description: "Admin accounts should be created via email/password.", variant: "destructive", duration: 7000 });
         return; 
       }
       
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'google');
-      toast({ title: "Google Sign-Up Initiated...", description: "Finalizing your profile." });
+      toast({ title: "Google Sign-Up Initiated...", description: "Finalizing your profile. Please wait." });
 
       if (!db) {
         console.warn("Database service (db) is not available for profile sync after Google sign-up.");
-        toast({ title: "Profile Sync Warning", description: "Signed up with Google, but could not sync profile immediately. Database service unavailable.", variant: "default", duration: 7000 });
+        toast({ title: "Profile Sync Warning", description: "Signed up with Google, but could not sync profile: Database service (db) not initialized. Check Firebase setup.", variant: "default", duration: 8000 });
         const redirectUrl = searchParams.get('redirect');
         router.push(redirectUrl || '/profile');
         setIsGoogleSubmitting(false);
@@ -166,6 +167,7 @@ function SignupPageContent() {
             signInMethod: "google" as "google",
           };
           await setDoc(userDocRef, userProfileData);
+          console.log("New user profile created in Firestore with Google Sign-Up.");
         } else {
           userProfileData = userDocSnap.data();
           await setDoc(userDocRef, {
@@ -173,19 +175,20 @@ function SignupPageContent() {
               avatarFallback: (profileName).substring(0, 2).toUpperCase(),
               signInMethod: userProfileData.signInMethod || "google", lastLogin: new Date().toISOString(),
           }, { merge: true });
+          console.log("Existing user profile updated in Firestore with Google Sign-Up.");
         }
         saveKathaExplorerUser({ ...defaultKathaExplorerUser, ...userProfileData, id: firebaseUser.uid, email: firebaseUser.email });
         const finalDisplayUser = getKathaExplorerUser(); 
         toast({ title: "Signed up with Google!", description: `Welcome, ${finalDisplayUser.name}!` });
       } catch (firestoreError: any) {
         console.error("Firestore operation failed during Google sign-up:", firestoreError);
-        let firestoreErrorMessage = "Signed up with Google, but couldn't sync your profile.";
+        let firestoreErrorMessage = "Signed up with Google, but couldn't sync your profile data.";
         if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-          firestoreErrorMessage = "Signed up with Google, but couldn't sync profile: Client is offline or network issue with database. Please check your internet connection.";
+          firestoreErrorMessage = "Signed up with Google, but couldn't sync profile: Client is offline. Please check your internet connection.";
         } else {
           firestoreErrorMessage = `Signed up with Google, but profile sync error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
         }
-        toast({ title: "Profile Sync Issue", description: firestoreErrorMessage, variant: "default", duration: 7000 });
+        toast({ title: "Profile Sync Issue", description: firestoreErrorMessage, variant: "default", duration: 8000 });
       }
       
       const redirectUrl = searchParams.get('redirect');
@@ -198,12 +201,12 @@ function SignupPageContent() {
         errorMessage = "Google Sign-Up popup was closed. Please try again.";
       } else if (authError.code === 'auth/account-exists-with-different-credential') {
         errorMessage = "An account already exists with this email address using a different sign-in method.";
-      } else if (authError.code === 'auth/network-request-failed') {
+      } else if (authError.code === 'auth/network-request-failed' || authError.code === 'auth/internal-error') {
         errorMessage = "Network error during Google Sign-Up. Please check your internet connection and try again.";
       } else if (authError.code === 'auth/cancelled-popup-request' || authError.code === 'auth/popup-blocked') {
         errorMessage = "Google Sign-Up popup was blocked or cancelled. Please ensure popups are allowed and try again.";
       } else if (authError.code === 'auth/unauthorized-domain') {
-        errorMessage = "This domain is not authorized for Google Sign-Up. Please contact support.";
+        errorMessage = "This domain is not authorized for Google Sign-Up. Please contact support or check Firebase Console settings.";
       } else {
         errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
