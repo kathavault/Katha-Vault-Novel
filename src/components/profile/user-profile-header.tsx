@@ -29,8 +29,7 @@ interface UserProfileHeaderProps extends Partial<EditableUserProfileData> {
   gender?: string;
   isViewingOwnProfile: boolean;
   isFollowing?: boolean;
-  onAvatarChange?: (newAvatarUrl: string) => void;
-  onProfileSave?: (updatedProfile: EditableUserProfileData) => void;
+  onProfileSave?: (updatedProfile: EditableUserProfileData, newAvatarFile?: File | null) => void;
   onFollowToggle?: () => void;
   onLogout?: () => void; 
 }
@@ -48,7 +47,6 @@ export function UserProfileHeader({
   gender: initialGender = 'Prefer not to say',
   isViewingOwnProfile,
   isFollowing,
-  onAvatarChange,
   onProfileSave,
   onFollowToggle,
   onLogout, 
@@ -63,18 +61,17 @@ export function UserProfileHeader({
   const [editableBio, setEditableBio] = useState(initialBio);
   const [editableEmailVisible, setEditableEmailVisible] = useState(initialEmailVisible);
   const [editableGender, setEditableGender] = useState(initialGender);
-  const [editableAvatarUrl, setEditableAvatarUrl] = useState(initialAvatarUrl);
+  const [editableAvatarUrl, setEditableAvatarUrl] = useState(initialAvatarUrl); // For preview
+  const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null); // For actual file upload
   
   const [loggedIn, setLoggedIn] = useState(false);
   const isSpecialAdmin = userId === KRITIKA_USER_ID || userId === KATHAVAULT_OWNER_USER_ID;
-
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setLoggedIn(isUserLoggedIn());
     }
   }, []);
-
 
   useEffect(() => {
     setEditableName(initialName);
@@ -83,11 +80,11 @@ export function UserProfileHeader({
     setEditableEmailVisible(initialEmailVisible);
     setEditableGender(initialGender);
     setEditableAvatarUrl(initialAvatarUrl);
+    setNewAvatarFile(null); // Reset file on prop change or edit mode change
   }, [initialName, initialUsername, initialBio, initialEmailVisible, initialGender, initialAvatarUrl, isEditing, isViewingOwnProfile]);
 
-
   const handleAvatarInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isViewingOwnProfile || !onAvatarChange) return;
+    if (!isViewingOwnProfile) return;
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { 
@@ -98,12 +95,12 @@ export function UserProfileHeader({
         toast({ title: "Invalid File Type", description: "Please select an image (JPEG, PNG, WEBP, GIF).", variant: "destructive" });
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newAvatarDataUrl = reader.result as string;
-        setEditableAvatarUrl(newAvatarDataUrl); 
-      };
-      reader.readAsDataURL(file);
+      setNewAvatarFile(file); // Store the file object
+      
+      if (editableAvatarUrl && editableAvatarUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(editableAvatarUrl); // Revoke previous blob URL
+      }
+      setEditableAvatarUrl(URL.createObjectURL(file)); // Set preview URL
     }
     if (event.target) event.target.value = ''; 
   };
@@ -120,23 +117,35 @@ export function UserProfileHeader({
         gender: editableGender,
     };
     
-    onProfileSave(profileDataToSave);
-
-    if (editableAvatarUrl !== initialAvatarUrl && onAvatarChange) {
-        onAvatarChange(editableAvatarUrl);
-    }
+    onProfileSave(profileDataToSave, newAvatarFile); 
     setIsEditing(false);
   };
 
   const handleCancelEdit = () => {
+    if (editableAvatarUrl && editableAvatarUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(editableAvatarUrl); // Clean up blob URL if edit is cancelled
+    }
     setEditableName(initialName); 
     setEditableUsername(initialUsername);
     setEditableBio(initialBio);
     setEditableEmailVisible(initialEmailVisible);
     setEditableGender(initialGender);
     setEditableAvatarUrl(initialAvatarUrl);
+    setNewAvatarFile(null);
     setIsEditing(false);
   };
+
+  useEffect(() => {
+    // Cleanup object URL when component unmounts or editableAvatarUrl (preview) changes
+    // This specific cleanup is for when the preview URL is a blob and might change without saving
+    const currentPreview = editableAvatarUrl;
+    return () => {
+        if (currentPreview && currentPreview.startsWith('blob:')) {
+            URL.revokeObjectURL(currentPreview);
+        }
+    };
+  }, [editableAvatarUrl]);
+
 
   const handleLocalLogout = () => {
     if (onLogout) {
@@ -146,10 +155,9 @@ export function UserProfileHeader({
     }
   };
 
-
   const currentName = isViewingOwnProfile && isEditing ? editableName : initialName;
   const currentUsername = isViewingOwnProfile && isEditing ? editableUsername : initialUsername;
-  const currentAvatarUrl = isViewingOwnProfile && isEditing ? editableAvatarUrl : initialAvatarUrl;
+  const currentAvatarUrlForDisplay = isViewingOwnProfile && isEditing ? editableAvatarUrl : initialAvatarUrl;
   const currentBio = isViewingOwnProfile && isEditing ? editableBio : initialBio;
   const currentEmailDisplay = initialEmail; 
   const currentEmailVisibleDisplay = isViewingOwnProfile && isEditing ? editableEmailVisible : initialEmailVisible;
@@ -160,7 +168,7 @@ export function UserProfileHeader({
       <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
         <div className="flex flex-col items-center md:items-start gap-3 flex-shrink-0">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary">
-            <AvatarImage src={currentAvatarUrl} alt={currentName} data-ai-hint="person portrait" />
+            <AvatarImage src={currentAvatarUrlForDisplay} alt={currentName} data-ai-hint="person portrait" />
             <AvatarFallback>{currentName.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           {isViewingOwnProfile && isEditing && (
@@ -179,7 +187,7 @@ export function UserProfileHeader({
           )}
         </div>
 
-        <div className="flex-grow space-y-3 w-full text-left"> {/* Ensure text-left for the whole block */}
+        <div className="flex-grow space-y-3 w-full text-left">
           {isViewingOwnProfile && isEditing ? (
             <div className="space-y-4">
               <div className="space-y-1">
@@ -226,8 +234,8 @@ export function UserProfileHeader({
             </div>
           ) : (
             <div className="space-y-1 md:space-y-2">
-              <div className="flex flex-col md:flex-row md:items-center md:gap-2 justify-start"> {/* Changed to justify-start */}
-                <h1 className="text-2xl md:text-3xl font-headline text-foreground flex items-center justify-start"> {/* Changed to justify-start */}
+              <div className="flex flex-col md:flex-row md:items-center md:gap-2 justify-start"> 
+                <h1 className="text-2xl md:text-3xl font-headline text-foreground flex items-center justify-start"> 
                     {currentName}
                     {isSpecialAdmin && (
                         <CheckCircle className="ml-2 h-5 w-5 md:h-6 md:w-6 text-blue-500 flex-shrink-0" title="Verified Admin" />
@@ -240,15 +248,15 @@ export function UserProfileHeader({
                     <Edit className="mr-2 h-4 w-4" /> Edit Profile
                 </Button>
               )}
-              <p className="font-body text-foreground/90 max-w-xl whitespace-pre-wrap pt-1">{currentBio}</p> {/* max-w-xl for slightly wider bio */}
+              <p className="font-body text-foreground/90 max-w-xl whitespace-pre-wrap pt-1">{currentBio}</p>
               {currentEmailDisplay && (
-                <div className="flex items-center justify-start text-sm text-muted-foreground font-body pt-2 gap-1"> {/* Changed to justify-start */}
+                <div className="flex items-center justify-start text-sm text-muted-foreground font-body pt-2 gap-1"> 
                   <Mail className="h-4 w-4" />
                   <span>{currentEmailVisibleDisplay ? currentEmailDisplay : "Email hidden"}</span>
                 </div>
               )}
               {currentGenderDisplay && (
-                <div className="flex items-center justify-start text-sm text-muted-foreground font-body gap-1"> {/* Changed to justify-start */}
+                <div className="flex items-center justify-start text-sm text-muted-foreground font-body gap-1"> 
                   <UserSquare2 className="h-4 w-4" />
                   <span>Gender: {currentGenderDisplay}</span>
                 </div>
@@ -284,7 +292,6 @@ export function UserProfileHeader({
             )}
         </div>
 
-
         {!isViewingOwnProfile && onFollowToggle && loggedIn && (
           <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2 items-stretch md:items-start md:self-center mt-3 md:mt-0">
             <Button onClick={onFollowToggle} variant={isFollowing ? "outline" : "default"} size="sm" className="w-full sm:w-auto">
@@ -303,7 +310,7 @@ export function UserProfileHeader({
       </div>
 
       {isViewingOwnProfile && isEditing && loggedIn && (
-        <div className="flex gap-3 mt-6 justify-end"> {/* Kept justify-end for buttons */}
+        <div className="flex gap-3 mt-6 justify-end">
           <Button variant="ghost" onClick={handleCancelEdit}>
             <XCircle className="mr-2 h-4 w-4" /> Cancel
           </Button>

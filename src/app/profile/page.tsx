@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation'; 
 import { UserProfileHeader } from '@/components/profile/user-profile-header';
 import { UserStats } from '@/components/profile/user-stats';
 import { ReadingProgressItem } from '@/components/profile/reading-progress-item';
@@ -19,9 +19,12 @@ import {
   type MockUser,
   getKathaExplorerUser,
   saveKathaExplorerUser,
-  isUserLoggedIn, // Import isUserLoggedIn
-  setLoggedInStatus // For logout
+  isUserLoggedIn, 
+  setLoggedInStatus 
 } from '@/lib/mock-data';
+import { ref as storageRefFns, uploadBytes, getDownloadURL } from "firebase/storage"; // Renamed import
+import { storage as firebaseStorage, auth as firebaseAuth } from '@/lib/firebase'; 
+
 
 const USER_POSTS_STORAGE_KEY = 'currentUserKathaVaultPosts';
 const SOCIAL_FEED_POSTS_STORAGE_KEY = 'kathaVaultSocialFeedPosts';
@@ -42,7 +45,7 @@ export type EditableUserProfileData = Pick<UserProfileData, 'name' | 'username' 
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const router = useRouter(); // Initialize router
+  const router = useRouter(); 
   const [currentUserProfileData, setCurrentUserProfileData] = useState<UserProfileData | null>(null);
   const [myProfilePosts, setMyProfilePosts] = useState<FeedItemCardProps[]>([]);
 
@@ -63,7 +66,6 @@ export default function ProfilePage() {
 
     const user = getKathaExplorerUser();
 
-    // Load posts
     try {
       const storedPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
       const posts: FeedItemCardProps[] = storedPostsRaw ? JSON.parse(storedPostsRaw) : [];
@@ -78,15 +80,12 @@ export default function ProfilePage() {
       setMyProfilePosts([]);
     }
 
-    // Load follow data
     const currentFollowingIds = getInitialFollowingIds();
     const actualFollowingUsers = allMockUsers.filter(u => currentFollowingIds.includes(u.id) && u.id !== user.id);
     const simulatedFollowers = getKathaExplorerFollowersList(5);
     setFollowing(mapMockUsersToProfileModalUsers(actualFollowingUsers));
     setFollowers(mapMockUsersToProfileModalUsers(simulatedFollowers));
 
-    // Set the complete profile data once
-    // Use the lengths of the data just fetched/calculated for initial counts
     const postsLength = (localStorage.getItem(USER_POSTS_STORAGE_KEY) ? JSON.parse(localStorage.getItem(USER_POSTS_STORAGE_KEY)!).length : 0);
     const followersLength = simulatedFollowers.length;
     const followingLength = actualFollowingUsers.length;
@@ -99,28 +98,53 @@ export default function ProfilePage() {
     });
 
     setIsLoadingProfile(false);
-  }, [router, toast]); // router and toast are stable dependencies
+  }, [router, toast]);
 
 
-  const handleAvatarChange = (newAvatarUrl: string) => {
-    const currentUser = getKathaExplorerUser();
-    const updatedUser = { ...currentUser, avatarUrl: newAvatarUrl };
-    saveKathaExplorerUser(updatedUser);
-    setCurrentUserProfileData(prev => prev ? ({ ...prev, avatarUrl: newAvatarUrl }) : null);
-    toast({ title: "Avatar Updated", description: "Your avatar has been changed." });
-  };
+  const handleFullProfileSave = async (
+    updatedTextData: EditableUserProfileData, 
+    newAvatarFile?: File | null
+  ) => {
+    if (!currentUserProfileData) return;
 
-  const handleProfileSave = (updatedProfileData: EditableUserProfileData) => {
-    const currentUser = getKathaExplorerUser();
-    const updatedUser = {
-      ...currentUser,
-      ...updatedProfileData,
+    let finalAvatarUrl = currentUserProfileData.avatarUrl; // Default to current
+
+    if (newAvatarFile) {
+        if (!firebaseAuth?.currentUser || !firebaseStorage) {
+            toast({ title: "Upload Error", description: "Cannot upload avatar. Firebase services not ready or user not logged in.", variant: "destructive" });
+            // Even if avatar upload fails, we might still want to save text changes
+            // So, we proceed with current avatar URL.
+        } else {
+            try {
+                const userId = firebaseAuth.currentUser.uid;
+                const safeFileName = newAvatarFile.name.replace(/[^a-zA-Z0-9._-]/g, '');
+                const avatarStoragePath = `users/${userId}/avatars/${Date.now()}_${safeFileName}`;
+                const imageRef = storageRefFns(firebaseStorage, avatarStoragePath);
+                
+                await uploadBytes(imageRef, newAvatarFile);
+                finalAvatarUrl = await getDownloadURL(imageRef); // Update with new URL
+                toast({ title: "Avatar Uploaded", description: "New avatar saved successfully." });
+            } catch (error) {
+                console.error("Error uploading avatar:", error);
+                toast({ title: "Avatar Upload Failed", description: "Could not save new avatar. Using previous avatar.", variant: "destructive" });
+                // Keep finalAvatarUrl as the old one
+            }
+        }
+    }
+
+    const completeProfileToSave: UserProfileData = {
+        ...currentUserProfileData, 
+        ...updatedTextData,   
+        avatarUrl: finalAvatarUrl,  
+        avatarFallback: (updatedTextData.name || currentUserProfileData.name).substring(0,2).toUpperCase()
     };
-    saveKathaExplorerUser(updatedUser);
-    setCurrentUserProfileData(prev => prev ? ({ ...prev, ...updatedProfileData }) : null);
+    
+    saveKathaExplorerUser(completeProfileToSave); 
+    setCurrentUserProfileData(completeProfileToSave); 
+
     toast({
-      title: "Profile Updated",
-      description: "Your profile details have been updated.",
+        title: "Profile Updated",
+        description: "Your profile details have been successfully updated.",
     });
   };
 
@@ -194,11 +218,10 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    setLoggedInStatus(false);
+    setLoggedInStatus(false); // This now also handles Firebase signOut
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push('/login');
   };
-
 
 const readingProgress = [
   { id: 'story1', title: 'The Last Nebula', progress: 75, coverImageUrl: 'https://placehold.co/360x510.png', aiHint: 'nebula space' },
@@ -221,9 +244,8 @@ const readingProgress = [
         emailVisible={currentUserProfileData.emailVisible}
         gender={currentUserProfileData.gender}
         isViewingOwnProfile={true}
-        onAvatarChange={handleAvatarChange}
-        onProfileSave={handleProfileSave}
-        onLogout={handleLogout} // Pass logout handler
+        onProfileSave={handleFullProfileSave}
+        onLogout={handleLogout} 
       />
       <UserStats
         postsCount={currentUserProfileData.postsCount}
@@ -291,3 +313,5 @@ const readingProgress = [
     </div>
   );
 }
+
+    
