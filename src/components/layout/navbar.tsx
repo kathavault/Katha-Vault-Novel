@@ -21,6 +21,13 @@ export function Navbar() {
   useEffect(() => {
     setMounted(true); 
 
+    if (!auth) {
+      console.error("Firebase auth instance is not available in Navbar. Firebase might not have initialized correctly. UI will reflect logged-out state.");
+      setLoggedIn(false);
+      setShowAdminLink(false);
+      return; // Early return if auth is null
+    }
+
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
       if (firebaseUser) {
         setLoggedIn(true);
