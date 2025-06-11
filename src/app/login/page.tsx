@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogIn, UserPlus, Mail, KeyRound, Loader2, HelpCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { useState, type FormEvent, Suspense } from 'react';
+import { useState, type FormEvent, Suspense, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase'; 
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, saveKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data';
+import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, saveKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL, isUserLoggedIn } from '@/lib/mock-data';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" width="20" height="20" {...props}>
@@ -33,6 +33,17 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+
+  useEffect(() => {
+    if (isUserLoggedIn()) {
+      const redirectUrl = searchParams.get('redirect');
+      router.replace(redirectUrl || '/profile');
+    } else {
+      setIsLoadingPage(false);
+    }
+  }, [router, searchParams]);
+
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -43,7 +54,8 @@ function LoginPageContent() {
     setIsSubmitting(true);
 
     if (!auth) {
-      toast({ title: "Firebase Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
+      toast({ title: "Firebase Error", description: "Authentication service is not available. Please try again later or contact support.", variant: "destructive" });
+      console.error("Firebase Auth instance is not available in handleLogin.");
       setIsSubmitting(false);
       return;
     }
@@ -57,7 +69,7 @@ function LoginPageContent() {
 
       if (!db) {
         console.warn("Database service (db) is not available for profile sync after login.");
-        toast({ title: "Profile Sync Warning", description: "Logged in, but could not sync profile: Database service (db) not initialized. Check Firebase setup.", variant: "default", duration: 8000 });
+        toast({ title: "Profile Sync Warning", description: "Logged in, but could not sync profile: Database service is unavailable. Your data will sync when connection is restored.", variant: "default", duration: 8000 });
         const redirectUrl = searchParams.get('redirect');
         router.push(redirectUrl || '/profile'); 
         setIsSubmitting(false);
@@ -95,7 +107,7 @@ function LoginPageContent() {
         console.error("Firestore operation failed during login:", firestoreError);
         let firestoreErrorMessage = "Logged in, but couldn't sync your profile data.";
         if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-          firestoreErrorMessage = "Logged in, but couldn't sync profile: Client is offline. Please check your internet connection.";
+          firestoreErrorMessage = "Logged in, but couldn't sync profile: Client is offline. Please check your internet connection. Your data will sync when connection is restored.";
         } else {
           firestoreErrorMessage = `Logged in, but profile sync error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
         }
@@ -109,7 +121,7 @@ function LoginPageContent() {
       console.error("Firebase Login Auth Error:", authError);
       let errorMessage = "Failed to login. Please check your credentials and try again.";
       if (authError.code === 'auth/invalid-credential' || authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
-        errorMessage = "Invalid email or password.";
+        errorMessage = "Invalid email or password. Please check your credentials or use 'Forgot password?' if needed.";
       } else if (authError.code === 'auth/invalid-email') {
         errorMessage = "The email address is not valid.";
       } else if (authError.code === 'auth/network-request-failed' || authError.code === 'auth/internal-error') {
@@ -132,7 +144,8 @@ function LoginPageContent() {
   const handleGoogleSignIn = async () => {
     setIsGoogleSubmitting(true);
     if (!auth) {
-      toast({ title: "Firebase Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
+      toast({ title: "Firebase Error", description: "Authentication service is not available. Please try again later or contact support.", variant: "destructive" });
+      console.error("Firebase Auth instance is not available in handleGoogleSignIn.");
       setIsGoogleSubmitting(false);
       return;
     }
@@ -145,7 +158,7 @@ function LoginPageContent() {
       if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
         setIsGoogleSubmitting(false);
         if (auth.currentUser) { await signOut(auth); }
-        setLoggedInStatus(false); // Ensure local state is logged out
+        setLoggedInStatus(false); 
         toast({ title: "Admin Login Method", description: "Admin accounts should log in using their email and password.", variant: "destructive", duration: 7000 });
         return; 
       }
@@ -155,7 +168,7 @@ function LoginPageContent() {
 
       if (!db) {
         console.warn("Database service (db) is not available for profile sync after Google sign-in.");
-        toast({ title: "Profile Sync Warning", description: "Signed in with Google, but could not sync profile: Database service (db) not initialized. Check Firebase setup.", variant: "default", duration: 8000 });
+        toast({ title: "Profile Sync Warning", description: "Signed in with Google, but could not sync profile: Database service is unavailable. Your data will sync when connection is restored.", variant: "default", duration: 8000 });
         const redirectUrl = searchParams.get('redirect');
         router.push(redirectUrl || '/profile');
         setIsGoogleSubmitting(false);
@@ -196,7 +209,7 @@ function LoginPageContent() {
           console.error("Firestore operation failed during Google sign-in:", firestoreError);
           let firestoreErrorMessage = "Signed in with Google, but couldn't sync your profile data.";
           if (firestoreError.code === 'unavailable' || (firestoreError.message && firestoreError.message.toLowerCase().includes("client is offline"))) {
-            firestoreErrorMessage = "Signed in with Google, but couldn't sync profile: Client is offline. Please check your internet connection.";
+            firestoreErrorMessage = "Signed in with Google, but couldn't sync profile: Client is offline. Please check your internet connection. Your data will sync when connection is restored.";
           } else {
             firestoreErrorMessage = `Signed in with Google, but profile sync error: ${firestoreError.message || 'Unknown error'}. (Code: ${firestoreError.code})`;
           }
@@ -206,7 +219,7 @@ function LoginPageContent() {
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/profile');
 
-    } catch (authError: any) {
+    } catch (authError: any)      {
       console.error("Google Sign-In Auth Error:", authError);
       let errorMessage = "Could not sign in with Google. Please try again.";
       if (authError.code === 'auth/popup-closed-by-user') {
@@ -241,7 +254,8 @@ function LoginPageContent() {
 
     setIsSubmitting(true); 
     if (!auth) {
-        toast({ title: "Firebase Error", description: "Authentication service (auth) is not initialized. Check Firebase setup and console.", variant: "destructive" });
+        toast({ title: "Firebase Error", description: "Authentication service is not available. Please try again later or contact support.", variant: "destructive" });
+        console.error("Firebase Auth instance is not available in handleForgotPassword.");
         setIsSubmitting(false);
         return;
     }
@@ -265,6 +279,11 @@ function LoginPageContent() {
         setIsSubmitting(false);
     }
   };
+  
+  if (isLoadingPage) {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Loading...</div>;
+  }
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] py-12">
@@ -357,3 +376,5 @@ export default function LoginPage() {
     </Suspense>
   )
 }
+
+    
