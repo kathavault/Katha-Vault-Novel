@@ -25,7 +25,9 @@ let storageInstance: FirebaseStorage | null = null;
 let appCheckInstance: AppCheck | null = null;
 // let analytics: Analytics | null = null; // Optional
 
-// Initialize Firebase only on the client-side
+// Variable to track if debug token is programmatically set
+const isDebugTokenProgrammaticallySet = true; // This line was (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+
 if (typeof window !== 'undefined') {
   console.log("%cFirebase: Attempting initialization on client...", "color: blue; font-weight: bold;");
   if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.startsWith("AIza") === false || firebaseConfig.apiKey.length < 20) {
@@ -63,16 +65,28 @@ if (typeof window !== 'undefined') {
 
         try {
           const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
-          if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
-            console.error("%cFirebase App Check: CRITICAL ERROR - reCAPTCHA v3 Site Key is a placeholder or missing. App Check WILL FAIL. Update this key in src/lib/firebase.ts to a valid one from Google Cloud Console for reCAPTCHA Enterprise, or use a debug token for development by setting `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` in your browser console BEFORE App Check initializes (e.g., on page load before scripts run, or refresh after setting it).", "color: red; font-weight: bold; font-size: 1.3em; border: 2px solid red; padding: 5px;");
+          
+          if (isDebugTokenProgrammaticallySet) {
+            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+             if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
+                console.warn("%cFirebase App Check: NOTICE - Using DEBUG TOKEN for App Check. The reCAPTCHA v3 Site Key is still a placeholder. Remember to replace it with a valid key in src/lib/firebase.ts for production.", "color: orange; font-weight: bold; font-size: 1.1em; border: 1px solid orange; padding: 3px;");
+            }
+          } else {
+            if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
+                console.error("%cFirebase App Check: CRITICAL ERROR - reCAPTCHA v3 Site Key is a placeholder or missing, AND debug token is not programmatically set. App Check WILL FAIL. Update this key in src/lib/firebase.ts to a valid one OR set `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` for development.", "color: red; font-weight: bold; font-size: 1.3em; border: 2px solid red; padding: 5px;");
+            }
           }
-          (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true; // Uncommented for easy dev setup if reCAPTCHA key is not ready
 
           appCheckInstance = initializeAppCheck(app, {
             provider: new ReCaptchaV3Provider(reCaptchaKey),
             isTokenAutoRefreshEnabled: true
           });
-          console.log("%cFirebase: App Check initialization attempted. If 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' is not replaced, App Check will not function correctly in production. Debug token IS CURRENTLY ENABLED for development.", "color: orange; font-weight: bold;");
+          console.log("%cFirebase: App Check initialization attempted.", "color: #03a9f4;");
+          if (isDebugTokenProgrammaticallySet && (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey)) {
+            console.log("%cFirebase App Check: Debug token IS ENABLED. App Check should pass for local development if services are not strictly requiring a valid reCAPTCHA key (which debug token bypasses).", "color: #03a9f4; font-weight: bold;");
+          }
+
+
         } catch (e) {
           console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
           console.log("%cFirebase: App Check Tip: For development, you can set '(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;' in your browser console *before* App Check initializes, or provide a valid reCAPTCHA v3 site key.", "color: yellow;");
@@ -116,3 +130,5 @@ if (typeof window !== 'undefined') {
 }
 
 export { app, authInstance as auth, dbInstance as db, storageInstance as storage, appCheckInstance as appCheck /*, analytics */ };
+
+    
