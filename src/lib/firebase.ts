@@ -66,13 +66,13 @@ if (typeof window !== 'undefined') {
           if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
             console.error("%cFirebase App Check: CRITICAL ERROR - reCAPTCHA v3 Site Key is a placeholder or missing. App Check WILL FAIL. Update this key in src/lib/firebase.ts to a valid one from Google Cloud Console for reCAPTCHA Enterprise, or use a debug token for development by setting `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` in your browser console BEFORE App Check initializes (e.g., on page load before scripts run, or refresh after setting it).", "color: red; font-weight: bold; font-size: 1.3em; border: 2px solid red; padding: 5px;");
           }
-          // (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true; // Uncomment for easy dev setup if reCAPTCHA key is not ready
+          (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true; // Uncommented for easy dev setup if reCAPTCHA key is not ready
 
           appCheckInstance = initializeAppCheck(app, {
             provider: new ReCaptchaV3Provider(reCaptchaKey),
             isTokenAutoRefreshEnabled: true
           });
-          console.log("%cFirebase: App Check initialization attempted. If 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' is not replaced, App Check will not function correctly in production. Check console for debug token instructions for development.", "color: orange;");
+          console.log("%cFirebase: App Check initialization attempted. If 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' is not replaced, App Check will not function correctly in production. Debug token IS CURRENTLY ENABLED for development.", "color: orange; font-weight: bold;");
         } catch (e) {
           console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
           console.log("%cFirebase: App Check Tip: For development, you can set '(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;' in your browser console *before* App Check initializes, or provide a valid reCAPTCHA v3 site key.", "color: yellow;");
