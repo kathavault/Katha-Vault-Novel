@@ -24,40 +24,65 @@ let storageInstance: FirebaseStorage | null = null;
 
 // Initialize Firebase only on the client-side
 if (typeof window !== 'undefined') {
-  console.log("Attempting Firebase initialization on the client...");
-  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.length < 20) {
-    console.error("CRITICAL: Firebase API Key is missing, a placeholder, or too short. Firebase SDK will NOT be initialized. Please check your environment configuration and src/lib/firebase.ts.");
+  console.log("%cFirebase: Attempting initialization on client...", "color: blue; font-weight: bold;");
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.startsWith("AIza") === false || firebaseConfig.apiKey.length < 20) {
+    console.error("%cCRITICAL: Firebase API Key is missing, invalid, or a placeholder. Firebase SDK will NOT be initialized. Check src/lib/firebase.ts and your environment configuration.", "color: red; font-weight: bold;");
   } else {
     try {
       if (getApps().length === 0) {
-        console.log("No Firebase apps initialized yet. Initializing new app...");
+        console.log("Firebase: No apps initialized. Initializing new app...");
         app = initializeApp(firebaseConfig);
-        console.log("Firebase app initialized:", app ? "Success" : "Failed");
+        console.log("%cFirebase: App initialized.", "color: green;");
       } else {
         app = getApp();
-        console.log("Existing Firebase app retrieved:", app ? "Success" : "Failed");
+        console.log("%cFirebase: Existing app retrieved.", "color: green;");
       }
 
       if (app) {
-        authInstance = getAuth(app);
-        console.log("Firebase Auth initialized:", authInstance ? "Success" : "Failed");
+        try {
+          authInstance = getAuth(app);
+          console.log("%cFirebase: Auth initialized.", "color: green;");
+        } catch (e) {
+          console.error("%cFirebase: Auth initialization FAILED.", "color: red; font-weight: bold;", e);
+        }
+        try {
+          dbInstance = getFirestore(app);
+          console.log("%cFirebase: Firestore initialized.", "color: green;");
+        } catch (e) {
+          console.error("%cFirebase: Firestore initialization FAILED.", "color: red; font-weight: bold;", e);
+        }
+        try {
+          storageInstance = getStorage(app);
+          console.log("%cFirebase: Storage initialized.", "color: green;");
+        } catch (e) {
+          console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
+        }
         
-        dbInstance = getFirestore(app);
-        console.log("Firebase Firestore initialized:", dbInstance ? "Success" : "Failed");
-        
-        storageInstance = getStorage(app);
-        console.log("Firebase Storage initialized:", storageInstance ? "Success" : "Failed");
-        
-        // if (firebaseConfig.measurementId) { 
-        //   analytics = getAnalytics(app);
-        //   console.log("Firebase Analytics initialized:", analytics ? "Success" : "Failed");
+        // Optional Analytics initialization
+        // if (firebaseConfig.measurementId) {
+        //   try {
+        //     analytics = getAnalytics(app);
+        //     console.log("%cFirebase: Analytics initialized.", "color: green;");
+        //   } catch (e) {
+        //     console.error("%cFirebase: Analytics initialization FAILED.", "color: red; font-weight: bold;", e);
+        //   }
         // }
-        console.log("Firebase SDK initialization process completed successfully on the client.");
+
+        if (authInstance && dbInstance && storageInstance) {
+            console.log("%cFirebase: SDK core services (Auth, Firestore, Storage) initialized successfully.", "color: green; font-weight: bold;");
+        } else {
+            let missingServices = [];
+            if (!authInstance) missingServices.push("Auth");
+            if (!dbInstance) missingServices.push("Firestore");
+            if (!storageInstance) missingServices.push("Storage");
+            console.warn(`%cFirebase: One or more core Firebase services FAILED to initialize: [${missingServices.join(', ')}]. Functionality will be affected.`, "color: orange; font-weight: bold;");
+        }
+
       } else {
-        console.error("CRITICAL: Firebase app object is null after initialization attempt. Auth, Firestore, and Storage will be unavailable.");
+        console.error("%cCRITICAL: Firebase app object is null after initialization attempt. Firebase services will be unavailable.", "color: red; font-weight: bold;");
       }
     } catch (e) {
-      console.error("CRITICAL FIREBASE INITIALIZATION ERROR:", e);
+      console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR:", "color: red; font-weight: bold;", e);
       // Ensure all instances are null if any part of initialization fails
       app = null;
       authInstance = null;
@@ -67,8 +92,9 @@ if (typeof window !== 'undefined') {
     }
   }
 } else {
-  // console.log("Firebase SDK not initialized (server-side or window undefined).");
+  // console.log("Firebase: SDK not initialized (server-side or window undefined).");
 }
 
 // Export instances directly
 export { app, authInstance as auth, dbInstance as db, storageInstance as storage /*, analytics */ };
+
