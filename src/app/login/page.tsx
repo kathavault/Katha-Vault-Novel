@@ -44,49 +44,68 @@ function LoginPageContent() {
     }
     setIsSubmitting(true);
     try {
-      if (!auth || !db) {
-        toast({ title: "Initialization Error", description: "Firebase services are not available. Please check your setup or try again later.", variant: "destructive" });
+      if (!auth) {
+        toast({ title: "Initialization Error", description: "Authentication service is not available. Please try again later.", variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      if (!db) {
+        toast({ title: "Database Error", description: "Database service is not available. Profile sync failed.", variant: "destructive" });
+        // Log user in locally, but profile won't be synced from DB
+        setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL }, 'login');
+        const redirectUrl = searchParams.get('redirect');
+        router.push(redirectUrl || '/profile');
+        setIsSubmitting(false);
+        return;
+      }
 
       let displayNameForProfile = user.displayName || email.split('@')[0] || defaultKathaExplorerUser.name;
       let photoURLForProfile = user.photoURL;
-      
-      if (!userDocSnap.exists()) {
-         // If user doc doesn't exist, create a basic one.
-         // This might happen if user signed up via a method that didn't create a doc, or doc was deleted.
-         // For a regular email/password login, the doc should ideally exist from signup.
-         let profileName = user.displayName || user.email?.split('@')[0] || `User ${user.uid.substring(0,6)}`;
-         let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
-         
-         await setDoc(userDocRef, {
-            uid: user.uid,
-            email: user.email,
-            name: profileName, 
-            username: profileUsername, 
-            avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
-            avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-            bio: defaultKathaExplorerUser.bio,
-            emailVisible: defaultKathaExplorerUser.emailVisible,
-            gender: defaultKathaExplorerUser.gender,
-            isActive: true, // Assume active on login, admin can deactivate
-            createdAt: new Date().toISOString(),
-            signInMethod: "email",
-         }, { merge: true });
-         displayNameForProfile = profileName; 
-         photoURLForProfile = user.photoURL;
-      } else {
-        // User doc exists, potentially update fields like last login if needed
-        // For now, we primarily rely on getKathaExplorerUser to consolidate profile for display
-        const existingData = userDocSnap.data();
-        displayNameForProfile = existingData.name || displayNameForProfile;
-        photoURLForProfile = existingData.avatarUrl || photoURLForProfile;
+
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+           let profileName = user.displayName || user.email?.split('@')[0] || `User ${user.uid.substring(0,6)}`;
+           let profileUsername = user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`;
+           
+           await setDoc(userDocRef, {
+              uid: user.uid,
+              email: user.email,
+              name: profileName, 
+              username: profileUsername, 
+              avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
+              avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+              bio: defaultKathaExplorerUser.bio,
+              emailVisible: defaultKathaExplorerUser.emailVisible,
+              gender: defaultKathaExplorerUser.gender,
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              signInMethod: "email",
+           }, { merge: true });
+           displayNameForProfile = profileName; 
+           photoURLForProfile = user.photoURL;
+        } else {
+          const existingData = userDocSnap.data();
+          displayNameForProfile = existingData.name || displayNameForProfile;
+          photoURLForProfile = existingData.avatarUrl || photoURLForProfile;
+           // Optionally, update last login time or other fields here
+           await setDoc(userDocRef, { lastLogin: new Date().toISOString() }, { merge: true });
+        }
+      } catch (firestoreError: any) {
+        console.error("Firestore operation failed during login:", firestoreError);
+        let firestoreErrorMessage = "Could not sync your profile. Please try again later.";
+        if (firestoreError.code === 'unavailable') {
+          firestoreErrorMessage = "Could not connect to the database to sync profile. Please check your internet connection.";
+        } else {
+          firestoreErrorMessage = `Profile sync error: ${firestoreError.message || 'Unknown error'}.`;
+        }
+        toast({ title: "Profile Sync Failed", description: firestoreErrorMessage, variant: "destructive" });
+        // User is authenticated with Firebase Auth, but Firestore part failed. Proceed with local login.
       }
       
       setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: displayNameForProfile, photoURL: photoURLForProfile }, 'login');
@@ -105,7 +124,7 @@ function LoginPageContent() {
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = "The email address is not valid.";
       } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = "Network error. Please check your internet connection and try again.";
+        errorMessage = "Network error during login. Please check your internet connection and try again.";
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = "Access to this account has been temporarily disabled due to many failed login attempts. You can immediately restore it by resetting your password or you can try again later.";
       } else if (error.code === 'auth/user-disabled') {
@@ -123,8 +142,8 @@ function LoginPageContent() {
     setIsGoogleSubmitting(true);
     const provider = new GoogleAuthProvider();
     try {
-      if (!auth || !db) {
-        toast({ title: "Initialization Error", description: "Firebase services are not available. Please check your setup or try again later.", variant: "destructive" });
+      if (!auth) {
+        toast({ title: "Initialization Error", description: "Authentication service is not available. Please try again later.", variant: "destructive" });
         setIsGoogleSubmitting(false);
         return;
       }
@@ -145,39 +164,60 @@ function LoginPageContent() {
         });
         return; 
       }
-
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      
+      if (!db) {
+        toast({ title: "Database Error", description: "Database service is not available. Profile sync failed.", variant: "destructive" });
+        setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL }, 'google');
+        const redirectUrl = searchParams.get('redirect');
+        router.push(redirectUrl || '/profile');
+        setIsGoogleSubmitting(false);
+        return;
+      }
 
       let profileName = user.displayName || user.email?.split('@')[0] || 'Katha User';
       
-      if (!userDocSnap.exists()) {
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          email: user.email,
-          name: profileName,
-          username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
-          avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
-          avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-          bio: defaultKathaExplorerUser.bio,
-          emailVisible: defaultKathaExplorerUser.emailVisible,
-          gender: defaultKathaExplorerUser.gender,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          signInMethod: "google",
-        });
-      } else {
-        const existingData = userDocSnap.data();
-        let updateData: any = {
-            name: profileName, 
-            avatarUrl: user.photoURL || existingData.avatarUrl,
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            name: profileName,
+            username: user.displayName?.replace(/\s+/g, '_').toLowerCase() || user.email?.split('@')[0] || `user_${user.uid.substring(0,6)}`,
+            avatarUrl: user.photoURL || defaultKathaExplorerUser.avatarUrl,
             avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-            signInMethod: existingData.signInMethod || "google", 
-        };
-        if (existingData.signInMethod !== "google" && !existingData.signInMethod) { 
-            updateData.signInMethod = "google";
+            bio: defaultKathaExplorerUser.bio,
+            emailVisible: defaultKathaExplorerUser.emailVisible,
+            gender: defaultKathaExplorerUser.gender,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            signInMethod: "google",
+          });
+        } else {
+          const existingData = userDocSnap.data();
+          let updateData: any = {
+              name: profileName, 
+              avatarUrl: user.photoURL || existingData.avatarUrl,
+              avatarFallback: (profileName).substring(0, 2).toUpperCase(),
+              signInMethod: existingData.signInMethod || "google", 
+              lastLogin: new Date().toISOString(),
+          };
+          if (existingData.signInMethod !== "google" && !existingData.signInMethod) { 
+              updateData.signInMethod = "google";
+          }
+          await setDoc(userDocRef, updateData, { merge: true });
         }
-        await setDoc(userDocRef, updateData, { merge: true });
+      } catch (firestoreError: any) {
+          console.error("Firestore operation failed during Google sign-in:", firestoreError);
+          let firestoreErrorMessage = "Could not sync your profile with Google Sign-In. Please try again later.";
+          if (firestoreError.code === 'unavailable') {
+            firestoreErrorMessage = "Could not connect to the database to sync profile. Please check your internet connection.";
+          } else {
+            firestoreErrorMessage = `Profile sync error: ${firestoreError.message || 'Unknown error'}.`;
+          }
+          toast({ title: "Profile Sync Failed", description: firestoreErrorMessage, variant: "destructive" });
       }
       
       setLoggedInStatus(true, { uid: user.uid, email: user.email, displayName: profileName, photoURL: user.photoURL }, 'google');
@@ -196,7 +236,7 @@ function LoginPageContent() {
       } else if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = "An account already exists with this email address using a different sign-in method.";
       } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = "Network error. Please check your internet connection and try again.";
+        errorMessage = "Network error during Google Sign-In. Please check your internet connection and try again.";
       } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-blocked') {
         errorMessage = "Google Sign-In popup was blocked or cancelled. Please ensure popups are allowed and try again.";
       } else if (error.code === 'auth/unauthorized-domain') {
@@ -224,7 +264,7 @@ function LoginPageContent() {
     setIsSubmitting(true); 
     try {
         if (!auth) {
-            toast({ title: "Initialization Error", description: "Firebase services are not available. Please try again later.", variant: "destructive" });
+            toast({ title: "Initialization Error", description: "Authentication service is not available. Please try again later.", variant: "destructive" });
             setIsSubmitting(false);
             return;
         }

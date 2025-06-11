@@ -3,9 +3,9 @@ import { StoryCard } from '@/components/story-card';
 import { Lightbulb } from 'lucide-react'; // Using Lightbulb for recommendations
 
 const recommendedStories = [
-  { id: '7', title: 'Galaxy\'s Edge Drifter', author: 'Jax Orion', genres: ['Sci-Fi'], snippet: 'A lone mercenary takes on a dangerous job on a remote outpost, only to find something far more sinister.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'space station' },
-  { id: '8', title: 'The Serpent Charmer\'s Apprentice', author: 'Zara Khan', genres: ['Fantasy'], snippet: 'In a desert kingdom, a young apprentice discovers she has a rare gift that could save her people or destroy them.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'desert fantasy' },
-  { id: '9', title: 'Automated Hearts', author: 'Ada Lovelace II', genres: ['Steampunk Romance'], snippet: 'Can a sophisticated automaton and a skeptical engineer find love amidst political intrigue in a clockwork society?', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk robot' },
+  { id: '7', title: 'Galaxy\'s Edge Drifter', author: 'Jax Orion', genres: ['Sci-Fi'], snippet: 'A lone mercenary takes on a dangerous job on a remote outpost, only to find something far more sinister.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'space station', chapters: [] },
+  { id: '8', title: 'The Serpent Charmer\'s Apprentice', author: 'Zara Khan', genres: ['Fantasy'], snippet: 'In a desert kingdom, a young apprentice discovers she has a rare gift that could save her people or destroy them.', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'desert fantasy', chapters: [] },
+  { id: '9', title: 'Automated Hearts', author: 'Ada Lovelace II', genres: ['Steampunk Romance'], snippet: 'Can a sophisticated automaton and a skeptical engineer find love amidst political intrigue in a clockwork society?', coverImageUrl: 'https://placehold.co/480x680.png', aiHint: 'steampunk robot', chapters: [] },
 ];
 
 export default function RecommendationsPage() {
@@ -22,7 +22,8 @@ export default function RecommendationsPage() {
       {recommendedStories.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {recommendedStories.map(story => (
-            <StoryCard key={story.id} {...story} />
+            // chapters prop is now implicitly passed via spread, but the data itself is fixed
+            <StoryCard key={story.id} {...story} status="published" views={0} />
           ))}
         </div>
       ) : (
