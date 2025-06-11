@@ -6,8 +6,8 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { auth } from "@/lib/firebase"; // For getting current user for path
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage, auth } from "@/lib/firebase"; // Import initialized instances
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,6 @@ import { Loader2 } from "lucide-react";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 
-// Removed coverImageUrl from Zod schema as it's handled separately now
 const novelFormSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters.").max(100, "Title too long."),
   author: z.string().min(2, "Author name must be at least 2 characters."),
@@ -84,7 +83,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         homePageFeaturedGenre: initialData.homePageFeaturedGenre === undefined ? null : initialData.homePageFeaturedGenre,
       });
       setImagePreview(initialData.coverImageUrl || null);
-      setImageFile(null); // Reset file on initial data change
+      setImageFile(null); 
     } else {
       form.reset({
         title: "", author: "", genres: "", snippet: "", status: "draft", aiHint: "", homePageFeaturedGenre: null,
@@ -100,7 +99,7 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       if (file.size > MAX_FILE_SIZE) {
         toast({ title: "Image Error", description: "Selected image is too large (max 5MB).", variant: "destructive" });
         setImageFile(null);
-        setImagePreview(initialData?.coverImageUrl || null); // Revert to original or null
+        setImagePreview(initialData?.coverImageUrl || null); 
         return;
       }
       if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
@@ -115,9 +114,8 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.onerror = () => toast({ title: "File Read Error", description: "Could not read the image file.", variant: "destructive"});
       reader.readAsDataURL(file);
-    } else { // No file selected, or selection cancelled
+    } else { 
       setImageFile(null);
-      // If there was initial data with an image, revert to it, otherwise null
       setImagePreview(initialData?.coverImageUrl || null); 
     }
   };
@@ -127,10 +125,20 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
     let finalCoverImageUrl: string | undefined = undefined;
 
     if (imageFile) {
-      const storage = getStorage();
+      if (!auth || !auth.currentUser) {
+        toast({ title: "Authentication Error", description: "You must be logged in to upload images.", variant: "destructive" });
+        setIsUploadingImage(false);
+        return;
+      }
+      if (!storage) {
+        toast({ title: "Storage Error", description: "Firebase Storage is not initialized. Cannot upload image.", variant: "destructive" });
+        console.error("Firebase Storage instance is null in NovelForm.");
+        setIsUploadingImage(false);
+        return;
+      }
+
       const novelIdForPath = initialData?.id || Date.now().toString();
-      // Use current user ID in path if available, otherwise a generic folder
-      const userId = auth.currentUser ? auth.currentUser.uid : 'unknown_user';
+      const userId = auth.currentUser.uid;
       const filePath = `users/${userId}/novel_covers/${novelIdForPath}/${imageFile.name}`;
       const imageStorageRef = storageRef(storage, filePath);
       try {
@@ -144,14 +152,10 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
         return; 
       }
     } else if (imagePreview && imagePreview === initialData?.coverImageUrl && imagePreview.startsWith('https://firebasestorage.googleapis.com/')) {
-      // No new file, and existing preview is the same as initial Firebase URL, so keep it
       finalCoverImageUrl = initialData.coverImageUrl;
     } else if (!imagePreview) {
-      // Image was cleared by user
       finalCoverImageUrl = undefined;
     }
-    // If imagePreview exists but it's a data URI and no new imageFile, it means it was an old data URI, don't save it.
-    // finalCoverImageUrl will remain undefined in this case, effectively clearing it.
 
     setIsUploadingImage(false);
 
@@ -292,7 +296,6 @@ export function NovelForm({ initialData, onSubmitForm, submitButtonText = "Submi
               disabled={isUploadingImage}
             />
           </FormControl>
-          {/* No FormField for coverImageUrl directly, it's handled outside form state */}
           {imagePreview && (
             <div className="mt-4 relative w-32 h-auto aspect-[12/17] rounded border border-muted overflow-hidden">
               <Image src={imagePreview} alt="Cover preview" layout="fill" objectFit="cover" />
