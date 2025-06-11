@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
-// Removed App Check imports: import { initializeAppCheck, ReCaptchaV3Provider, type AppCheck } from 'firebase/app-check';
+// Firebase App Check has been removed from client-side initialization.
 
 // Uncomment and import if you need analytics
 // import { getAnalytics, type Analytics } from "firebase/analytics";
@@ -15,20 +15,19 @@ const firebaseConfig = {
   storageBucket: "katha-vault-g81gj.appspot.com",
   messagingSenderId: "613581820650",
   appId: "1:613581820650:web:ae76c0a3ee82bb67627d93"
-  // measurementId is optional and was not provided in the new config
 };
 
 let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
-// Removed App Check instance: let appCheckInstance: AppCheck | null = null;
+// App Check instance HATA DIYA GAYA HAI
 // let analytics: Analytics | null = null; // Optional
 
 
 if (typeof window !== 'undefined') {
   console.log("%cFirebase: Attempting initialization on client...", "color: blue; font-weight: bold;");
-  try { // Outer try for all client-side Firebase setup
+  try {
     if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("YOUR_API_KEY") || firebaseConfig.apiKey.startsWith("AIza") === false || firebaseConfig.apiKey.length < 20) {
       console.error("%cCRITICAL: Firebase API Key is missing, invalid, or a placeholder. Firebase SDK will NOT be initialized. Check src/lib/firebase.ts and your environment configuration.", "color: red; font-weight: bold; font-size: 1.3em; border: 2px solid red; padding: 5px;");
       throw new Error("Invalid Firebase API Key configuration.");
@@ -69,8 +68,9 @@ if (typeof window !== 'undefined') {
         console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
       }
 
-      // --- App Check Initialization REMOVED ---
-      // No App Check initialization here anymore
+      // App Check related code has been removed from here.
+      // If you re-enable App Check, ensure your Firebase Project Settings (Console -> App Check) for services like Authentication
+      // have enforcement OFF if you don't intend to provide an App Check token from the client.
 
       if (authInstance && dbInstance && storageInstance) {
           console.log("%cFirebase: SDK core services (Auth, Firestore, Storage) initialized successfully.", "color: green; font-weight: bold;");
@@ -87,7 +87,6 @@ if (typeof window !== 'undefined') {
       authInstance = null;
       dbInstance = null;
       storageInstance = null;
-      // appCheckInstance = null; // Already removed
     }
   } catch (e: any) {
     console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR (Outer Catch):", "color: red; font-weight: bold; font-size: 1.3em;", e);
@@ -95,11 +94,7 @@ if (typeof window !== 'undefined') {
     authInstance = null;
     dbInstance = null;
     storageInstance = null;
-    // appCheckInstance = null; // Already removed
   }
-} else {
-  // console.log("Firebase: SDK not initialized (server-side or window undefined).");
 }
 
-// Removed appCheckInstance from exports
 export { app, authInstance as auth, dbInstance as db, storageInstance as storage };
