@@ -88,21 +88,44 @@ function SignupPageContent() {
 
     } catch (authError: any) {
       console.error("Firebase Signup Auth Error:", authError);
+      let title = "Signup Failed";
       let errorMessage = "Failed to create account. Please try again.";
-      if (authError.code === 'auth/email-already-in-use') {
-        errorMessage = "This email address is already in use.";
-      } else if (authError.code === 'auth/weak-password') {
-        errorMessage = "The password is too weak. Please choose a stronger password.";
-      } else if (authError.code === 'auth/invalid-email') {
-        errorMessage = "The email address is not valid.";
-      } else if (authError.code === 'auth/network-request-failed' || authError.code === 'auth/internal-error') {
-        errorMessage = "Network error during signup. Please check your internet connection and try again.";
-      } else if (authError.code === 'auth/unauthorized-domain') {
-        errorMessage = "This domain is not authorized for Firebase authentication. Please contact support or check Firebase Console settings.";
+
+      if (authError.code) {
+        switch (authError.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = "This email address is already in use by another account.";
+            break;
+          case 'auth/weak-password':
+            errorMessage = "The password is too weak. Please choose a stronger password (at least 6 characters).";
+            break;
+          case 'auth/invalid-email':
+            errorMessage = "The email address is not valid.";
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = "Network error. Please check your internet connection. This could also be due to Firebase App Check enforcement if active in your project console for Authentication.";
+            break;
+          case 'auth/unauthorized-domain':
+            errorMessage = "This domain is not authorized for Firebase authentication. Contact support or check Firebase Console settings.";
+            break;
+          case 'auth/operation-not-allowed':
+             errorMessage = "Email/password sign-up is not enabled for your Firebase project. Please check your Firebase console Authentication settings.";
+             break;
+          default:
+            if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
+                errorMessage = "Signup failed. This might be due to Firebase App Check enforcement. If you recently disabled App Check in the code, ensure it's also disabled or correctly configured in your Firebase project settings for Authentication.";
+            } else {
+                errorMessage = `${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
+            }
+        }
       } else {
-        errorMessage = `Signup Auth Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
+        if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
+            errorMessage = "Signup failed, possibly due to Firebase App Check. Please verify App Check settings in your Firebase console for the Authentication service.";
+        } else {
+            errorMessage = authError.message || "An unexpected error occurred during signup.";
+        }
       }
-      toast({ title: "Signup Failed", description: errorMessage, variant: "destructive" });
+      toast({ title: title, description: errorMessage, variant: "destructive", duration: 7000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -179,21 +202,48 @@ function SignupPageContent() {
 
     } catch (authError: any) {
       console.error("Google Sign-Up Auth Error:", authError);
+      let title = "Google Sign-Up Failed";
       let errorMessage = "Could not sign up with Google. Please try again.";
-       if (authError.code === 'auth/popup-closed-by-user') {
-        errorMessage = "Google Sign-Up popup was closed. Please try again.";
-      } else if (authError.code === 'auth/account-exists-with-different-credential') {
-        errorMessage = "An account already exists with this email address using a different sign-in method. Please login with that method.";
-      } else if (authError.code === 'auth/network-request-failed' || authError.code === 'auth/internal-error') {
-        errorMessage = "Network error during Google Sign-Up. Please check your internet connection and try again.";
-      } else if (authError.code === 'auth/cancelled-popup-request' || authError.code === 'auth/popup-blocked') {
-        errorMessage = "Google Sign-Up popup was blocked or cancelled. Please ensure popups are allowed and try again.";
-      } else if (authError.code === 'auth/unauthorized-domain') {
-        errorMessage = "This domain is not authorized for Google Sign-Up. Please contact support or check Firebase Console settings.";
+
+      if (authError.code) {
+        switch (authError.code) {
+          case 'auth/popup-closed-by-user':
+            title = "Google Sign-Up Cancelled";
+            errorMessage = "Google Sign-Up popup was closed before completion. Please try again.";
+            break;
+          case 'auth/account-exists-with-different-credential':
+            title = "Account Exists";
+            errorMessage = "An account already exists with this email address using a different sign-in method (e.g., email/password). Please login with that method.";
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = "Network error during Google Sign-Up. Please check your internet connection. This could also be due to Firebase App Check enforcement if active in your project console for Authentication.";
+            break;
+          case 'auth/cancelled-popup-request':
+          case 'auth/popup-blocked':
+            title = "Google Sign-Up Cancelled";
+            errorMessage = "Google Sign-Up popup was blocked or cancelled. Please ensure popups are allowed and try again.";
+            break;
+          case 'auth/unauthorized-domain':
+            errorMessage = "This domain is not authorized for Google Sign-Up. Contact support or check Firebase Console settings.";
+            break;
+          case 'auth/operation-not-allowed':
+             errorMessage = "Google Sign-Up is not enabled for your Firebase project. Please check your Firebase console Authentication settings.";
+             break;
+          default:
+            if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
+                errorMessage = "Google Sign-Up failed. This might be due to Firebase App Check enforcement. If you recently disabled App Check in the code, ensure it's also disabled or correctly configured in your Firebase project settings for Authentication.";
+            } else {
+                errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
+            }
+          }
       } else {
-        errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
+        if (authError.message?.toLowerCase().includes('app-check') || authError.message?.toLowerCase().includes('app check') || authError.message?.toLowerCase().includes('appcheck')) {
+            errorMessage = "Google Sign-Up failed, possibly due to Firebase App Check. Please verify App Check settings in your Firebase console for the Authentication service.";
+        } else {
+            errorMessage = authError.message || "An unexpected error occurred during Google Sign-Up.";
+        }
       }
-      toast({ title: "Google Sign-Up Failed", description: errorMessage, variant: "destructive" });
+      toast({ title: title, description: errorMessage, variant: "destructive", duration: 7000 });
     } finally {
       setIsGoogleSubmitting(false);
     }
