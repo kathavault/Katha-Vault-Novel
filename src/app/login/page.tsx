@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { LogIn, UserPlus, Mail, KeyRound, Loader2, HelpCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useState, type FormEvent, Suspense, useEffect } from 'react';
-import { auth, db } from '@/lib/firebase'; 
+import { auth, db } from '@/lib/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, saveKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL, isUserLoggedIn } from '@/lib/mock-data';
@@ -85,7 +85,7 @@ function LoginPageContent() {
             console.log("Login: User document didn't exist in Firestore. Creating based on Auth data.");
             let profileName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.name;
             userProfileData = {
-              uid: firebaseUser.uid, email: firebaseUser.email, name: profileName, 
+              uid: firebaseUser.uid, email: firebaseUser.email, name: profileName,
               username: firebaseUser.displayName?.replace(/\s+/g, '_').toLowerCase() || firebaseUser.email?.split('@')[0] || defaultKathaExplorerUser.username,
               avatarUrl: firebaseUser.photoURL || defaultKathaExplorerUser.avatarUrl,
               avatarFallback: (profileName).substring(0, 2).toUpperCase(),
@@ -126,8 +126,6 @@ function LoginPageContent() {
         errorMessage = "This domain is not authorized for Firebase authentication. Please contact support or check Firebase Console settings.";
       } else if (authError.code === 'auth/visibility-check-was-unavailable') {
         errorMessage = "A temporary Firebase issue occurred (visibility check unavailable). Please try logging in again. If the problem persists, check your network or try an incognito window.";
-      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
-        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Login Auth Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
@@ -153,10 +151,10 @@ function LoginPageContent() {
 
       if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
         if (auth.currentUser) { await signOut(auth); }
-        setLoggedInStatus(false); 
+        setLoggedInStatus(false);
         toast({ title: "Admin Login Method", description: "Admin accounts should log in using their email and password.", variant: "destructive", duration: 7000 });
         setIsGoogleSubmitting(false);
-        return; 
+        return;
       }
       
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'google');
@@ -192,10 +190,10 @@ function LoginPageContent() {
           } else {
             userProfileData = userDocSnap.data();
             await setDoc(userDocRef, {
-                name: profileName, 
-                avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl, 
+                name: profileName,
+                avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl,
                 avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-                signInMethod: userProfileData.signInMethod || ("google" as const), 
+                signInMethod: userProfileData.signInMethod || ("google" as const),
                 lastLogin: new Date().toISOString(),
             }, { merge: true });
             console.log("Google Sign-In: Existing user profile updated in Firestore.");
@@ -219,8 +217,6 @@ function LoginPageContent() {
         errorMessage = "Google Sign-In popup was blocked or cancelled. Please ensure popups are allowed and try again.";
       } else if (authError.code === 'auth/unauthorized-domain') {
         errorMessage = "This domain is not authorized for Google Sign-In. Please contact support or check Firebase Console settings.";
-      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
-        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Google Sign-In Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
@@ -242,11 +238,11 @@ function LoginPageContent() {
     }
 
     const originalIsSubmitting = isSubmitting;
-    setIsSubmitting(true); 
+    setIsSubmitting(true);
     if (!auth) {
         toast({ title: "Firebase Auth Error", description: "Authentication service is not initialized. Please check console or contact support.", variant: "destructive" });
         console.error("Firebase Auth instance (auth) is not available in handleForgotPassword.");
-        setIsSubmitting(originalIsSubmitting); 
+        setIsSubmitting(originalIsSubmitting);
         return;
     }
     try {
@@ -269,7 +265,7 @@ function LoginPageContent() {
         }
         toast({ title: "Password Reset Failed", description: errorMessage, variant: "destructive" });
     } finally {
-        setIsSubmitting(originalIsSubmitting); 
+        setIsSubmitting(originalIsSubmitting);
     }
   };
   
@@ -294,13 +290,13 @@ function LoginPageContent() {
                 <Label htmlFor="email">Email Address</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input 
-                      id="email" 
-                      name="email" 
-                      type="email" 
-                      placeholder="you@example.com" 
-                      required 
-                      className="pl-10" 
+                  <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      required
+                      className="pl-10"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={isSubmitting || isGoogleSubmitting}
@@ -311,12 +307,12 @@ function LoginPageContent() {
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input 
-                      id="password" 
-                      name="password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      required 
+                  <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="••••••••"
+                      required
                       className="pl-10"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

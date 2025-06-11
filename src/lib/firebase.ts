@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
-import { initializeAppCheck, ReCaptchaV3Provider, type AppCheck } from 'firebase/app-check';
+// Removed App Check imports: import { initializeAppCheck, ReCaptchaV3Provider, type AppCheck } from 'firebase/app-check';
 
 // Uncomment and import if you need analytics
 // import { getAnalytics, type Analytics } from "firebase/analytics";
@@ -22,7 +22,7 @@ let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
-let appCheckInstance: AppCheck | null = null;
+// Removed App Check instance: let appCheckInstance: AppCheck | null = null;
 // let analytics: Analytics | null = null; // Optional
 
 
@@ -69,39 +69,9 @@ if (typeof window !== 'undefined') {
         console.error("%cFirebase: Storage initialization FAILED.", "color: red; font-weight: bold;", e);
       }
 
-      // --- App Check Initialization ---
-      if (typeof initializeAppCheck === 'function') {
-        try {
-          const reCaptchaKey = 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER';
-          console.log("Firebase: Preparing App Check. reCaptchaKey is placeholder:", reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER');
+      // --- App Check Initialization REMOVED ---
+      // No App Check initialization here anymore
 
-          if (reCaptchaKey === 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' || !reCaptchaKey) {
-            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a placeholder. DEBUG TOKEN IS ACTIVE. For production, replace placeholder key.", "color: orange; font-weight: bold; border: 1px solid orange; padding: 3px;");
-            console.log("Firebase: Attempting App Check initialization (DEBUG mode - no provider). App object:", app);
-            appCheckInstance = initializeAppCheck(app); // SIMPLIFIED DEBUG CALL
-            console.log("%cFirebase: App Check initialized (DEBUG mode attempt).", "color: green;");
-          } else {
-            if (typeof ReCaptchaV3Provider === 'function') {
-              console.log("%cFirebase App Check: Using configured reCAPTCHA V3 Site Key.", "color: green; font-weight: bold;");
-              console.log("Firebase: Attempting App Check initialization (PRODUCTION reCAPTCHA mode). App object:", app);
-              const provider = new ReCaptchaV3Provider(reCaptchaKey);
-              appCheckInstance = initializeAppCheck(app, { provider }); // SIMPLIFIED PRODUCTION CALL
-              console.log("%cFirebase: App Check initialized (PRODUCTION reCAPTCHA mode).", "color: green;");
-            } else {
-               console.error("%cFirebase App Check: CRITICAL - ReCaptchaV3Provider function is undefined. App Check cannot initialize with reCAPTCHA. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.2em;");
-               appCheckInstance = null;
-            }
-          }
-        } catch (e: any) {
-          console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
-          appCheckInstance = null;
-        }
-      } else {
-        console.error("%cFirebase App Check: CRITICAL - initializeAppCheck function is undefined. App Check cannot be initialized. Check Firebase SDK imports/version.", "color: red; font-weight: bold; font-size: 1.2em;");
-        appCheckInstance = null;
-      }
-      
       if (authInstance && dbInstance && storageInstance) {
           console.log("%cFirebase: SDK core services (Auth, Firestore, Storage) initialized successfully.", "color: green; font-weight: bold;");
       } else {
@@ -111,28 +81,25 @@ if (typeof window !== 'undefined') {
           if (!storageInstance) missingServices.push("Storage");
           console.warn(`%cFirebase: One or more core Firebase services FAILED to initialize: [${missingServices.join(', ')}]. App functionality related to these services will be affected.`, "color: orange; font-weight: bold;");
       }
-       if (!appCheckInstance) {
-          console.warn("%cFirebase: App Check instance is NULL after initialization attempt. If App Check is enforced, Firebase services might fail.", "color: orange; font-weight: bold;");
-      }
-
-    } else { 
+    } else {
       console.error("%cCRITICAL: Firebase app object is null, undefined, or not a valid FirebaseApp instance after initialization attempt (name or options missing/invalid). Firebase services will be unavailable. All Firebase instances set to null.", "color: red; font-weight: bold; font-size: 1.3em; border: 2px solid red; padding: 5px;");
-      app = null; 
+      app = null;
       authInstance = null;
       dbInstance = null;
       storageInstance = null;
-      appCheckInstance = null;
+      // appCheckInstance = null; // Already removed
     }
-  } catch (e: any) { 
+  } catch (e: any) {
     console.error("%cCRITICAL FIREBASE INITIALIZATION ERROR (Outer Catch):", "color: red; font-weight: bold; font-size: 1.3em;", e);
-    app = null; 
+    app = null;
     authInstance = null;
     dbInstance = null;
     storageInstance = null;
-    appCheckInstance = null;
+    // appCheckInstance = null; // Already removed
   }
 } else {
   // console.log("Firebase: SDK not initialized (server-side or window undefined).");
 }
 
-export { app, authInstance as auth, dbInstance as db, storageInstance as storage, appCheckInstance as appCheck };
+// Removed appCheckInstance from exports
+export { app, authInstance as auth, dbInstance as db, storageInstance as storage };

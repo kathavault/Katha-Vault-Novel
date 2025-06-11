@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { UserPlus, LogIn, Mail, KeyRound, User as UserIcon, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useState, type FormEvent, Suspense } from 'react';
-import { auth, db } from '@/lib/firebase'; 
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'; 
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { setLoggedInStatus, defaultKathaExplorerUser, getKathaExplorerUser, saveKathaExplorerUser, KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL } from '@/lib/mock-data';
 
@@ -32,8 +32,8 @@ function SignupPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState(""); 
-  const [username, setUsername] = useState(""); 
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
@@ -70,7 +70,7 @@ function SignupPageContent() {
           }
           
           const userProfileData = {
-            uid: firebaseUser.uid, email: firebaseUser.email, name: name, username: username, 
+            uid: firebaseUser.uid, email: firebaseUser.email, name: name, username: username,
             avatarUrl: defaultKathaExplorerUser.avatarUrl,
             avatarFallback: name.substring(0, 2).toUpperCase() || "KV",
             bio: defaultKathaExplorerUser.bio, emailVisible: defaultKathaExplorerUser.emailVisible,
@@ -79,9 +79,9 @@ function SignupPageContent() {
             lastLogin: new Date().toISOString(),
           };
           
-          saveKathaExplorerUser(userProfileData); 
+          saveKathaExplorerUser(userProfileData);
           console.log("Signup: New user profile creation process initiated for Firestore (post-navigation).");
-        } catch (error) { 
+        } catch (error) {
           console.error("Signup: Background Firestore profile creation failed:", error);
         }
       })();
@@ -99,8 +99,6 @@ function SignupPageContent() {
         errorMessage = "Network error during signup. Please check your internet connection and try again.";
       } else if (authError.code === 'auth/unauthorized-domain') {
         errorMessage = "This domain is not authorized for Firebase authentication. Please contact support or check Firebase Console settings.";
-      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
-        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Signup Auth Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
@@ -126,10 +124,10 @@ function SignupPageContent() {
 
       if (userEmail && (userEmail === KRITIKA_EMAIL.toLowerCase() || userEmail === KATHAVAULT_OWNER_EMAIL.toLowerCase())) {
         if (auth.currentUser) { await signOut(auth); }
-        setLoggedInStatus(false); 
+        setLoggedInStatus(false);
         toast({ title: "Admin Signup Method", description: "Admin accounts should be created via email/password.", variant: "destructive", duration: 7000 });
         setIsGoogleSubmitting(false);
-        return; 
+        return;
       }
       
       setLoggedInStatus(true, { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName, photoURL: firebaseUser.photoURL }, 'google');
@@ -165,10 +163,10 @@ function SignupPageContent() {
           } else {
             userProfileData = userDocSnap.data();
             await setDoc(userDocRef, {
-                name: profileName, 
+                name: profileName,
                 avatarUrl: firebaseUser.photoURL || userProfileData.avatarUrl,
                 avatarFallback: (profileName).substring(0, 2).toUpperCase(),
-                signInMethod: userProfileData.signInMethod || ("google" as const), 
+                signInMethod: userProfileData.signInMethod || ("google" as const),
                 lastLogin: new Date().toISOString(),
             }, { merge: true });
             console.log("Google Sign-Up: Existing user profile updated in Firestore.");
@@ -192,8 +190,6 @@ function SignupPageContent() {
         errorMessage = "Google Sign-Up popup was blocked or cancelled. Please ensure popups are allowed and try again.";
       } else if (authError.code === 'auth/unauthorized-domain') {
         errorMessage = "This domain is not authorized for Google Sign-Up. Please contact support or check Firebase Console settings.";
-      } else if (authError.code === 'auth/firebase-app-check-token-is-invalid') {
-        errorMessage = "App Check token is invalid. This might be a temporary issue or a configuration problem with App Check. Please try again. If it persists, ensure your app environment is correctly set up for App Check (e.g. reCAPTCHA key or debug token).";
       } else {
         errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code})`;
       }
@@ -290,4 +286,3 @@ export default function SignupPage() {
     </Suspense>
   )
 }
-
