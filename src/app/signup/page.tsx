@@ -94,8 +94,8 @@ function SignupPageContent() {
       if (authError.code) {
         switch (authError.code) {
           case 'auth/firebase-app-check-token-is-invalid':
-            title = "App Check Token Invalid - Signup Failed";
-            errorMessage = "Firebase App Check blocked this request. This can happen if: \n1. You're using a placeholder reCAPTCHA key: Replace 'YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER' in src/lib/firebase.ts with a REAL key from Google Cloud Console (reCAPTCHA Enterprise). For local dev, ensure debug token is active if using the placeholder. \n2. Your REAL reCAPTCHA key is misconfigured or restricted. \n3. App Check enforcement for Authentication is ON in Firebase Console, but the debug token/reCAPTCHA key isn't working. Ensure the key is valid and correctly configured for your domain. If not using a real key for dev, ensure `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` is set and working OR temporarily disable App Check enforcement for Authentication in Firebase Console.";
+            title = "IMPORTANT: App Check Token Invalid";
+            errorMessage = "Firebase App Check blocked this request. Your app isn't sending a valid App Check token. \n\nACTION REQUIRED: \n1. Go to Firebase Console -> App Check -> Your Web App -> Services. \n2. Set 'Enforcement' for 'Authentication' to 'Not enforced'. \n3. Save changes. (It may take a few minutes to apply). \n\n(Since client-side App Check is removed, this is the only way to resolve this if you don't want App Check).";
             break;
           case 'auth/email-already-in-use':
             errorMessage = "This email address is already in use by another account.";
@@ -107,7 +107,7 @@ function SignupPageContent() {
             errorMessage = "The email address is not valid.";
             break;
           case 'auth/network-request-failed':
-            errorMessage = "Network error. Check your internet connection. If App Check enforcement is ON in your Firebase Console for 'Authentication' and you're using a reCAPTCHA key, ensure it's valid for this domain or disable enforcement if not using App Check.";
+            errorMessage = "Network error. Check your internet connection. If you still see 'App Check token invalid' errors after checking console settings, this network error might be related to App Check enforcement being ON in your Firebase Console for 'Authentication' and your reCAPTCHA key (if previously configured) not being valid for this domain or not working.";
             break;
           case 'auth/unauthorized-domain':
             errorMessage = "This domain is not authorized for Firebase authentication. Contact support or check Firebase Console settings.";
@@ -116,12 +116,12 @@ function SignupPageContent() {
              errorMessage = "Email/password sign-up is not enabled for your Firebase project. Please check your Firebase console Authentication settings.";
              break;
           default:
-            errorMessage = `${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code}). If App Check enforcement is ON in your Firebase Console for 'Authentication', ensure your reCAPTCHA key is valid or disable enforcement.`;
+            errorMessage = `${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code}). If this error persists and mentions 'App Check' or 'token', ensure Firebase App Check enforcement for 'Authentication' is 'Not enforced' in your Firebase Console settings.`;
         }
       } else {
-        errorMessage = `${authError.message || "An unexpected error occurred during signup."} If App Check enforcement is ON in your Firebase Console for 'Authentication', ensure your reCAPTCHA key is valid or disable enforcement.`;
+        errorMessage = `${authError.message || "An unexpected error occurred during signup."} If this error persists and mentions 'App Check' or 'token', ensure Firebase App Check enforcement for 'Authentication' is 'Not enforced' in your Firebase Console settings.`;
       }
-      toast({ title: title, description: errorMessage, variant: "destructive", duration: 12000 });
+      toast({ title: title, description: errorMessage, variant: "destructive", duration: 15000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -204,8 +204,8 @@ function SignupPageContent() {
       if (authError.code) {
         switch (authError.code) {
           case 'auth/firebase-app-check-token-is-invalid':
-            title = "App Check Token Invalid - Google Sign-Up Failed";
-            errorMessage = "Firebase App Check blocked this request. Please ensure your reCAPTCHA v3 Site Key in src/lib/firebase.ts is valid and correctly configured, or use a debug token for local development. If App Check enforcement for Authentication is ON in Firebase Console, the key/token must be working correctly.";
+            title = "IMPORTANT: Google Sign-Up - App Check Token Invalid";
+            errorMessage = "Firebase App Check blocked this Google Sign-Up attempt. \n\nACTION REQUIRED: \n1. Go to Firebase Console -> App Check -> Your Web App -> Services. \n2. Set 'Enforcement' for 'Authentication' to 'Not enforced'. \n3. Save changes. (It may take a few minutes to apply). \n\n(Since client-side App Check is removed, this is the only way to resolve this if you don't want App Check).";
             break;
           case 'auth/popup-closed-by-user':
             title = "Google Sign-Up Cancelled";
@@ -216,7 +216,7 @@ function SignupPageContent() {
             errorMessage = "An account already exists with this email address using a different sign-in method (e.g., email/password). Please login with that method.";
             break;
           case 'auth/network-request-failed':
-            errorMessage = "Network error during Google Sign-Up. Check internet connection. If App Check is enforced, ensure your reCAPTCHA key/debug token is valid or disable enforcement.";
+            errorMessage = "Network error during Google Sign-Up. Check internet connection. If you still see 'App Check token invalid' errors after checking console settings, this network error might be related to App Check enforcement being ON in your Firebase Console for 'Authentication' and your reCAPTCHA key (if previously configured) not being valid for this domain or not working.";
             break;
           case 'auth/cancelled-popup-request':
           case 'auth/popup-blocked':
@@ -230,12 +230,12 @@ function SignupPageContent() {
              errorMessage = "Google Sign-Up is not enabled for your Firebase project. Please check your Firebase console Authentication settings.";
              break;
           default:
-            errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code}). If App Check enforcement is ON, ensure your reCAPTCHA key/debug token is valid or disable enforcement.`;
+            errorMessage = `Google Sign-Up Error: ${authError.message || 'An unexpected error occurred.'} (Code: ${authError.code}). If this error persists and mentions 'App Check' or 'token', ensure Firebase App Check enforcement for 'Authentication' is 'Not enforced' in your Firebase Console settings.`;
           }
       } else {
-        errorMessage = `${authError.message || "An unexpected error occurred during Google Sign-Up."} If App Check enforcement is ON, ensure your reCAPTCHA key/debug token is valid or disable enforcement.`;
+        errorMessage = `${authError.message || "An unexpected error occurred during Google Sign-Up."} If this error persists and mentions 'App Check' or 'token', ensure Firebase App Check enforcement for 'Authentication' is 'Not enforced' in your Firebase Console settings.`;
       }
-      toast({ title: title, description: errorMessage, variant: "destructive", duration: 12000 });
+      toast({ title: title, description: errorMessage, variant: "destructive", duration: 15000 });
     } finally {
       setIsGoogleSubmitting(false);
     }
