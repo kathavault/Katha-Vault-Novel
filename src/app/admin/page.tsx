@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -23,14 +23,14 @@ import {
   getSocialFeedPostsFromStorage, type FeedItemCardProps, type FeedItemComment, SOCIAL_FEED_POSTS_STORAGE_KEY, USER_POSTS_STORAGE_KEY,
   getStoredChapterComments, saveStoredChapterComments, type StoredChapterComment,
   getKathaExplorerUser,
-  isUserActive, // Renamed from isUserActive to avoid conflict
+  isUserActive, 
   KRITIKA_EMAIL, KATHAVAULT_OWNER_EMAIL, KRITIKA_USER_ID, KATHAVAULT_OWNER_USER_ID,
-  isUserLoggedIn, isUserAdmin, saveKathaExplorerUser // Import saveKathaExplorerUser
+  isUserLoggedIn, isUserAdmin, saveKathaExplorerUser
 } from '@/lib/mock-data';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter, Loader2, CheckCircle, FileText } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Eye, BookOpen, LayoutGrid, Badge, UserCog, UserX, UserCheck as UserCheckIcon, Search, MessageSquareText, BookText, Users, ListFilter, Loader2, CheckCircle, FileText, ExternalLinkIcon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
-import { auth } from '@/lib/firebase'; // Import auth
+import { auth } from '@/lib/firebase'; 
 
 interface FlatPostComment extends FeedItemComment {
   postId: string;
@@ -45,11 +45,14 @@ interface FlatChapterComment extends StoredChapterComment {
 
 const ITEMS_PER_PAGE_INITIAL = 10;
 
+type AdminSection = "novels" | "comments" | "users" | "site-content";
+
 export default function AdminPage() {
   const { toast } = useToast();
-  const router = useRouter(); 
+  const router = useRouter();
   const [adminUser, setAdminUser] = useState<MockUser | null>(null);
-  const [isLoadingPage, setIsLoadingPage] = useState(true); 
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+  const [activeAdminSection, setActiveAdminSection] = useState<AdminSection>("novels");
 
   const [novels, setNovels] = useState<Novel[]>([]);
   const [novelSearchTerm, setNovelSearchTerm] = useState("");
@@ -78,25 +81,23 @@ export default function AdminPage() {
   const [showAllChapterComments, setShowAllChapterComments] = useState(false);
 
  useEffect(() => {
-    setIsLoadingPage(true); // Start in loading state
+    setIsLoadingPage(true); 
 
     const unsubscribe = auth.onAuthStateChanged(firebaseUser => {
       if (firebaseUser) {
-        // User is signed in. Now check if admin.
         if (!isUserAdmin()) {
           toast({ title: "Access Denied", description: "You do not have permission to view this page.", variant: "destructive" });
           router.replace('/');
-          setIsLoadingPage(false); 
+          setIsLoadingPage(false);
         } else {
-          // User is admin
           const currentUserForAdminPage = getKathaExplorerUser();
           setAdminUser(currentUserForAdminPage);
 
           const loadedNovels = getNovelsFromStorage();
           setNovels(loadedNovels);
           
-          const posts = getSocialFeedPostsFromStorage(); 
-          setAllSocialPosts(posts); 
+          const posts = getSocialFeedPostsFromStorage();
+          setAllSocialPosts(posts);
           const flattenedPostCommentsData: FlatPostComment[] = [];
           posts.forEach(post => {
             function extractComments(comments: FeedItemComment[], postId: string, postContext: string, postType: 'forum' | 'social') {
@@ -111,8 +112,8 @@ export default function AdminPage() {
           });
           setFlatPostComments(flattenedPostCommentsData.sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0));
 
-          const chapterCommentsData = getStoredChapterComments(); 
-          setAllChapterComments(chapterCommentsData); 
+          const chapterCommentsData = getStoredChapterComments();
+          setAllChapterComments(chapterCommentsData);
           const flattenedChapterCommentsData: FlatChapterComment[] = [];
           const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => {
               comments.forEach(comment => {
@@ -154,21 +155,16 @@ export default function AdminPage() {
           const uniqueByIdUsers = baseUsers.filter((user, index, self) => index === self.findIndex(u => u.id === user.id));
           setUsers(uniqueByIdUsers);
 
-          setIsLoadingPage(false); 
+          setIsLoadingPage(false);
         }
       } else {
-        // No user is signed in.
         router.replace('/login?redirect=/admin');
-        // isLoadingPage will be false by default if component unmounts or handled by initial state.
-        // To be safe, explicitly set it false if redirecting.
         setIsLoadingPage(false);
       }
     });
 
-    return () => unsubscribe(); 
+    return () => unsubscribe();
   }, [router, toast]);
-
-
 
   const filteredNovels = useMemo(() => {
     let results = novels;
@@ -182,7 +178,6 @@ export default function AdminPage() {
     return results.sort((a, b) => (b.views || 0) - (a.views || 0));
   }, [novels, novelSearchTerm]);
   const displayedNovels = showAllNovels ? filteredNovels : filteredNovels.slice(0, ITEMS_PER_PAGE_INITIAL);
-
 
   const handleOpenAddForm = () => { setEditingNovel(null); setIsFormModalOpen(true); };
   const handleOpenEditForm = (novel: Novel) => { setEditingNovel(novel); setIsFormModalOpen(true); };
@@ -209,14 +204,27 @@ export default function AdminPage() {
     saveNovelsToStorage(updatedNovels);
     setIsFormModalOpen(false);
     setEditingNovel(null);
-    // Re-load chapter comments if novel list changed.
+    
     const chapterCommentsData = getStoredChapterComments();
     const currentNovels = updatedNovels;
     setAllChapterComments(chapterCommentsData);
     const flattened: FlatChapterComment[] = [];
-    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => { /* ... */ };
-    chapterCommentsData.forEach(topLevelComment => { /* ... */ }); // Simplified, original logic is complex
-    setFlatChapterComments(flattened);
+    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => { 
+        comments.forEach(comment => {
+            flattened.push({ ...comment, novelTitleAdmin: novel.title, chapterTitleAdmin: chapter.title });
+            if (comment.replies && comment.replies.length > 0) {
+                extractChapterCommentsRecursively(comment.replies, novel, chapter);
+            }
+        });
+    };
+    chapterCommentsData.forEach(topLevelComment => { 
+        const novel = currentNovels.find(n => n.id === topLevelComment.novelId);
+        const chapter = novel?.chapters.find(ch => ch.id === topLevelComment.chapterId);
+        if (novel && chapter) {
+            extractChapterCommentsRecursively([topLevelComment], novel, chapter);
+        }
+    });
+    setFlatChapterComments(flattened.sort((a,b)=> Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0));
   };
 
   const promptDeleteNovel = (novel: Novel) => { setNovelToDelete(novel); setIsDeleteDialogOpen(true); };
@@ -227,29 +235,39 @@ export default function AdminPage() {
       saveNovelsToStorage(updatedNovels);
       toast({ title: "Novel Deleted", description: `"${novelToDelete.title}" removed.`, variant: "destructive" });
       setNovelToDelete(null); setIsDeleteDialogOpen(false);
-      // Re-load chapter comments if novel list changed
+      
       const chapterCommentsData = getStoredChapterComments();
       const currentNovels = updatedNovels;
       setAllChapterComments(chapterCommentsData);
       const flattened: FlatChapterComment[] = [];
-      const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => { /* ... */ };
-      chapterCommentsData.forEach(topLevelComment => { /* ... */ }); // Simplified
-      setFlatChapterComments(flattened);
+      const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => { 
+         comments.forEach(comment => {
+            flattened.push({ ...comment, novelTitleAdmin: novel.title, chapterTitleAdmin: chapter.title });
+            if (comment.replies && comment.replies.length > 0) {
+                extractChapterCommentsRecursively(comment.replies, novel, chapter);
+            }
+        });
+      };
+      chapterCommentsData.forEach(topLevelComment => { 
+        const novel = currentNovels.find(n => n.id === topLevelComment.novelId);
+        const chapter = novel?.chapters.find(ch => ch.id === topLevelComment.chapterId);
+        if (novel && chapter) {
+             extractChapterCommentsRecursively([topLevelComment], novel, chapter);
+        }
+      });
+      setFlatChapterComments(flattened.sort((a,b)=> Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0));
     }
   };
 
   const filteredUsers = useMemo(() => {
-    let results = [...users]; 
-
-    if (adminUser && auth.currentUser && adminUser.id === auth.currentUser.uid) { // Check if current Firebase user is the admin
+    let results = [...users];
+    if (adminUser && auth.currentUser && adminUser.id === auth.currentUser.uid) {
       const isAdminKritikaImpersonator = adminUser.email === KRITIKA_EMAIL && auth.currentUser.uid !== KRITIKA_USER_ID;
       const isAdminOwnerImpersonator = adminUser.email === KATHAVAULT_OWNER_EMAIL && auth.currentUser.uid !== KATHAVAULT_OWNER_USER_ID;
-
       if (isAdminKritikaImpersonator || isAdminOwnerImpersonator) {
         results = results.filter(u => u.id !== auth.currentUser?.uid);
       }
     }
-    
     if (userSearchTerm.trim()) {
       const lowerSearchTerm = userSearchTerm.toLowerCase();
       results = results.filter(user =>
@@ -262,32 +280,27 @@ export default function AdminPage() {
   }, [users, adminUser, userSearchTerm]);
   const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, ITEMS_PER_PAGE_INITIAL);
 
-
   const handleToggleUserStatus = (userIdToToggle: string) => {
     const targetUser = users.find(u => u.id === userIdToToggle);
     if (!targetUser) return;
-
     if (targetUser.email === KRITIKA_EMAIL || targetUser.email === KATHAVAULT_OWNER_EMAIL) {
         toast({ title: "Action Denied", description: "This special admin account cannot be deactivated.", variant: "destructive"});
         return;
     }
-    if (adminUser && targetUser.id === adminUser.id) { 
+    if (adminUser && targetUser.id === adminUser.id) {
       toast({ title: "Action Denied", description: "Admin cannot change own status directly here.", variant: "destructive" }); return;
     }
-
     const updatedUsers = users.map(user =>
         user.id === userIdToToggle ? { ...user, isActive: !user.isActive } : user
     );
     setUsers(updatedUsers);
-    
     const changedUser = updatedUsers.find(u => u.id === userIdToToggle);
     if (changedUser) {
-        // Update in allMockUsers for global consistency if this page is the source of truth for it
         const mockUserToUpdateInAll = allMockUsers.find(u => u.id === userIdToToggle);
         if (mockUserToUpdateInAll) {
-            mockUserToUpdateInAll.isActive = changedUser.isActive; 
+            mockUserToUpdateInAll.isActive = changedUser.isActive;
         }
-        saveKathaExplorerUser(changedUser); // Persist the change to localStorage and Firestore
+        saveKathaExplorerUser(changedUser);
         toast({ title: "User Status Updated", description: `${changedUser.name} is now ${changedUser.isActive ? "Active" : "Deactivated"}.` });
     }
   };
@@ -306,24 +319,18 @@ export default function AdminPage() {
   }, [flatPostComments, postCommentSearchTerm]);
   const displayedPostComments = showAllPostComments ? filteredPostComments : filteredPostComments.slice(0, ITEMS_PER_PAGE_INITIAL);
 
-
   const promptDeletePostComment = (comment: FlatPostComment) => {
     setPostCommentToDelete(comment);
     setIsDeletePostCommentDialogOpen(true);
   };
-
   const confirmDeletePostComment = () => {
     if (!postCommentToDelete) return;
-
     const updatedSocialPostsData = allSocialPosts.map(post => {
       if (post.id === postCommentToDelete.postId) {
         const deleteCommentRecursively = (comments: FeedItemComment[], targetId: string): FeedItemComment[] => {
           return comments
             .filter(c => c.id !== targetId)
-            .map(c => ({
-              ...c,
-              replies: c.replies ? deleteCommentRecursively(c.replies, targetId) : [],
-            }));
+            .map(c => ({ ...c, replies: c.replies ? deleteCommentRecursively(c.replies, targetId) : [] }));
         };
         return { ...post, comments: deleteCommentRecursively(post.comments, postCommentToDelete.id) };
       }
@@ -331,41 +338,34 @@ export default function AdminPage() {
     });
     setAllSocialPosts(updatedSocialPostsData);
     if(typeof window !== 'undefined') localStorage.setItem(SOCIAL_FEED_POSTS_STORAGE_KEY, JSON.stringify(updatedSocialPostsData));
-
-    // If the post being modified belongs to the current admin, update their specific posts list too
-    if (adminUser && allSocialPosts.find(p => p.id === postCommentToDelete.postId)?.authorId === adminUser.id) { 
+    if (adminUser && allSocialPosts.find(p => p.id === postCommentToDelete.postId)?.authorId === adminUser.id) {
         const userPostsRaw = typeof window !== 'undefined' ? localStorage.getItem(USER_POSTS_STORAGE_KEY) : null;
         if (userPostsRaw) {
             let userPostsData: FeedItemCardProps[] = JSON.parse(userPostsRaw);
             userPostsData = userPostsData.map(post => {
                 if (post.id === postCommentToDelete.postId) {
-                     const deleteCommentRecursively = (comments: FeedItemComment[], targetId: string): FeedItemComment[] => {
-                        return comments
-                            .filter(c => c.id !== targetId)
-                            .map(c => ({
-                            ...c,
-                            replies: c.replies ? deleteCommentRecursively(c.replies, targetId) : [],
-                            }));
-                    };
+                     const deleteCommentRecursively = (comments: FeedItemComment[], targetId: string): FeedItemComment[] => { /* ... */ };
                     return { ...post, comments: deleteCommentRecursively(post.comments, postCommentToDelete.id) };
-                }
-                return post;
+                } return post;
             });
            if(typeof window !== 'undefined') localStorage.setItem(USER_POSTS_STORAGE_KEY, JSON.stringify(userPostsData));
         }
     }
-    
-    // Reload/re-flatten post comments for display
     const flattened: FlatPostComment[] = [];
     updatedSocialPostsData.forEach(post => {
-      function extractComments(comments: FeedItemComment[], postId: string, postContext: string, postType: 'forum' | 'social') { /* ... */ }
+      function extractComments(comments: FeedItemComment[], postId: string, postContext: string, postType: 'forum' | 'social') {
+          comments.forEach(comment => {
+            flattened.push({ ...comment, postId, postTitleOrContent: postContext, originalPostType: postType });
+            if (comment.replies && comment.replies.length > 0) {
+              extractComments(comment.replies, postId, postContext, postType);
+            }
+          });
+      }
       extractComments(post.comments, post.id, post.title || post.mainText.substring(0,50) + "...", post.postType);
     });
     setFlatPostComments(flattened.sort((a,b)=> Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0));
-
     toast({ title: "Post Comment Deleted", description: `Comment by ${postCommentToDelete.authorName} removed.`, variant: "destructive" });
-    setPostCommentToDelete(null);
-    setIsDeletePostCommentDialogOpen(false);
+    setPostCommentToDelete(null); setIsDeletePostCommentDialogOpen(false);
   };
 
   const filteredChapterComments = useMemo(() => {
@@ -383,51 +383,61 @@ export default function AdminPage() {
   }, [flatChapterComments, chapterCommentSearchTerm]);
   const displayedChapterComments = showAllChapterComments ? filteredChapterComments : filteredChapterComments.slice(0, ITEMS_PER_PAGE_INITIAL);
 
-
   const promptDeleteChapterComment = (comment: FlatChapterComment) => {
     setChapterCommentToDelete(comment);
     setIsDeleteChapterCommentDialogOpen(true);
   };
-
   const confirmDeleteChapterComment = () => {
     if (!chapterCommentToDelete) return;
-
     function filterRecursively(comments: StoredChapterComment[], targetId: string): StoredChapterComment[] {
-      return comments
-        .filter(comment => comment.id !== targetId)
-        .map(comment => ({
-          ...comment,
-          replies: comment.replies ? filterRecursively(comment.replies, targetId) : [],
-        }));
+      return comments.filter(comment => comment.id !== targetId).map(comment => ({ ...comment, replies: comment.replies ? filterRecursively(comment.replies, targetId) : [] }));
     }
-
     const currentAllChapterCommentsData = getStoredChapterComments();
     const updatedStoredChapterComments = filterRecursively(currentAllChapterCommentsData, chapterCommentToDelete.id);
-
     saveStoredChapterComments(updatedStoredChapterComments);
-    
-    // Reload/re-flatten chapter comments for display
     setAllChapterComments(updatedStoredChapterComments);
     const flattened: FlatChapterComment[] = [];
-    const currentNovels = novels; // Use current novels state
-    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => { /* ... */ };
-    updatedStoredChapterComments.forEach(topLevelComment => { /* ... */ }); // Simplified
+    const currentNovels = novels;
+    const extractChapterCommentsRecursively = (comments: StoredChapterComment[], novel: globalThis.Novel, chapter: globalThis.Chapter) => {
+        comments.forEach(comment => {
+            flattened.push({ ...comment, novelTitleAdmin: novel.title, chapterTitleAdmin: chapter.title });
+            if (comment.replies && comment.replies.length > 0) {
+                extractChapterCommentsRecursively(comment.replies, novel, chapter);
+            }
+        });
+    };
+    updatedStoredChapterComments.forEach(topLevelComment => {
+         const novel = currentNovels.find(n => n.id === topLevelComment.novelId);
+         const chapter = novel?.chapters.find(ch => ch.id === topLevelComment.chapterId);
+         if(novel && chapter) extractChapterCommentsRecursively([topLevelComment], novel, chapter);
+    });
     setFlatChapterComments(flattened.sort((a,b)=> Date.parse(b.timestamp) - Date.parse(a.timestamp) || 0));
-
     toast({ title: "Chapter Comment Deleted", description: `Comment by ${chapterCommentToDelete.authorName} removed.`, variant: "destructive" });
-    setChapterCommentToDelete(null);
-    setIsDeleteChapterCommentDialogOpen(false);
+    setChapterCommentToDelete(null); setIsDeleteChapterCommentDialogOpen(false);
   };
-
 
   if (isLoadingPage) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary"/> Verifying access...</div>;
   }
-
-  if (!adminUser) { 
+  if (!adminUser) {
     return <div className="flex justify-center items-center h-screen">Error: Admin user data not available or not authorized. Redirecting...</div>;
   }
 
+  const AdminNavButton = ({ section, icon, title, description }: { section: AdminSection; icon: React.ReactNode; title: string; description: string; }) => (
+    <Button
+      onClick={() => setActiveAdminSection(section)}
+      variant={activeAdminSection === section ? "default" : "outline"}
+      className="w-full h-auto justify-start text-left p-4 sm:p-5 shadow-md hover:shadow-lg transition-shadow"
+    >
+      <div className="flex items-center">
+        <div className="mr-3 sm:mr-4 text-primary">{icon}</div>
+        <div>
+          <p className="font-semibold text-base sm:text-lg">{title}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </Button>
+  );
 
   return (
     <div className="space-y-8">
@@ -435,25 +445,28 @@ export default function AdminPage() {
         <ShieldCheck className="mx-auto h-16 w-16 text-primary" />
         <h1 className="text-5xl font-headline tracking-tight text-primary">Admin Panel</h1>
         <p className="text-xl text-foreground font-body font-semibold">
-          Manage site content and users. Welcome, {adminUser ? adminUser.name : 'Admin'}!
+          Welcome, {adminUser.name}!
         </p>
       </header>
 
-      <Tabs defaultValue="novels" className="w-full">
-        <TabsList className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-1 sm:gap-2 w-full">
-          <TabsTrigger value="novels" className="w-full sm:w-auto sm:flex-grow"><BookText className="mr-2 h-5 w-5" />Manage Novels</TabsTrigger>
-          <TabsTrigger value="comments" className="w-full sm:w-auto sm:flex-grow"><MessageSquareText className="mr-2 h-5 w-5" />Manage Comments</TabsTrigger>
-          <TabsTrigger value="users" className="w-full sm:w-auto sm:flex-grow"><Users className="mr-2 h-5 w-5" />Manage Users</TabsTrigger>
-          <TabsTrigger value="site-content" className="w-full sm:w-auto sm:flex-grow"><FileText className="mr-2 h-5 w-5" />Site Content</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
+        <div className="space-y-4 md:space-y-6">
+          <AdminNavButton section="novels" icon={<BookText className="h-7 w-7 sm:h-8 sm:w-8" />} title="Manage Novels" description="Add, edit, or delete novels." />
+          <AdminNavButton section="comments" icon={<MessageSquareText className="h-7 w-7 sm:h-8 sm:w-8" />} title="Manage Comments" description="Moderate post & chapter comments." />
+        </div>
+        <div className="space-y-4 md:space-y-6">
+          <AdminNavButton section="users" icon={<Users className="h-7 w-7 sm:h-8 sm:w-8" />} title="Manage Users" description="Activate or deactivate user accounts." />
+          <AdminNavButton section="site-content" icon={<FileText className="h-7 w-7 sm:h-8 sm:w-8" />} title="Site Content" description="Edit 'About Us' & Home layout." />
+        </div>
+      </div>
 
-        <TabsContent value="novels" className="mt-6">
-          <Card>
+      {activeAdminSection === "novels" && (
+        <Card>
             <CardHeader>
               <CardTitle className="font-headline text-2xl text-primary flex items-center">
                 <BookOpen className="mr-3 h-6 w-6" /> Novels Overview
               </CardTitle>
-              <CardDescription>View, add, edit, or delete novels. Configure Home Page layout.</CardDescription>
+              <CardDescription>View, add, edit, or delete novels.</CardDescription>
               <div className="pt-2 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -496,15 +509,14 @@ export default function AdminPage() {
                 </div>
               )}
             </CardContent>
-            <CardFooter className="border-t pt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <CardFooter className="border-t pt-4 flex flex-col sm:flex-row items-center justify-start gap-2">
               <Button onClick={handleOpenAddForm} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-5 w-5" /> Add New Novel</Button>
-              <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/admin/home-layout"><LayoutGrid className="mr-2 h-5 w-5" /> Configure Home</Link></Button>
             </CardFooter>
-          </Card>
-        </TabsContent>
+        </Card>
+      )}
 
-        <TabsContent value="comments" className="mt-6">
-           <Card>
+      {activeAdminSection === "comments" && (
+         <Card>
             <CardHeader>
                 <CardTitle className="font-headline text-2xl text-primary flex items-center"><MessageSquareText className="mr-3 h-6 w-6" /> Comments Moderation</CardTitle>
                 <CardDescription>Review and moderate comments from posts and chapters.</CardDescription>
@@ -512,7 +524,6 @@ export default function AdminPage() {
             <CardContent>
                 <Tabs defaultValue="post-comments" className="w-full">
                     <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="post-comments">Post Comments</TabsTrigger><TabsTrigger value="chapter-comments">Chapter Comments</TabsTrigger></TabsList>
-
                     <TabsContent value="post-comments" className="pt-4">
                         <div className="relative mb-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -541,7 +552,6 @@ export default function AdminPage() {
                             </div>
                         )}
                     </TabsContent>
-
                     <TabsContent value="chapter-comments" className="pt-4">
                         <div className="relative mb-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -573,10 +583,10 @@ export default function AdminPage() {
                 </Tabs>
             </CardContent>
            </Card>
-        </TabsContent>
+      )}
 
-        <TabsContent value="users" className="mt-6">
-          <Card>
+      {activeAdminSection === "users" && (
+         <Card>
             <CardHeader>
                 <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserCog className="mr-3 h-6 w-6" /> User Management</CardTitle>
                 <CardDescription>Activate or deactivate user accounts. Special admin accounts cannot be deactivated.</CardDescription>
@@ -630,26 +640,38 @@ export default function AdminPage() {
                 )}
             </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="site-content" className="mt-6">
-          <Card>
+      )}
+
+      {activeAdminSection === "site-content" && (
+         <Card>
             <CardHeader>
               <CardTitle className="font-headline text-2xl text-primary flex items-center"><FileText className="mr-3 h-6 w-6" /> Site Content Management</CardTitle>
               <CardDescription>Manage various content sections of your website.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-               <Button asChild variant="outline" className="w-full sm:w-auto justify-start text-left">
+               <Button asChild variant="outline" className="w-full sm:w-auto justify-start text-left p-4 shadow hover:shadow-md">
                 <Link href="/admin/about-editor" className="flex items-center w-full">
-                  <FileText className="mr-2 h-5 w-5 text-primary" />
-                  Edit "About Us" Page Content
+                  <Edit className="mr-3 h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-semibold">Edit "About Us" Page</p>
+                    <p className="text-xs text-muted-foreground">Modify the content of the public About Us page.</p>
+                  </div>
+                  <ExternalLinkIcon className="ml-auto h-4 w-4 text-muted-foreground" />
                 </Link>
               </Button>
-              {/* Add more links to other content editors here if needed */}
+               <Button asChild variant="outline" className="w-full sm:w-auto justify-start text-left p-4 shadow hover:shadow-md">
+                <Link href="/admin/home-layout" className="flex items-center w-full">
+                  <LayoutGrid className="mr-3 h-5 w-5 text-primary" />
+                   <div>
+                    <p className="font-semibold">Configure Home Page</p>
+                    <p className="text-xs text-muted-foreground">Customize sections displayed on the home page.</p>
+                  </div>
+                  <ExternalLinkIcon className="ml-auto h-4 w-4 text-muted-foreground" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
-
+      )}
 
       {/* Novel Form Modal */}
       <Dialog open={isFormModalOpen} onOpenChange={(isOpen) => { setIsFormModalOpen(isOpen); if (!isOpen) setEditingNovel(null); }}>
@@ -667,3 +689,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
