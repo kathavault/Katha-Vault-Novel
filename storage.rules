@@ -4,42 +4,38 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Profile Pictures
-    // Path example: users/user_abc_123/avatars/profile.jpg
-    match /users/{userId}/avatars/{imageFilename} {
-      // Allow anyone to read profile pictures (for display on profiles)
-      allow read: if true;
+    // Rules for Novel Cover Images
+    // Assumes covers are stored under a path like: users/{adminUserId}/novel_covers/{novelId}/{fileName}
+    // Or, if you want a more general path for all novel covers not tied to a specific admin's UID for upload:
+    // match /novel_covers/{novelId}/{fileName} {
+    //   allow read;
+    //   allow write: if request.auth != null && 
+    //                 request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+    //                 request.resource.contentType.matches('image/.*'); // Allow any image type
+    //   // Add specific admin check here if needed, e.g., using custom claims or a Firestore document
+    // }
 
-      // Allow authenticated users to write (upload, update, delete)
-      // THEIR OWN profile picture.
-      allow write: if request.auth != null && request.auth.uid == userId
-                      && request.resource.size < 2 * 1024 * 1024 // Max 2MB for profile pictures
-                      && request.resource.contentType.matches('image/.*'); // Only allow image types
+    // Rules for User Profile Pictures
+    // Path: users/{userId}/avatars/{fileName}
+    match /users/{userId}/avatars/{fileName} {
+      allow read; // Allow anyone to read profile pictures
+      allow write: if request.auth != null && request.auth.uid == userId &&
+                    request.resource.size < 2 * 1024 * 1024 && // Max 2MB
+                    request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
-    // Novel Covers
-    // Path example: users/admin_user_xyz/novel_covers/novel_123/cover.jpg
-    // Here, uploaderUserId would be the admin's UID if an admin uploads the cover.
-    match /users/{uploaderUserId}/novel_covers/{novelId}/{imageFilename} {
-      // Allow anyone to read novel covers (for display in library, story pages)
-      allow read: if true;
-
-      // Allow authenticated users (e.g., an admin) to write novel covers
-      // under their own uploaderUserId path.
-      allow write: if request.auth != null && request.auth.uid == uploaderUserId
-                      && request.resource.size < 5 * 1024 * 1024 // Max 5MB for novel covers
-                      && request.resource.contentType.matches('image/.*'); // Only allow image types
+    // Rules for Novel Cover Images uploaded by specific users (matching current NovelForm logic)
+    // Path: users/{userId}/novel_covers/{novelIdOrTimestamp}/{fileName}
+    match /users/{userId}/novel_covers/{subPath}/{fileName} {
+      allow read; // Allow anyone to read novel covers
+      allow write: if request.auth != null && request.auth.uid == userId &&
+                    request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                    request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
-    // --- Notes ---
-    // 1. Default Deny: If no rule above matches a path, access is denied by default.
-    //    This is generally a good security practice.
-    // 2. File Validation: The rules above include basic checks for file size and image content type.
-    //    You can adjust the `request.resource.size` (in bytes) as needed.
-    // 3. Admin Roles: These rules assume an "admin" is just a regular authenticated user who
-    //    has application-level privileges to upload covers. If you implement more formal
-    //    admin roles using Firebase Custom Claims, the `allow write` conditions for novel covers
-    //    could be made more specific (e.g., `request.auth.token.admin == true`).
-    // 4. Testing: Always test your rules thoroughly using the Firebase Console's Storage Rules Playground.
+    // Fallback: Disallow all other reads/writes by default for security
+    // match /{allPaths=**} {
+    //   allow read, write: if false;
+    // }
   }
 }
