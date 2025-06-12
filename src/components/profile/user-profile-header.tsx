@@ -165,8 +165,8 @@ export function UserProfileHeader({
 
   return (
     <div className="p-4 md:p-6 rounded-lg bg-card shadow-md">
-      <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
-        <div className="flex flex-col items-center md:items-start gap-3 flex-shrink-0">
+      <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
+        <div className="flex flex-col items-start gap-3 flex-shrink-0"> {/* Changed items-center to items-start */}
           <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary">
             <AvatarImage src={currentAvatarUrlForDisplay} alt={currentName} data-ai-hint="person portrait" />
             <AvatarFallback>{currentName.substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -322,5 +322,3 @@ export function UserProfileHeader({
     </div>
   );
 }
-
-    

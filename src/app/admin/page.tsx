@@ -440,11 +440,11 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="novels" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4">
-          <TabsTrigger value="novels"><BookText className="mr-2 h-5 w-5" />Manage Novels</TabsTrigger>
-          <TabsTrigger value="comments"><MessageSquareText className="mr-2 h-5 w-5" />Manage Comments</TabsTrigger>
-          <TabsTrigger value="users"><Users className="mr-2 h-5 w-5" />Manage Users</TabsTrigger>
-          <TabsTrigger value="site-content"><FileText className="mr-2 h-5 w-5" />Site Content</TabsTrigger>
+        <TabsList className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-1 sm:gap-2 w-full">
+          <TabsTrigger value="novels" className="w-full sm:w-auto sm:flex-grow"><BookText className="mr-2 h-5 w-5" />Manage Novels</TabsTrigger>
+          <TabsTrigger value="comments" className="w-full sm:w-auto sm:flex-grow"><MessageSquareText className="mr-2 h-5 w-5" />Manage Comments</TabsTrigger>
+          <TabsTrigger value="users" className="w-full sm:w-auto sm:flex-grow"><Users className="mr-2 h-5 w-5" />Manage Users</TabsTrigger>
+          <TabsTrigger value="site-content" className="w-full sm:w-auto sm:flex-grow"><FileText className="mr-2 h-5 w-5" />Site Content</TabsTrigger>
         </TabsList>
 
         <TabsContent value="novels" className="mt-6">
@@ -667,5 +667,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
