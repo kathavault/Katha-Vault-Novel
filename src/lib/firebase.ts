@@ -3,10 +3,8 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
-import { initializeAppCheck, ReCaptchaV3Provider, type AppCheck } from 'firebase/app-check';
-
-// Uncomment and import if you need analytics
-// import { getAnalytics, type Analytics } from "firebase/analytics";
+// Only import initializeAppCheck and AppCheck type if reCaptchaKey is placeholder
+import { initializeAppCheck, type AppCheck } from 'firebase/app-check';
 
 const firebaseConfig = {
   apiKey: "AIzaSyASOaXSytY4Uq4oa1C_4mzzAYZOXEWnqQ4",
@@ -22,7 +20,6 @@ let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
 let appCheckInstance: AppCheck | null = null;
-// let analytics: Analytics | null = null; // Optional
 
 if (typeof window !== 'undefined') {
   console.log("%cFirebase: Attempting initialization on client...", "color: blue; font-weight: bold;");
@@ -48,43 +45,27 @@ if (typeof window !== 'undefined') {
     if (app && typeof app.name !== 'undefined' && app.options && app.options.projectId === firebaseConfig.projectId) {
       console.log(`%cFirebase: App successfully initialized or retrieved. App name: ${app.name}, Project ID: ${app.options.projectId}`, "color: green; font-weight: bold;");
 
-      // Initialize App Check FIRST
-      const reCaptchaKey = "YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER";
+      // Initialize App Check - MUST be before other services
+      // Simplified to only handle debug token flow as reCaptchaKey is a placeholder
       if (typeof initializeAppCheck === 'function') {
         try {
-          if (reCaptchaKey === "YOUR_RECAPTCHA_V3_SITE_KEY_PLACEHOLDER" || !reCaptchaKey) {
-            console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a PLACEHOLDER. Attempting to use DEBUG TOKEN. Ensure `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` is set (done automatically here if not production) OR use a REAL reCAPTCHA key for production/enforcement.", "color: orange; font-weight: bold;");
-            if (process.env.NODE_ENV !== 'production') {
-              (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-            }
-            appCheckInstance = initializeAppCheck(app); // SDK uses debug provider if flag is set and no provider is given
-            console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: orange; font-weight: bold;");
-          } else {
-            if (typeof ReCaptchaV3Provider === 'function') {
-              console.log("%cFirebase App Check: Initializing with provided reCAPTCHA v3 Site Key.", "color: green; font-weight: bold;");
-              const provider = new ReCaptchaV3Provider(reCaptchaKey);
-              if (provider) { // Explicitly check if provider instance is valid
-                appCheckInstance = initializeAppCheck(app, { provider }); // Simplified options
-                console.log("%cFirebase: App Check initialized with reCAPTCHA v3 provider.", "color: green; font-weight: bold;");
-              } else {
-                console.error("%cFirebase: App Check - ReCaptchaV3Provider instantiation FAILED. Provider is null or undefined. App Check will not be initialized with reCAPTCHA.", "color: red; font-weight: bold;");
-                appCheckInstance = null;
-              }
-            } else {
-              console.error("%cFirebase: App Check - ReCaptchaV3Provider function is not available. App Check cannot be initialized with reCAPTCHA.", "color: red; font-weight: bold;");
-              appCheckInstance = null;
-            }
+          console.warn("%cFirebase App Check: NOTICE - reCAPTCHA v3 Site Key is a PLACEHOLDER. Attempting to use DEBUG TOKEN. Ensure `(window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;` is set (done automatically here if not production) OR use a REAL reCAPTCHA key for production/enforcement.", "color: orange; font-weight: bold;");
+          if (process.env.NODE_ENV !== 'production') {
+            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+            console.log("%cFirebase: FIREBASE_APPCHECK_DEBUG_TOKEN set to true for non-production environment.", "color: orange;");
           }
+          appCheckInstance = initializeAppCheck(app); // Initialize with app instance only for debug token
+          console.log("%cFirebase: App Check initialized (attempting DEBUG mode).", "color: orange; font-weight: bold;");
         } catch (e: any) {
           console.error("%cFirebase: App Check initialization FAILED.", "color: red; font-weight: bold;", e);
           appCheckInstance = null;
         }
       } else {
-        console.error("%cFirebase: App Check SDK function (initializeAppCheck) is not available. App Check will not be initialized. Check Firebase SDK installation.", "color: red; font-weight: bold;");
+        console.error("%cFirebase: initializeAppCheck function is NOT available. App Check will not be initialized. Check Firebase SDK installation.", "color: red; font-weight: bold;");
         appCheckInstance = null;
       }
 
-      // Initialize other services AFTER App Check
+      // Initialize other services AFTER App Check attempt
       try {
         authInstance = getAuth(app);
         console.log("%cFirebase: Auth initialized.", "color: green;");
@@ -109,11 +90,10 @@ if (typeof window !== 'undefined') {
       if (authInstance) serviceCheckMessage += "Auth (OK), "; else { serviceCheckMessage += "Auth (FAIL), "; allGood = false; }
       if (dbInstance) serviceCheckMessage += "Firestore (OK), "; else { serviceCheckMessage += "Firestore (FAIL), "; allGood = false; }
       if (storageInstance) serviceCheckMessage += "Storage (OK), "; else { serviceCheckMessage += "Storage (FAIL), "; allGood = false; }
-      if (appCheckInstance) serviceCheckMessage += "AppCheck (OK)."; else { serviceCheckMessage += "AppCheck (FAIL)."; allGood = false; }
+      if (appCheckInstance) serviceCheckMessage += "AppCheck (OK)."; else { serviceCheckMessage += "AppCheck (FAIL)."; /* Not critical if App Check fails */ }
       console.log(serviceCheckMessage, `color: ${allGood ? 'green' : 'orange'}; font-weight: bold;`);
-
       if (!allGood) {
-        console.warn("%cFirebase: One or more core Firebase services FAILED to initialize. App functionality related to these services will be affected.", "color: orange; font-weight: bold;");
+        console.warn("%cFirebase: One or more core Firebase services (Auth, Firestore, Storage) FAILED to initialize. App functionality related to these services will be affected.", "color: orange; font-weight: bold;");
       }
 
     } else {
